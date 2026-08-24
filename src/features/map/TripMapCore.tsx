@@ -1,0 +1,251 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
+import PinMarker from "./PinMarker";
+import RouteLine from "./RouteLine";
+import { getCategoryColor, getCategoryLabel } from "./categories";
+import { sortPointsByOrder } from "./sort";
+import { poiCategoryGuess, TRIPOI_LAYER_IDS } from "./poiLayers";
+import type { MapCameraRef, MapClickEvent, MapKit } from "./mapKit";
+
+export interface TripMapCoreProps {
+  points: MapPoint[];
+  /** 경로선 그리기용 이동 구간 */
+  legs?: RouteLeg[];
+  /** 포인트에 연결된 지출 (팝업 정보 카드에 합계 표시용) */
+  expenses?: Expense[];
+  selectedPointId?: string | null;
+  /** 변경되면 해당 핀으로 flyTo */
+  focusPointId?: string | null;
+  /** 지도 빈 곳 클릭 시 latlng 콜백. editable일 때 POI 라벨을 누르면 두 번째 인자로 장소 정보가 전달된다 */
+  onMapClick?: (
+    latlng: { lat: number; lng: number },
+    poi?: { name: string; category: MapPoint["category"] }
+  ) => void;
+  onPointClick?: (id: string) => void;
+  /** true면 지도 클릭으로 포인트 추가 플로우 시작 */
+  editable?: boolean;
+  /** 엔진별 지도 컴포넌트 세트 */
+  kit: MapKit;
+  /** <Map>에 전달할 스타일 (URL 또는 스타일 객체) */
+  mapStyle: string | Record<string, unknown>;
+  /** 포인트가 없을 때 사용할 기본 중심 좌표 (여행 국가) */
+  defaultCenter?: { lat: number; lng: number; zoom?: number } | null;
+  /** mapbox 클라우드 모드에서만 사용하는 액세스 토큰 */
+  accessToken?: string;
+}
+
+const DEFAULT_VIEW = { latitude: 20, longitude: 0, zoom: 2 };
+
+export default function TripMapCore({
+  points,
+  legs = [],
+  expenses = [],
+  selectedPointId = null,
+  focusPointId = null,
+  onMapClick,
+  onPointClick,
+  editable = false,
+  kit,
+  mapStyle,
+  accessToken,
+  defaultCenter = null,
+}: TripMapCoreProps) {
+  const { Map, Marker, Popup, NavigationControl } = kit;
+  const mapRef = useRef<MapCameraRef>(null);
+  const [popupId, setPopupId] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapError, setMapError] = useState<string | null>(null);
+
+  const sortedPoints = useMemo(() => sortPointsByOrder(points), [points]);
+  const popupPoint = useMemo(() => points.find((p) => p.id === popupId) ?? null, [points, popupId]);
+  const popupExpenseTotal = useMemo(
+    () =>
+      popupPoint
+        ? expenses
+            .filter((e) => e.point_id === popupPoint.id)
+            .reduce((sum, e) => sum + e.amount_krw, 0)
+        : 0,
+    [expenses, popupPoint]
+  );
+
+  useEffect(() => {
+    if (!focusPointId || !mapRef.current) return;
+    const target = points.find((p) => p.id === focusPointId);
+    if (!target) return;
+    mapRef.current.flyTo({ center: [target.lng, target.lat], zoom: Math.max(mapRef.current.getZoom(), 14), duration: 900 });
+  }, [focusPointId, points]);
+
+  // 개발 환경 CDP 검증용
+  useEffect(() => {
+    if (process.env.NODE_ENV === "development") {
+      (window as unknown as { __tripMap?: MapCameraRef | null }).__tripMap = mapRef.current;
+    }
+  }, [mapReady]);
+
+  const handleMapClick = useCallback(
+    (e: MapClickEvent) => {
+      const latlng = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      setPopupId(null);
+      if (!editable) {
+        onMapClick?.(latlng);
+        return;
+      }
+
+      // POI 라벨(식당·명소)을 클릭했다면 그 장소 정보를 미리 채워 핀 추가 시작
+      const poi = mapRef.current
+        ?.queryRenderedFeatures?.(
+          e.point ? [e.point.x, e.point.y] : [0, 0],
+          { layers: TRIPOI_LAYER_IDS }
+        )
+        ?.find((f) => typeof f.properties?.name === "string" && (f.properties!.name as string).length > 0);
+      if (poi) {
+        const [lng, lat] = poi.geometry?.coordinates ?? [latlng.lng, latlng.lat];
+        onMapClick?.({ lat, lng }, { name: poi.properties!.name as string, category: poiCategoryGuess(poi.properties!.class) });
+        return;
+      }
+
+      onMapClick?.(latlng);
+    },
+    [editable, onMapClick]
+  );
+
+  return (
+    <div className="relative h-[380px] w-full overflow-hidden rounded-2xl shadow-card sm:h-[440px] lg:h-[520px]">
+      <Map
+        ref={mapRef}
+        mapStyle={mapStyle}
+        mapboxAccessToken={accessToken}
+        initialViewState={{
+          ...DEFAULT_VIEW,
+          ...(sortedPoints.length > 0
+            ? { latitude: sortedPoints[0].lat, longitude: sortedPoints[0].lng }
+            : defaultCenter
+              ? { latitude: defaultCenter.lat, longitude: defaultCenter.lng, zoom: defaultCenter.zoom ?? DEFAULT_VIEW.zoom }
+              : {}),
+        }}
+        style={{ width: "100%", height: "100%" }}
+        cursor={editable ? "crosshair" : "grab"}
+        onClick={handleMapClick}
+        onLoad={() => setMapReady(true)}
+        onError={(e: { error?: { message?: string } }) =>
+          setMapError(e?.error?.message ?? "지도를 불러오지 못했어요")
+        }
+      >
+        <NavigationControl position="top-right" showCompass={false} />
+
+        <RouteLine points={sortedPoints} kit={kit} />
+
+        {sortedPoints.map((point, i) => (
+          <Marker key={point.id} latitude={point.lat} longitude={point.lng} anchor="bottom" offset={[0, 6]}>
+            <div className="flex cursor-pointer flex-col items-center gap-1">
+              <PinMarker
+                category={point.category}
+                label={point.visit_order ?? i + 1}
+                selected={point.id === selectedPointId}
+                onClick={() => {
+                  setPopupId(point.id);
+                  onPointClick?.(point.id);
+                }}
+              />
+              {/* 항상 보이는 이름 라벨 — 클릭하면 상세 정보 팝업 */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPopupId(point.id);
+                  onPointClick?.(point.id);
+                }}
+                className={`max-w-28 truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm transition-colors ${
+                  point.id === selectedPointId
+                    ? "border-primary bg-primary text-white"
+                    : "border-border-subtle bg-white/95 text-foreground/80 hover:border-primary hover:text-primary-strong"
+                }`}
+              >
+                {point.name}
+              </button>
+            </div>
+          </Marker>
+        ))}
+
+        {popupPoint && (
+          <Popup
+            latitude={popupPoint.lat}
+            longitude={popupPoint.lng}
+            anchor="bottom"
+            offset={[0, -38]}
+            closeButton={false}
+            closeOnClick={false}
+            maxWidth="240px"
+          >
+            <div className="w-60 p-1" role="button" tabIndex={0} onClick={() => setPopupId(null)}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    style={{ backgroundColor: getCategoryColor(popupPoint.category) }}
+                  >
+                    {popupPoint.visit_order ?? "-"}
+                  </span>
+                  <p className="text-sm font-bold leading-snug">{popupPoint.name}</p>
+                </div>
+                <span
+                  className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                  style={{ borderColor: getCategoryColor(popupPoint.category), color: getCategoryColor(popupPoint.category) }}
+                >
+                  {getCategoryLabel(popupPoint.category)}
+                </span>
+              </div>
+              {popupPoint.memo && (
+                <p className="mt-1.5 text-xs leading-relaxed text-foreground/55">{popupPoint.memo}</p>
+              )}
+              <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-foreground/70">
+                {popupPoint.day_number != null && (
+                  <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-primary-strong">Day {popupPoint.day_number}</span>
+                )}
+                {popupExpenseTotal > 0 && (
+                  <span>지출 {popupExpenseTotal.toLocaleString()}원</span>
+                )}
+              </div>
+              <div className="mt-2 flex items-center gap-3 border-t pt-1.5 text-[11px] font-semibold text-primary-strong">
+                <a
+                  href={`https://map.naver.com/p/search/${encodeURIComponent(popupPoint.name)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:underline"
+                >
+                  네이버지도
+                </a>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${popupPoint.name} ${popupPoint.lat},${popupPoint.lng}`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="hover:underline"
+                >
+                  구글지도
+                </a>
+              </div>
+            </div>
+          </Popup>
+        )}
+      </Map>
+
+      {/* 지도 로딩/에러 상태 오버레이 */}
+      {(mapError || !mapReady) && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-muted/80 text-sm text-foreground/60">
+          {mapError ? (
+            <>
+              <span className="font-semibold text-accent">지도를 표시할 수 없어요</span>
+              <span className="max-w-xs break-words text-center text-xs">{mapError}</span>
+            </>
+          ) : (
+            <span>지도를 불러오는 중…</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

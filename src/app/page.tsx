@@ -1,69 +1,140 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Compass, MapPin, Plus, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { apiGet } from "@/lib/api";
+import type { Trip } from "@/lib/types";
+import DestinationSelector from "@/features/destination/DestinationSelector";
+import type { DestinationSelection } from "@/data/world";
+import TripCreateForm from "@/features/destination/TripCreateForm";
+import CountryBackdrop from "@/features/ui/CountryBackdrop";
+
+export default function HomePage() {
+  const router = useRouter();
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const dbConfigured = true;
+  const [loading, setLoading] = useState(dbConfigured);
+  const [creating, setCreating] = useState(false);
+  const [selection, setSelection] = useState<DestinationSelection | null>(null);
+
+  useEffect(() => {
+    if (!dbConfigured) return;
+    apiGet<Trip[]>("/api/trips")
+      .then((data) => {
+        setTrips(data ?? []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [dbConfigured]);
+
+  if (creating && selection === null) {
+    return (
+      <main className="mx-auto w-full max-w-7xl px-4 py-10 md:px-8 md:py-14">
+        <h1 className="mb-6 text-center text-3xl font-extrabold tracking-tight md:text-4xl">
+          어디로 떠나볼까요? ✈️
+        </h1>
+        <DestinationSelector
+          onComplete={(sel) => setSelection(sel)}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
       </main>
-    </div>
+    );
+  }
+
+  if (creating && selection !== null) {
+    return (
+      <main className="mx-auto w-full max-w-lg px-4 py-10 md:max-w-2xl md:px-8 md:py-14">
+        <TripCreateForm
+          selection={selection}
+          onSuccess={(trip) => {
+            router.push(`/trips/${trip.id}`);
+          }}
+          onCancel={() => {
+            setSelection(null);
+            setCreating(false);
+          }}
+        />
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto w-full max-w-5xl px-4 pb-20">
+      {/* 히어로 */}
+      <section className="fade-up relative mt-8 overflow-hidden rounded-3xl bg-gradient-to-br from-primary-soft via-surface to-accent-soft p-10 text-center shadow-sm md:mt-12 md:p-16 xl:p-20">
+        <motion.div
+          animate={{ y: [-4, 4, -4] }}
+          transition={{ repeat: Infinity, duration: 3, ease: "easeInOut" }}
+          className="absolute left-8 top-8 text-primary"
+        >
+          <Compass size={36} />
+        </motion.div>
+        <h1 className="text-4xl font-extrabold tracking-tight text-primary-strong md:text-5xl xl:text-6xl">
+          Triplan
+        </h1>
+        <p className="mx-auto mt-3 max-w-md text-sm text-foreground/60 md:max-w-xl md:text-base xl:text-lg">
+          여행지 선정부터 지도 핀, 이동경로, 가계부, 준비물까지 —
+          <br />
+          여행의 모든 계획을 한 곳에서.
+        </p>
+        <button
+          onClick={() => setCreating(true)}
+          className="mt-6 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-semibold text-white shadow-md transition hover:bg-primary-strong disabled:opacity-40 md:mt-8 md:px-8 md:py-4 md:text-base"
+        >
+          <Plus size={18} /> 새 여행 시작하기
+        </button>
+      </section>
+
+      {/* 여행 목록 */}
+      <section className="mt-10">
+        <h2 className="mb-4 flex items-center gap-2 text-lg font-bold md:text-xl">
+          <Sparkles size={18} className="text-sand" /> 내 여행
+        </h2>
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="card h-40 animate-pulse bg-surface-muted" />
+            ))}
+          </div>
+        ) : trips.length === 0 ? (
+          <div className="card p-10 text-center text-sm text-foreground/50">
+            아직 여행이 없어요. 위에서 첫 여행을 만들어보세요!
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {trips.map((trip, i) => (
+              <motion.div
+                key={trip.id}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <Link
+                  href={`/trips/${trip.id}`}
+                  className="card relative isolate block overflow-hidden p-5 transition hover:-translate-y-1 hover:border-primary md:p-6"
+                >
+                  <CountryBackdrop
+                    country={trip.country}
+                    continent={trip.continent ?? undefined}
+                  />
+                  <div className="flex items-start justify-between">
+                    <h3 className="font-bold">{trip.title}</h3>
+                    <MapPin size={16} className="shrink-0 text-accent" />
+                  </div>
+                  <p className="mt-1 text-xs text-foreground/50">
+                    {[trip.country, trip.region].filter(Boolean).join(" · ")}
+                  </p>
+                  <p className="mt-3 text-xs text-foreground/40">
+                    {trip.start_date} ~ {trip.end_date}
+                  </p>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
   );
 }

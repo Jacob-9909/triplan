@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
+/* ===== Triplan 디자인 토큰 — 밝고 산뜻한 여행 테마 ===== */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6fbff; /* 하늘빛 배경 */
+  --foreground: #1c2b3a;
+  --surface: #ffffff;
+  --surface-muted: #eef6fc;
+
+  /* Primary: 청량한 스카이블루 */
+  --color-primary: #0ea5e9;
+  --color-primary-soft: #e0f2fe;
+  --color-primary-strong: #0284c7;
+
+  /* Accent: 산호빛 석양 */
+  --color-accent: #fb7185;
+  --color-accent-soft: #ffe4e6;
+
+  /* 서브 컬러 */
+  --color-mint: #34d399;
+  --color-sand: #fcd34d;
+  --color-violet: #a78bfa;
+
+  --border: #dcebf5;
+  --shadow-card: 0 8px 24px rgba(14, 165, 233, 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-primary: var(--color-primary);
+  --color-primary-soft: var(--color-primary-soft);
+  --color-primary-strong: var(--color-primary-strong);
+  --color-accent: var(--color-accent);
+  --color-accent-soft: var(--color-accent-soft);
+  --color-mint: var(--color-mint);
+  --color-sand: var(--color-sand);
+  --color-violet: var(--color-violet);
+  --color-border-subtle: var(--border);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* 문서 스크롤바 자리를 항상 확보 → 콘텐츠 길이가 변해도 가로 정렬 고정 */
+html {
+  scrollbar-gutter: stable;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* 공통 카드 스타일 */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-card);
+}
+
+/* 부드러운 등장 모션 */
+.fade-up {
+  animation: fade-up 0.45s ease both;
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
