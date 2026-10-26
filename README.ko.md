@@ -4,7 +4,7 @@
 
 가고 싶은 곳에서 시작하는 여행 플래너입니다. 언젠가 가 보고 싶은 곳을 세계지도에 모아 두고, 마음이 정해지면 여행으로 바꿔 지도 위에서 하루씩 계획하고, 타임테이블·가계부·준비물까지 챙긴 뒤 링크 하나로 동행자와 함께 편집합니다.
 
-- 데모: https://triplan.161-33-134-252.sslip.io
+- 데모: https://triplan-beryl.vercel.app
 
 ![여행 화면: Day 탭, 번호 핀과 방향 화살표가 있는 경로 지도, 하루 타임테이블](docs/screenshot.jpg)
 
@@ -97,6 +97,8 @@ http://localhost:3000 에서 `ADMIN_PASSWORD`로 로그인합니다.
 | CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml): 모든 push와 PR에서 lint·build. `main`이면 VM에 SSH로 들어가 [`deploy/deploy.sh`](deploy/deploy.sh) 실행. 빌드 후 릴리스를 바꾸고 `/api/health`가 실패하면 되돌립니다 |
 
 GitHub secrets: `VM_HOST`, `VM_SSH_KEY` (`authorized_keys`의 `command=`로 `deploy.sh`만 실행 가능한 키), `VM_KNOWN_HOSTS`.
+
+`triplan-beryl.vercel.app`은 프록시일 뿐입니다. [`deploy/vercel/vercel.json`](deploy/vercel/vercel.json)이 모든 경로를 VM으로 넘깁니다. 다시 배포할 때는 그 폴더에서 합니다(`cd deploy/vercel && vercel link --project triplan && vercel deploy --prod`). 저장소 루트에서 `vercel deploy`를 돌리면 DB 없는 Vercel 빌드가 프록시를 덮어씁니다.
 
 ## 프로젝트 구조
 
