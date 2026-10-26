@@ -361,7 +361,12 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                   <aside className="space-y-4 lg:col-span-2">
                     {canEdit && (
                       <>
-                        <ItineraryList points={dayPoints} onReorder={handleReorder} onDelete={handlePointDelete} />
+                        <ItineraryList
+                          points={dayPoints}
+                          onReorder={handleReorder}
+                          onDelete={handlePointDelete}
+                          onOpen={(p) => setDetailId(p.id)}
+                        />
                         <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/60">
                           <MousePointerClick size={13} /> 지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.
                         </p>

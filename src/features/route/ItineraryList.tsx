@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -13,100 +14,103 @@ import {
 import {
   SortableContext,
   arrayMove,
+  rectSortingStrategy,
   sortableKeyboardCoordinates,
   useSortable,
-  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, ChevronUp, MapPin, Trash2 } from "lucide-react";
+import { ArrowRight, MapPin, Move, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
-import { PointBadge } from "@/features/map/pointStyle";
+import { categoryStyle, pointColor } from "@/features/map/pointStyle";
 
 export interface ItineraryListProps {
   /** visit_order 기준으로 정렬된 해당 Day의 포인트 목록 */
   points: MapPoint[];
-  /** 드래그앤드롭으로 순서가 확정되었을 때 호출 (새로운 id 순서 배열) */
+  /** 순서가 확정되었을 때 호출 (새로운 id 순서 배열) */
   onReorder: (newOrderedIds: string[]) => void;
   /** 포인트 삭제 */
   onDelete?: (id: string) => void;
+  /** 항목을 눌렀을 때 (장소 상세 열기) */
+  onOpen?: (point: MapPoint) => void;
   /** 삭제 중인 id 집합 (낙관적 UI 용, optional) */
   deletingIds?: ReadonlySet<string>;
 }
 
-interface SortableItemProps {
+interface ChipProps {
   point: MapPoint;
   index: number;
-  total: number;
-  onMove: (id: string, delta: -1 | 1) => void;
+  onOpen?: (point: MapPoint) => void;
   onDelete?: (id: string) => void;
   isDeleting?: boolean;
 }
 
-function SortablePointItem({ point, index, total, onMove, onDelete, isDeleting }: SortableItemProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: point.id,
-  });
-
-  const arrow =
-    "flex h-7 w-8 items-center justify-center rounded-lg text-foreground/70 transition hover:bg-primary-soft hover:text-primary-strong disabled:pointer-events-none disabled:opacity-25";
+/** 장소 하나 = 작은 칩. 끌어서 순서를 바꾸고, 누르면 상세가 열린다 */
+function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: point.id });
+  const [confirming, setConfirming] = useState(false);
+  const color = pointColor(point);
+  const Icon = categoryStyle(point.category).icon;
 
   return (
     <div
       ref={setNodeRef}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-      className={`flex items-center gap-2.5 rounded-2xl border p-2.5 transition-shadow md:p-3 ${
-        isDragging
-          ? "relative z-10 border-primary bg-primary-soft shadow-lg"
-          : "border-border-subtle bg-surface shadow-sm hover:shadow-md"
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`group relative inline-flex max-w-full items-center rounded-full border border-border-subtle bg-surface shadow-sm transition-shadow ${
+        isDragging ? "z-10 scale-105 shadow-lift" : "hover:shadow-md"
       } ${isDeleting ? "opacity-40" : ""}`}
     >
-      {/* 순서 바꾸기: 위·아래 화살표 */}
-      <div className="flex shrink-0 flex-col">
-        <button type="button" aria-label={`${point.name} 위로`} disabled={index === 0} onClick={() => onMove(point.id, -1)} className={arrow}>
-          <ChevronUp size={18} strokeWidth={2.5} />
-        </button>
-        <button
-          type="button"
-          aria-label={`${point.name} 아래로`}
-          disabled={index === total - 1}
-          onClick={() => onMove(point.id, 1)}
-          className={arrow}
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        onClick={() => onOpen?.(point)}
+        className="flex min-w-0 cursor-grab items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-2.5 outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing"
+        aria-label={`${index + 1}번 ${point.name} (끌어서 순서 변경, 눌러서 상세)`}
+      >
+        <span
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
+          style={{ backgroundColor: color }}
         >
-          <ChevronDown size={18} strokeWidth={2.5} />
-        </button>
-      </div>
-
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-white">
-        {index + 1}
-      </span>
-      <PointBadge point={point} size={34} />
-
-      {/* 이름 영역을 끌어서도 옮길 수 있다 */}
-      <div className="min-w-0 flex-1 cursor-grab touch-pan-y active:cursor-grabbing" {...attributes} {...listeners}>
-        <p className="truncate text-sm font-semibold text-foreground">{point.name}</p>
-        {point.memo && <p className="mt-0.5 truncate text-xs text-foreground/65">{point.memo}</p>}
-      </div>
-
-      {onDelete && (
-        <button
-          type="button"
-          aria-label={`${point.name} 삭제`}
-          onClick={() => onDelete(point.id)}
-          className="rounded-lg p-2 text-foreground/65 transition-colors hover:bg-accent-soft hover:text-accent"
-        >
-          <Trash2 size={16} />
-        </button>
-      )}
+          {index + 1}
+        </span>
+        <Icon size={14} className="shrink-0" style={{ color }} />
+        <span className="max-w-[9.5rem] truncate text-sm font-semibold text-foreground">{point.name}</span>
+      </button>
+      {onDelete &&
+        (confirming ? (
+          <button
+            type="button"
+            onClick={() => onDelete(point.id)}
+            className="mr-1 shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-white"
+          >
+            삭제
+          </button>
+        ) : (
+          <button
+            type="button"
+            aria-label={`${point.name} 삭제`}
+            onClick={() => {
+              // 실수로 지우지 않게 한 번 더 눌러야 삭제
+              setConfirming(true);
+              setTimeout(() => setConfirming(false), 2500);
+            }}
+            className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/55 transition hover:bg-accent-soft hover:text-accent"
+          >
+            <X size={13} strokeWidth={2.5} />
+          </button>
+        ))}
     </div>
   );
 }
 
-export default function ItineraryList({ points, onReorder, onDelete, deletingIds }: ItineraryListProps) {
-  // 로컬 순서 — 드래그 중 즉시 반영, 확정 시 onReorder 호출
+export default function ItineraryList({ points, onReorder, onDelete, onOpen, deletingIds }: ItineraryListProps) {
+  // 드래그 중 미리보기 순서
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+  // 드래그를 놓을 때 따라오는 click으로 상세가 열리지 않게 잠깐 막는다
+  const lastDragEnd = useRef(0);
+  const open = (p: MapPoint) => {
+    if (Date.now() - lastDragEnd.current > 300) onOpen?.(p);
+  };
 
   const orderedPoints = useMemo(() => {
     if (!localOrder) return points;
@@ -116,8 +120,10 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
     return [...reordered, ...appended];
   }, [points, localOrder]);
 
+  // 마우스는 조금 움직이면, 터치는 꾹 눌러야 드래그가 시작된다 (탭은 상세 열기, 스크롤은 그대로)
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -132,21 +138,8 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
       if (from !== -1 && to !== -1) finalOrder = arrayMove(finalOrder, from, to);
     }
     setLocalOrder(null);
+    lastDragEnd.current = Date.now();
     if (finalOrder.join(",") !== points.map((p) => p.id).join(",")) onReorder(finalOrder);
-  }
-
-  /** 화살표로 한 칸씩 이동 */
-  function handleMove(id: string, delta: -1 | 1) {
-    const ids = points.map((p) => p.id);
-    const from = ids.indexOf(id);
-    const to = from + delta;
-    if (from === -1 || to < 0 || to >= ids.length) return;
-    onReorder(arrayMove(ids, from, to));
-  }
-
-  function handleDragStart() {
-    // 드래그 시작 시 현재 prop 순서를 로컬 상태에 두어 시각적 일관성 유지
-    setLocalOrder(points.map((p) => p.id));
   }
 
   function handleDragOverPreview(event: DragEndEvent) {
@@ -163,41 +156,49 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
 
   if (points.length === 0) {
     return (
-      <div className="card flex flex-col items-center gap-2 px-4 py-10 text-center">
+      <div className="card flex flex-col items-center gap-2 px-4 py-8 text-center">
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-soft text-primary-strong">
           <MapPin size={20} />
         </span>
-        <p className="text-sm font-medium">이 Day에 추가된 장소가 없습니다</p>
-        <p className="text-xs text-foreground/62">지도에서 장소를 추가해 일정을 만들어보세요</p>
+        <p className="text-sm font-medium">이 Day에 추가된 장소가 없어요</p>
+        <p className="text-xs text-foreground/62">지도를 누르거나 장소를 검색해 일정을 만들어 보세요</p>
       </div>
     );
   }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOverPreview}
-      onDragEnd={handleDragEnd}
-      onDragCancel={() => setLocalOrder(null)}
-    >
-      <SortableContext items={orderedPoints.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-        <ul className="flex flex-col gap-2">
-          {orderedPoints.map((point, i) => (
-            <li key={point.id}>
-              <SortablePointItem
-                point={point}
-                index={i}
-                total={orderedPoints.length}
-                onMove={handleMove}
-                onDelete={onDelete}
-                isDeleting={deletingIds?.has(point.id)}
-              />
-            </li>
-          ))}
-        </ul>
-      </SortableContext>
-    </DndContext>
+    <div className="card p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-bold">방문 순서</h3>
+        <span className="flex items-center gap-1 text-[11px] text-foreground/60">
+          <Move size={12} /> 끌어서 순서 바꾸기
+        </span>
+      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={() => setLocalOrder(points.map((p) => p.id))}
+        onDragOver={handleDragOverPreview}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setLocalOrder(null)}
+      >
+        <SortableContext items={orderedPoints.map((p) => p.id)} strategy={rectSortingStrategy}>
+          <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-2.5">
+            {orderedPoints.map((point, i) => (
+              <li key={point.id} className="flex max-w-full items-center gap-1.5">
+                {i > 0 && <ArrowRight size={16} strokeWidth={2.5} className="shrink-0 text-foreground/45" aria-hidden />}
+                <PointChip
+                  point={point}
+                  index={i}
+                  onOpen={onOpen ? open : undefined}
+                  onDelete={onDelete}
+                  isDeleting={deletingIds?.has(point.id)}
+                />
+              </li>
+            ))}
+          </ol>
+        </SortableContext>
+      </DndContext>
+    </div>
   );
 }
