@@ -33,7 +33,7 @@ Links can be regenerated at any time, which immediately disables the old one. Ev
 
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
 - Supabase Postgres via `pg` (tables in the `triplan` schema)
-- MapLibre with Carto basemaps (or Mapbox with a token), dnd-kit, date-fns
+- MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Korean labels where OSM has them; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
 
 ## Getting Started
 

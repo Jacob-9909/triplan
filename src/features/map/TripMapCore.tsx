@@ -38,6 +38,8 @@ export interface TripMapCoreProps {
   numbered?: boolean;
   /** 지도 높이 클래스 덮어쓰기 */
   heightClass?: string;
+  /** 클릭 시 장소 정보를 읽어 올 POI 레이어 (지도 스타일마다 다름) */
+  poiLayerIds?: string[];
   /** mapbox 클라우드 모드에서만 사용하는 액세스 토큰 */
   accessToken?: string;
 }
@@ -60,6 +62,7 @@ export default function TripMapCore({
   showRoute = true,
   numbered = true,
   heightClass = "h-[380px] sm:h-[440px] lg:h-[520px]",
+  poiLayerIds = TRIPOI_LAYER_IDS,
 }: TripMapCoreProps) {
   const { Map, Marker, Popup, NavigationControl } = kit;
   const mapRef = useRef<MapCameraRef>(null);
@@ -128,18 +131,21 @@ export default function TripMapCore({
       const poi = mapRef.current
         ?.queryRenderedFeatures?.(
           e.point ? [e.point.x, e.point.y] : [0, 0],
-          { layers: TRIPOI_LAYER_IDS }
+          { layers: poiLayerIds }
         )
         ?.find((f) => typeof f.properties?.name === "string" && (f.properties!.name as string).length > 0);
       if (poi) {
+        const props = poi.properties!;
         const [lng, lat] = poi.geometry?.coordinates ?? [latlng.lng, latlng.lat];
-        onMapClick?.({ lat, lng }, { name: poi.properties!.name as string, category: poiCategoryGuess(poi.properties!.class ?? poi.properties!.kind) });
+        // 지도에 보이는 것과 같은 이름(한국어가 있으면 한국어)으로 채운다
+        const name = (props["name:ko"] as string | undefined) ?? (props.name as string);
+        onMapClick?.({ lat, lng }, { name, category: poiCategoryGuess(props.class ?? props.kind) });
         return;
       }
 
       onMapClick?.(latlng);
     },
-    [editable, onMapClick]
+    [editable, onMapClick, poiLayerIds]
   );
 
   return (

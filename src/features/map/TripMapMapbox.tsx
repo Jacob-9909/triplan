@@ -15,6 +15,9 @@ const kit: MapKit = {
   Layer: adaptKitComponent(Layer),
 };
 
+/** outdoors-v12의 장소 아이콘 레이어 */
+const MAPBOX_POI_LAYER_IDS = ["poi-label"];
+
 /** 선택적 클라우드 모드 — NEXT_PUBLIC_MAPBOX_TOKEN이 있을 때만 사용 (outdoors-v12) */
 export default function TripMapMapbox({
   accessToken,
@@ -26,6 +29,7 @@ export default function TripMapMapbox({
       kit={kit}
       mapStyle="mapbox://styles/mapbox/outdoors-v12"
       accessToken={accessToken}
+      poiLayerIds={MAPBOX_POI_LAYER_IDS}
     />
   );
 }

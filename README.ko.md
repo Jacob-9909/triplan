@@ -33,7 +33,7 @@
 
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
 - Supabase Postgres (`pg`로 연결, 테이블은 `triplan` 스키마)
-- MapLibre + Carto 지도 (토큰이 있으면 Mapbox), dnd-kit, date-fns
+- MapLibre + OpenFreeMap Liberty 지도 (식당·카페·명소·역 아이콘, OSM에 한국어 이름이 있으면 한국어 표시, 실패 시 Carto, 토큰이 있으면 Mapbox), dnd-kit, date-fns
 
 ## 시작하기
 

@@ -6,10 +6,32 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import TripMapCore from "./TripMapCore";
 import type { TripMapCoreProps } from "./TripMapCore";
 import { adaptKitComponent, type MapKit } from "./mapKit";
-import { TRIPOI_LAYER_PREFIX } from "./poiLayers";
+import { TRIPOI_LAYER_IDS, TRIPOI_LAYER_PREFIX } from "./poiLayers";
 
-/** 토큰 없이 동작하는 무료 밝은 스타일 (Carto Voyager — OSM 데이터 기반) */
+/**
+ * 기본 지도: OpenFreeMap Liberty (키·사용량 제한 없음, OpenMapTiles 스키마).
+ * OSM 기본 지도처럼 식당·카페·명소·박물관·교회·역 같은 POI 아이콘이 스타일에 들어 있다.
+ */
+export const OPENFREEMAP_LIBERTY_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+/** Liberty에서 장소 아이콘을 그리는 레이어 (클릭 시 장소 이름 자동 입력에 사용) */
+const LIBERTY_POI_LAYER_IDS = ["poi_r1", "poi_r7", "poi_r20"];
+
+/** 예비 지도: Carto Voyager (POI가 적어 라벨 레이어를 보강해서 쓴다) */
 export const MAPLIBRE_VOYAGER_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
+
+/** 지명을 한국어 이름이 있으면 한국어로, 없으면 현지 이름으로 표시 */
+const KOREAN_NAME = ["coalesce", ["get", "name:ko"], ["get", "name"]];
+
+function localizeToKorean(style: Record<string, unknown>): Record<string, unknown> {
+  const layers = (style.layers as Array<Record<string, unknown>>).map((layer) => {
+    const layout = layer.layout as Record<string, unknown> | undefined;
+    const field = layout?.["text-field"];
+    // 도로 번호·번지 등 이름이 아닌 라벨은 그대로 둔다
+    if (!field || !JSON.stringify(field).includes('"name')) return layer;
+    return { ...layer, layout: { ...layout, "text-field": KOREAN_NAME } };
+  });
+  return { ...style, layers };
+}
 
 const VOYAGER_TEXT_FONT = [
   "Montserrat Medium",
@@ -78,10 +100,31 @@ function poiLabelLayer(
   };
 }
 
-let enrichedStylePromise: Promise<Record<string, unknown>> | null = null;
-function getEnrichedStyle(): Promise<Record<string, unknown>> {
-  if (!enrichedStylePromise) {
-    enrichedStylePromise = fetch(MAPLIBRE_VOYAGER_STYLE)
+interface LoadedStyle {
+  style: Record<string, unknown>;
+  poiLayerIds: string[];
+}
+
+let stylePromise: Promise<LoadedStyle> | null = null;
+function getStyle(): Promise<LoadedStyle> {
+  if (!stylePromise) {
+    stylePromise = fetch(OPENFREEMAP_LIBERTY_STYLE)
+      .then((res) => {
+        if (!res.ok) throw new Error(`openfreemap ${res.status}`);
+        return res.json();
+      })
+      .then((style: Record<string, unknown>) => ({
+        style: localizeToKorean(style),
+        poiLayerIds: LIBERTY_POI_LAYER_IDS,
+      }))
+      // OpenFreeMap이 응답하지 않으면 Carto 지도로 대체
+      .catch(() => getEnrichedVoyager().then((style) => ({ style, poiLayerIds: TRIPOI_LAYER_IDS })));
+  }
+  return stylePromise;
+}
+
+function getEnrichedVoyager(): Promise<Record<string, unknown>> {
+  return fetch(MAPLIBRE_VOYAGER_STYLE)
       .then((res) => res.json())
       .then((style: Record<string, unknown>) => {
         const schema = detectPoiSchema(style);
@@ -105,8 +148,6 @@ function getEnrichedStyle(): Promise<Record<string, unknown>> {
         ];
         return { ...style, layers: [...(style.layers as unknown[]), ...layers] };
       });
-  }
-  return enrichedStylePromise;
 }
 
 const kit: MapKit = {
@@ -118,21 +159,21 @@ const kit: MapKit = {
   Layer: adaptKitComponent(Layer),
 };
 
-/** 기본 실행 모드 — 토큰 없이 maplibre + Carto Voyager(POI 보강) 스타일로 렌더링 */
+/** 기본 실행 모드 — 토큰 없이 maplibre + OpenFreeMap Liberty(실패 시 Carto) 스타일로 렌더링 */
 export default function TripMapLibre(props: Omit<TripMapCoreProps, "kit" | "mapStyle" | "accessToken">) {
-  const [styleObj, setStyleObj] = useState<Record<string, unknown> | null>(null);
+  const [loaded, setLoaded] = useState<LoadedStyle | null>(null);
 
   useEffect(() => {
     let alive = true;
-    getEnrichedStyle().then((s) => {
-      if (alive) setStyleObj(s);
+    getStyle().then((s) => {
+      if (alive) setLoaded(s);
     });
     return () => {
       alive = false;
     };
   }, []);
 
-  if (!styleObj) return null; // 로딩 중 오버레이는 TripMapCore 상위에서 표시됨
+  if (!loaded) return null; // 로딩 중 오버레이는 TripMapCore 상위에서 표시됨
 
-  return <TripMapCore {...props} kit={kit} mapStyle={styleObj} />;
+  return <TripMapCore {...props} kit={kit} mapStyle={loaded.style} poiLayerIds={loaded.poiLayerIds} />;
 }
