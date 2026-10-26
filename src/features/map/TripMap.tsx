@@ -44,7 +44,7 @@ const TripMapClient = dynamic(() => import("./TripMapClient"), {
   ssr: false,
   loading: () => (
     <div className="card flex h-full min-h-[320px] items-center justify-center">
-      <p className="animate-pulse text-sm font-semibold text-foreground/50">지도를 불러오는 중…</p>
+      <p className="animate-pulse text-sm font-semibold text-foreground/62">지도를 불러오는 중…</p>
     </div>
   ),
 });

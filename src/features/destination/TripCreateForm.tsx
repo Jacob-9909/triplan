@@ -83,13 +83,13 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
           </button>
         )}
         <div className="absolute inset-x-0 bottom-0 p-5">
-          <p className="text-sm font-semibold text-white/80">
+          <p className="text-sm font-semibold text-white/88">
             {country.flag} {country.name} · {continent.name}
           </p>
           <p className="mt-0.5 text-3xl font-extrabold tracking-tight">
             {city.emoji} {city.name}
           </p>
-          <p className="mt-1 text-xs text-white/70">
+          <p className="mt-1 text-xs text-white/82">
             {city.description} · 현지 화폐 <span className="font-mono font-semibold">{country.currency}</span>
           </p>
         </div>

@@ -45,6 +45,11 @@ export async function fetchDirections(
   to: LatLng,
   method: LegMethod
 ): Promise<DirectionsResult> {
+  return estimateDirections(from, to, method);
+}
+
+/** 동기 버전 (화면에 추정치를 바로 보여줄 때) */
+export function estimateDirections(from: LatLng, to: LatLng, method: LegMethod): DirectionsResult {
   const straightKm = haversineKm(from, to);
   const distanceKm = Math.round(straightKm * 1.3 * 100) / 100;
   const speed = AVG_SPEED_KMH[method] ?? 20;

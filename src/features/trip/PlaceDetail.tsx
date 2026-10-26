@@ -6,7 +6,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, ImagePlus, Link2, Loader2, Trash2, X } from "lucide-react";
 import type { MapPoint, PointPhoto } from "@/lib/types";
 import { apiDelete, apiGet, apiUpload, photoUrl } from "@/lib/api";
-import { getCategoryMeta } from "@/features/route/meta";
+import { categoryStyle, PointBadge } from "@/features/map/pointStyle";
+import StylePicker from "@/features/map/StylePicker";
+import { DEFAULT_STAY, formatDuration } from "@/features/route/schedule";
+
+export type PointPatch = Partial<Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min">>;
+
+const STAY_PRESETS = [30, 60, 90, 120, 180, 240];
 import Sheet from "@/features/ui/Sheet";
 
 const MAX_EDGE = 1600;
@@ -36,7 +42,7 @@ function hostOf(url: string) {
   }
 }
 
-/** 장소 상세: 사진 · 링크 · 메모 */
+/** 장소 상세: 시간 · 분류/색 · 사진 · 링크 · 메모 */
 export default function PlaceDetail({
   point,
   canEdit,
@@ -47,7 +53,7 @@ export default function PlaceDetail({
   canEdit: boolean;
   onClose: () => void;
   /** 메모·링크 저장. 실패하면 오류 메시지를 돌려준다 */
-  onSave: (id: string, patch: Partial<Pick<MapPoint, "memo" | "link_url">>) => Promise<string | null>;
+  onSave: (id: string, patch: PointPatch) => Promise<string | null>;
 }) {
   return (
     <Sheet open={point !== null} onClose={onClose} title={point ? <Title point={point} /> : null}>
@@ -57,13 +63,9 @@ export default function PlaceDetail({
 }
 
 function Title({ point }: { point: MapPoint }) {
-  const meta = getCategoryMeta(point.category);
-  const Icon = meta.icon;
   return (
     <span className="flex items-center gap-2">
-      <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${meta.bg}`}>
-        <Icon size={16} className={meta.color} />
-      </span>
+      <PointBadge point={point} size={32} />
       <span className="truncate">{point.name}</span>
     </span>
   );
@@ -76,7 +78,7 @@ function Body({
 }: {
   point: MapPoint;
   canEdit: boolean;
-  onSave: (id: string, patch: Partial<Pick<MapPoint, "memo" | "link_url">>) => Promise<string | null>;
+  onSave: (id: string, patch: PointPatch) => Promise<string | null>;
 }) {
   const [photos, setPhotos] = useState<PointPhoto[] | null>(null);
   const [uploading, setUploading] = useState(0);
@@ -85,6 +87,7 @@ function Body({
   const [memo, setMemo] = useState(point.memo ?? "");
   const [link, setLink] = useState(point.link_url ?? "");
   const [saved, setSaved] = useState<string | null>(null);
+  const [stayCustom, setStayCustom] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -122,7 +125,7 @@ function Body({
     setViewer(null);
   }
 
-  async function save(patch: Partial<Pick<MapPoint, "memo" | "link_url">>, label: string) {
+  async function save(patch: PointPatch, label: string) {
     const err = await onSave(point.id, patch);
     setError(err);
     if (!err) {
@@ -136,10 +139,97 @@ function Body({
 
   return (
     <div className="space-y-5">
+      {/* 시간 */}
+      <section>
+        <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
+          시간 {saved === "time" && <span className="text-xs font-medium text-mint">저장됨</span>}
+        </h3>
+        {canEdit ? (
+          <div className="space-y-3">
+            <label className="flex items-center gap-3">
+              <span className="w-20 shrink-0 text-xs font-semibold text-foreground/65">도착 시각</span>
+              <input
+                type="time"
+                value={point.start_time?.slice(0, 5) ?? ""}
+                onChange={(e) => void save({ start_time: e.target.value || null }, "time")}
+                className="input max-w-36 py-2"
+              />
+              {point.start_time ? (
+                <button onClick={() => void save({ start_time: null }, "time")} className="text-xs text-foreground/60 underline">
+                  자동으로
+                </button>
+              ) : (
+                <span className="text-xs text-foreground/60">비우면 앞 일정에 이어서 자동 계산</span>
+              )}
+            </label>
+            <div className="flex items-start gap-3">
+              <span className="w-20 shrink-0 pt-1.5 text-xs font-semibold text-foreground/65">머무는 시간</span>
+              <div className="flex flex-wrap gap-1.5">
+                {STAY_PRESETS.map((m) => {
+                  const on = (point.stay_min ?? DEFAULT_STAY) === m && !stayCustom;
+                  return (
+                    <button
+                      key={m}
+                      onClick={() => {
+                        setStayCustom(false);
+                        void save({ stay_min: m }, "time");
+                      }}
+                      className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                        on ? "bg-foreground text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+                      }`}
+                    >
+                      {formatDuration(m)}
+                    </button>
+                  );
+                })}
+                <label className="flex items-center gap-1 rounded-full bg-surface-muted px-2 py-1 text-xs text-foreground/72">
+                  <input
+                    type="number"
+                    min={0}
+                    max={1440}
+                    step={10}
+                    defaultValue={STAY_PRESETS.includes(point.stay_min ?? DEFAULT_STAY) ? "" : (point.stay_min ?? "")}
+                    placeholder="직접"
+                    onFocus={() => setStayCustom(true)}
+                    onBlur={(e) => {
+                      const v = Math.round(Number(e.target.value));
+                      if (e.target.value !== "" && v >= 0 && v <= 1440) void save({ stay_min: v }, "time");
+                    }}
+                    className="w-12 bg-transparent text-right outline-none"
+                  />
+                  분
+                </label>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-foreground/70">
+            {point.start_time ? `${point.start_time.slice(0, 5)} 도착 · ` : ""}
+            {formatDuration(point.stay_min ?? DEFAULT_STAY)} 머묾
+          </p>
+        )}
+      </section>
+
+      {/* 분류·핀 색 */}
+      <section>
+        <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
+          분류 · 핀 색 {saved === "style" && <span className="text-xs font-medium text-mint">저장됨</span>}
+        </h3>
+        {canEdit ? (
+          <StylePicker
+            category={point.category}
+            color={point.color ?? null}
+            onChange={(next) => void save({ category: next.category, color: next.color }, "style")}
+          />
+        ) : (
+          <p className="text-sm text-foreground/70">{categoryStyle(point.category).label}</p>
+        )}
+      </section>
+
       {/* 사진 */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-bold">사진 {photos && photos.length > 0 && <span className="text-foreground/40">{photos.length}</span>}</h3>
+          <h3 className="text-sm font-bold">사진 {photos && photos.length > 0 && <span className="text-foreground/55">{photos.length}</span>}</h3>
           {canEdit && (
             <button onClick={() => fileRef.current?.click()} className="btn btn-ghost px-3 py-1.5 text-xs">
               <ImagePlus size={14} /> 사진 추가
@@ -160,13 +250,13 @@ function Body({
           canEdit ? (
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border-subtle py-7 text-sm text-foreground/50 transition hover:border-primary hover:text-primary-strong"
+              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border-subtle py-7 text-sm text-foreground/62 transition hover:border-primary hover:text-primary-strong"
             >
               <ImagePlus size={22} />
               눌러서 사진을 올려 보세요 (앨범·카메라)
             </button>
           ) : (
-            <p className="rounded-2xl bg-surface-muted py-6 text-center text-sm text-foreground/45">아직 사진이 없어요</p>
+            <p className="rounded-2xl bg-surface-muted py-6 text-center text-sm text-foreground/60">아직 사진이 없어요</p>
           )
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -197,7 +287,7 @@ function Body({
         {canEdit ? (
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Link2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/35" />
+              <Link2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/55" />
               <input
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
@@ -226,7 +316,7 @@ function Body({
             <ExternalLink size={15} /> {hostOf(point.link_url)}
           </a>
         )}
-        {!canEdit && !point.link_url && <p className="text-sm text-foreground/45">등록된 링크가 없어요</p>}
+        {!canEdit && !point.link_url && <p className="text-sm text-foreground/60">등록된 링크가 없어요</p>}
       </section>
 
       {/* 메모 */}

@@ -33,7 +33,7 @@ export default function NewTrip({ wishId }: { wishId: string | null }) {
         ) : selection === null ? (
           <motion.div key="pick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -24 }}>
             <h1 className="mb-1 mt-4 text-2xl font-extrabold tracking-tight md:mt-10 md:text-3xl">어디로 떠나 볼까요?</h1>
-            <p className="mb-6 text-sm text-foreground/55">대륙 → 나라 → 도시 순서로 고르거나 바로 검색하세요.</p>
+            <p className="mb-6 text-sm text-foreground/65">대륙 → 나라 → 도시 순서로 고르거나 바로 검색하세요.</p>
             <DestinationSelector onComplete={setSelection} />
           </motion.div>
         ) : (

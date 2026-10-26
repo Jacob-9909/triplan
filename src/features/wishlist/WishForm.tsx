@@ -58,7 +58,7 @@ export default function WishForm({
         <span className="text-sm font-semibold">얼마나 가고 싶나요?</span>
         <div className="mt-1.5 flex items-center gap-3">
           <Hearts value={priority} onChange={setPriority} size={24} />
-          <span className="text-sm font-medium text-foreground/55">{priorityLabel(priority)}</span>
+          <span className="text-sm font-medium text-foreground/65">{priorityLabel(priority)}</span>
         </div>
       </div>
 
@@ -80,7 +80,7 @@ export default function WishForm({
             <span key={t} className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold shadow-sm">
               #{t}
               <button type="button" aria-label={`${t} 태그 삭제`} onClick={() => setTags(tags.filter((x) => x !== t))}>
-                <X size={12} className="text-foreground/40" />
+                <X size={12} className="text-foreground/55" />
               </button>
             </span>
           ))}

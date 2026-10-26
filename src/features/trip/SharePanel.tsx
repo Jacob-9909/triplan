@@ -65,7 +65,7 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
 
   return (
     <Sheet open={open} onClose={onClose} title="여행 공유">
-      <p className="text-sm text-foreground/55">링크를 가진 사람은 로그인 없이 들어올 수 있어요.</p>
+      <p className="text-sm text-foreground/65">링크를 가진 사람은 로그인 없이 들어올 수 있어요.</p>
       <div className="mt-4 space-y-3">
         {(Object.keys(META) as Kind[]).map((k) => {
           const { title, body, icon: Icon, tone } = META[k];
@@ -77,11 +77,11 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
                 </span>
                 <div className="min-w-0">
                   <h3 className="font-bold">{title}</h3>
-                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/55">{body}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/65">{body}</p>
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-surface-muted p-1.5 pl-3">
-                <code className="min-w-0 flex-1 truncate text-xs text-foreground/60">{link(k)}</code>
+                <code className="min-w-0 flex-1 truncate text-xs text-foreground/72">{link(k)}</code>
                 <button
                   onClick={() => void copy(k)}
                   className="btn btn-primary shrink-0 px-3 py-1.5 text-xs"
@@ -110,18 +110,18 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
                 </button>
                 {confirming === k ? (
                   <span className="flex items-center gap-2 text-xs">
-                    <span className="text-foreground/55">이전 링크는 바로 막혀요.</span>
+                    <span className="text-foreground/65">이전 링크는 바로 막혀요.</span>
                     <button onClick={() => void regenerate(k)} className="font-bold text-accent">
                       바꾸기
                     </button>
-                    <button onClick={() => setConfirming(null)} className="text-foreground/45">
+                    <button onClick={() => setConfirming(null)} className="text-foreground/60">
                       취소
                     </button>
                   </span>
                 ) : (
                   <button
                     onClick={() => setConfirming(k)}
-                    className="inline-flex items-center gap-1 text-xs text-foreground/45 hover:text-foreground"
+                    className="inline-flex items-center gap-1 text-xs text-foreground/60 hover:text-foreground"
                   >
                     <RefreshCw size={12} /> 새 링크로 바꾸기
                   </button>
@@ -148,7 +148,7 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
         ) : (
           <button
             onClick={() => setConfirming("delete")}
-            className="inline-flex items-center gap-1.5 text-sm text-foreground/45 transition hover:text-accent"
+            className="inline-flex items-center gap-1.5 text-sm text-foreground/60 transition hover:text-accent"
           >
             <Trash2 size={14} /> 이 여행 삭제
           </button>

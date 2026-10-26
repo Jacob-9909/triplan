@@ -87,7 +87,7 @@ export default function Wishlist() {
       <div className="mt-3 flex items-end justify-between gap-4 md:mt-8">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">가고 싶은 곳</h1>
-          <p className="mt-1 text-sm text-foreground/55">
+          <p className="mt-1 text-sm text-foreground/65">
             {items === null ? "불러오는 중…" : `${countries}개 나라 · ${items.length}곳을 담아 뒀어요`}
           </p>
         </div>
@@ -120,7 +120,7 @@ export default function Wishlist() {
               key={String(f)}
               onClick={() => setFilter(f)}
               className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                active ? "text-white" : "bg-surface text-foreground/60 shadow-sm ring-1 ring-border-subtle"
+                active ? "text-white" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
               }`}
             >
               {active && (
@@ -238,11 +238,11 @@ function WishCard({
       </div>
 
       <div className="relative mt-auto p-3.5">
-        <p className="text-xs font-semibold text-white/80">
+        <p className="text-xs font-semibold text-white/88">
           <MapPin size={12} className="inline -mt-0.5" /> {[wish.country, wish.region].filter(Boolean).join(" · ")}
         </p>
         <h3 className="mt-0.5 line-clamp-2 text-lg font-bold leading-snug tracking-tight">{wish.name}</h3>
-        {wish.memo && <p className="mt-1 line-clamp-2 text-xs text-white/75">{wish.memo}</p>}
+        {wish.memo && <p className="mt-1 line-clamp-2 text-xs text-white/85">{wish.memo}</p>}
         {wish.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {wish.tags.slice(0, 3).map((t) => (
@@ -283,7 +283,7 @@ function EmptyWish({ onAdd, filtered }: { onAdd: () => void; filtered: boolean }
         <Heart size={26} fill="currentColor" />
       </motion.span>
       <h2 className="mt-4 text-lg font-bold">{filtered ? "이 우선순위에는 아직 없어요" : "가고 싶은 곳을 담아 보세요"}</h2>
-      <p className="mt-1.5 max-w-xs text-sm text-foreground/55">
+      <p className="mt-1.5 max-w-xs text-sm text-foreground/65">
         언젠가 가 보고 싶은 나라와 도시를 모아 두면, 마음이 정해졌을 때 바로 여행으로 바꿀 수 있어요.
       </p>
       {!filtered && (

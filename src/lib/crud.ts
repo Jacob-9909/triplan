@@ -4,6 +4,19 @@ import { requireTrip, tripIdOf, type Access } from "@/lib/auth";
 /** 여행 하위 테이블 (trip_id를 가진 테이블) */
 export type ChildTable = "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos";
 
+/** 핀 색상·도착 시각·머무는 시간 형식 검사. 문제가 있으면 오류 메시지 */
+export function invalidPointField(b: Record<string, unknown> | null): string | null {
+  if (!b) return null;
+  if (b.color != null && !(typeof b.color === "string" && /^#[0-9a-f]{6}$/i.test(b.color))) return "color must be #rrggbb";
+  if (b.start_time != null && !(typeof b.start_time === "string" && /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(b.start_time))) {
+    return "start_time must be HH:MM";
+  }
+  if (b.stay_min != null && !(Number.isInteger(b.stay_min) && (b.stay_min as number) >= 0 && (b.stay_min as number) <= 1440)) {
+    return "stay_min must be 0-1440";
+  }
+  return null;
+}
+
 /** 링크 값은 http(s)만 허용 (빈 값은 링크 삭제) */
 export function cleanUrl(value: unknown): string | null | undefined {
   if (value === undefined) return undefined;
@@ -67,6 +80,8 @@ export async function patchChild(
       if (url === undefined) return jsonError("link_url must start with http:// or https://", 400);
       b.link_url = url;
     }
+    const bad = invalidPointField(b);
+    if (bad) return jsonError(bad, 400);
     const sets: string[] = [];
     const vals: unknown[] = [];
     for (const key of allowed) {

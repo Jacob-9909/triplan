@@ -85,7 +85,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
           <button
             aria-label="검색 지우기"
             onClick={() => setQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
           >
             <X size={16} />
           </button>
@@ -94,7 +94,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
 
       {/* 브레드크럼 */}
       {!searching && step !== "continent" && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+        <div className="mb-4 flex items-center gap-2 text-sm text-slate-600">
           <button
             onClick={back}
             className="flex items-center gap-1 rounded-full bg-surface px-3 py-1.5 border border-[color:var(--border)] shadow-sm hover:bg-[color:var(--surface-muted)]"
@@ -121,7 +121,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
       {searching ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           {results.length === 0 && (
-            <p className="col-span-full text-center text-sm text-slate-400 py-8">
+            <p className="col-span-full text-center text-sm text-slate-500 py-8">
               &ldquo;{query}&rdquo; 에 대한 결과가 없어요 🥲
             </p>
           )}
@@ -138,11 +138,11 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold truncate">
                   {city.name}{" "}
-                  <span className="text-sm font-normal text-slate-400">
+                  <span className="text-sm font-normal text-slate-500">
                     {country.flag} {country.name}
                   </span>
                 </span>
-                <span className="block text-xs text-slate-400 truncate">
+                <span className="block text-xs text-slate-500 truncate">
                   {continent.emoji} {continent.name} · {city.description}
                 </span>
               </span>
@@ -198,7 +198,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
                     onClick={() => pickCity(c)}
                     accent="mint"
                     footer={
-                      <span className="text-[10px] text-slate-300 tabular-nums">
+                      <span className="text-[10px] text-slate-400 tabular-nums">
                         {c.lat.toFixed(1)}°, {c.lng.toFixed(1)}°
                       </span>
                     }
@@ -261,7 +261,7 @@ function CardButton({
           {emoji}
         </span>
         <span className="relative mt-1.5 font-bold">{title}</span>
-        <span className="relative text-[11px] text-white/75">{subtitle}</span>
+        <span className="relative text-[11px] text-white/85">{subtitle}</span>
       </motion.button>
     );
   }
@@ -285,7 +285,7 @@ function CardButton({
         {emoji}
       </span>
       <span className="mt-1.5 font-semibold">{title}</span>
-      <span className="text-xs text-slate-400 line-clamp-2">{subtitle}</span>
+      <span className="text-xs text-slate-500 line-clamp-2">{subtitle}</span>
       {footer && <span className="mt-auto pt-1">{footer}</span>}
     </motion.button>
   );

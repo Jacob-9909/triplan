@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
 import PinMarker from "./PinMarker";
 import RouteLine from "./RouteLine";
-import { getCategoryColor, getCategoryLabel } from "./categories";
+import { getCategoryLabel } from "./categories";
+import { pointColor } from "./pointStyle";
 import { sortPointsByOrder } from "./sort";
 import { poiCategoryGuess, TRIPOI_LAYER_IDS } from "./poiLayers";
 import type { MapCameraRef, MapClickEvent, MapKit } from "./mapKit";
@@ -185,6 +186,7 @@ export default function TripMapCore({
             <div className="pin-drop flex cursor-pointer flex-col items-center gap-1" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
               <PinMarker
                 category={point.category}
+                color={point.color}
                 label={numbered ? (point.visit_order ?? i + 1) : undefined}
                 selected={point.id === selectedPointId}
                 onClick={() => {
@@ -228,7 +230,7 @@ export default function TripMapCore({
                   {numbered && (
                     <span
                       className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                      style={{ backgroundColor: getCategoryColor(popupPoint.category) }}
+                      style={{ backgroundColor: pointColor(popupPoint) }}
                     >
                       {popupPoint.visit_order ?? "-"}
                     </span>
@@ -239,7 +241,7 @@ export default function TripMapCore({
                   type="button"
                   onClick={() => setPopupId(null)}
                   aria-label="닫기"
-                  className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1 text-foreground/40 hover:bg-surface-muted hover:text-foreground"
+                  className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1 text-foreground/55 hover:bg-surface-muted hover:text-foreground"
                 >
                   <X size={14} />
                 </button>
@@ -248,7 +250,7 @@ export default function TripMapCore({
 
                 <span
                   className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-                  style={{ borderColor: getCategoryColor(popupPoint.category), color: getCategoryColor(popupPoint.category) }}
+                  style={{ borderColor: pointColor(popupPoint), color: pointColor(popupPoint) }}
                 >
                   {getCategoryLabel(popupPoint.category)}
                 </span>
@@ -258,11 +260,11 @@ export default function TripMapCore({
                   </span>
                 )}
                 {popupExpenseTotal > 0 && (
-                  <span className="text-[11px] font-semibold text-foreground/60">지출 {popupExpenseTotal.toLocaleString()}원</span>
+                  <span className="text-[11px] font-semibold text-foreground/72">지출 {popupExpenseTotal.toLocaleString()}원</span>
                 )}
               </div>
               {popupPoint.memo && (
-                <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-foreground/60">{popupPoint.memo}</p>
+                <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-foreground/72">{popupPoint.memo}</p>
               )}
               {onPointOpen && (
                 <button
@@ -303,7 +305,7 @@ export default function TripMapCore({
 
       {/* 지도 로딩/에러 상태 오버레이 */}
       {(mapError || !mapReady) && (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-muted/80 text-sm text-foreground/60">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-muted/80 text-sm text-foreground/72">
           {mapError ? (
             <>
               <span className="font-semibold text-accent">지도를 표시할 수 없어요</span>

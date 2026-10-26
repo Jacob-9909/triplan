@@ -74,7 +74,7 @@ export default function Landing() {
             key={slide.caption}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-sm font-medium text-white/75"
+            className="text-sm font-medium text-white/85"
           >
             {slide.country} · {slide.caption}
           </motion.p>
@@ -92,7 +92,7 @@ export default function Landing() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.7 }}
-            className="mt-4 max-w-md text-base text-white/80 md:text-lg"
+            className="mt-4 max-w-md text-base text-white/88 md:text-lg"
           >
             꿈꾸던 여행지를 모아 두고, 지도 위에서 하루씩 계획하고, 링크 하나로 동행자와 나눠요.
           </motion.p>
@@ -136,13 +136,13 @@ export default function Landing() {
                 <Icon size={21} />
               </span>
               <h3 className="mt-5 text-lg font-bold tracking-tight">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-foreground/60">{body}</p>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/72">{body}</p>
             </motion.article>
           ))}
         </div>
       </section>
 
-      <footer className="border-t border-border-subtle py-8 text-center text-xs text-foreground/40">
+      <footer className="border-t border-border-subtle py-8 text-center text-xs text-foreground/55">
         Triplan · 가고 싶은 곳을 모으고 함께 계획하는 여행 플래너
       </footer>
     </main>

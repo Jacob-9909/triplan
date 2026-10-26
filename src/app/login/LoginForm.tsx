@@ -46,11 +46,11 @@ export default function LoginForm() {
       >
         <Logo />
         <h1 className="mt-6 text-2xl font-extrabold tracking-tight">다시 떠날 준비, 되셨나요?</h1>
-        <p className="mt-1.5 text-sm text-foreground/60">관리자 비밀번호로 내 여행을 열어요.</p>
+        <p className="mt-1.5 text-sm text-foreground/72">관리자 비밀번호로 내 여행을 열어요.</p>
         <label className="mt-6 block">
           <span className="sr-only">비밀번호</span>
           <div className="relative">
-            <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/35" />
+            <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/55" />
             <input
               type="password"
               autoFocus
@@ -66,7 +66,7 @@ export default function LoginForm() {
         <button type="submit" disabled={!password || loading} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">
           {loading ? <Loader2 size={16} className="animate-spin" /> : <>들어가기 <ArrowRight size={16} /></>}
         </button>
-        <p className="mt-5 text-center text-xs text-foreground/45">
+        <p className="mt-5 text-center text-xs text-foreground/60">
           공유 링크를 받으셨다면 그 링크로 바로 들어가면 돼요.
         </p>
       </motion.form>

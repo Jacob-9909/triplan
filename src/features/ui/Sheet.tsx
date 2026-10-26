@@ -60,7 +60,7 @@ export default function Sheet({
               <button
                 onClick={onClose}
                 aria-label="닫기"
-                className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/50 transition hover:bg-surface-muted hover:text-foreground"
+                className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/62 transition hover:bg-surface-muted hover:text-foreground"
               >
                 <X size={18} />
               </button>

@@ -25,10 +25,13 @@ import DayTabs from "@/features/route/DayTabs";
 import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
 import DaySummary from "@/features/route/DaySummary";
-import LegEditor from "@/features/route/LegEditor";
-import { fetchDirections } from "@/features/route/directions";
+import { estimateDirections, fetchDirections } from "@/features/route/directions";
+import { formatDuration } from "@/features/route/schedule";
+import { METHOD_META } from "@/features/route/meta";
+import { PointBadge } from "@/features/map/pointStyle";
+import MoneyInput from "@/features/ui/MoneyInput";
 import Sheet from "@/features/ui/Sheet";
-import PlaceDetail from "./PlaceDetail";
+import PlaceDetail, { type PointPatch } from "./PlaceDetail";
 import ExpenseForm from "@/features/expenses/ExpenseForm";
 import ExpenseList from "@/features/expenses/ExpenseList";
 import ExpenseSummary from "@/features/expenses/ExpenseSummary";
@@ -122,7 +125,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     );
   }
 
-  async function savePoint(id: string, patch: Partial<Pick<MapPoint, "memo" | "link_url">>) {
+  async function savePoint(id: string, patch: PointPatch) {
     try {
       await apiPatch(`/api/map-points/${id}`, patch);
       setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -186,7 +189,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           <MapPin size={26} />
         </div>
         <h2 className="mt-4 text-lg font-bold">여행을 열 수 없어요</h2>
-        <p className="mt-2 text-sm text-foreground/55">
+        <p className="mt-2 text-sm text-foreground/65">
           삭제되었거나 링크가 바뀌었을 수 있어요. {mode === "admin" ? "" : "링크를 보낸 사람에게 새 링크를 받아 주세요."}
         </p>
         {mode === "admin" && (
@@ -268,7 +271,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
               {ddayLabel(trip)}
             </span>
             <h1 className="mt-2 text-3xl font-extrabold tracking-tight md:text-5xl">{trip.title}</h1>
-            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/80">
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/88">
               <span>
                 <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
               </span>
@@ -290,7 +293,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
               key={id}
               onClick={() => setTab(id)}
               className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors md:flex-none md:px-5 ${
-                tab === id ? "text-white" : "text-foreground/55 hover:text-foreground"
+                tab === id ? "text-white" : "text-foreground/65 hover:text-foreground"
               }`}
             >
               {tab === id && (
@@ -359,13 +362,13 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                     {canEdit && (
                       <>
                         <ItineraryList points={dayPoints} onReorder={handleReorder} onDelete={handlePointDelete} />
-                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/45">
+                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/60">
                           <MousePointerClick size={13} /> 지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.
                         </p>
                       </>
                     )}
                     {canEdit && dayLegs.length > 0 && (
-                      <p className="px-1 text-xs text-foreground/45">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
+                      <p className="px-1 text-xs text-foreground/60">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
                     )}
                     <RouteTimeline
                       points={dayPoints}
@@ -452,7 +455,7 @@ function ExpensesTab({
             return saved !== null;
           }}
         />
-        <p className="px-1 text-xs text-foreground/45">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
+        <p className="px-1 text-xs text-foreground/60">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
       </div>
       <div className="space-y-4 lg:col-span-3">
         <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />
@@ -470,6 +473,10 @@ function ExpensesTab({
   );
 }
 
+const LEG_METHODS: RouteLeg["method"][] = ["walk", "transit", "taxi", "bike", "rental-car", "plane", "ferry"];
+const MINUTE_PRESETS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+
+/** 구간 편집: 이동수단 · 소요 시간(직접 지정) · 비용 */
 function LegSheetBody({
   leg,
   points,
@@ -484,26 +491,108 @@ function LegSheetBody({
   const from = points.find((p) => p.id === leg.from_point_id);
   const to = points.find((p) => p.id === leg.to_point_id);
   if (!from || !to) return null;
+  const est = estimateDirections(from, to, leg.method);
+  const minutes = leg.duration_min ?? est.durationMin;
+  const setMinutes = (m: number) => onChange(leg.id, { duration_min: Math.max(0, Math.min(24 * 60, Math.round(m))) });
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-semibold">
-        {from.name} <span className="text-foreground/35">→</span> {to.name}
+    <div className="space-y-5">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <PointBadge point={from} size={26} /> <span className="truncate">{from.name}</span>
+        <span className="text-foreground/55">→</span>
+        <PointBadge point={to} size={26} /> <span className="truncate">{to.name}</span>
       </p>
-      <LegEditor
-        from={from}
-        to={to}
-        method={leg.method}
-        cost={leg.cost}
-        onMethodChange={(method) => onChange(leg.id, { method })}
-        onCalculated={(r) => {
-          if (r.durationMin !== leg.duration_min || r.distanceKm !== leg.distance_km) {
-            onChange(leg.id, { duration_min: r.durationMin, distance_km: r.distanceKm });
-          }
-        }}
-        onCostChange={(cost) => onChange(leg.id, { cost })}
-      />
-      <p className="text-xs leading-relaxed text-foreground/50">
-        시간·거리는 직선거리와 이동수단별 평균 속도로 낸 추정치예요. 비용은 원화로 적으면 그날 합계에 더해져요.
+
+      <section>
+        <h4 className="mb-2 text-xs font-bold text-foreground/65">이동수단</h4>
+        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+          {LEG_METHODS.map((m) => {
+            const meta = METHOD_META[m];
+            const Icon = meta.icon;
+            const on = m === leg.method;
+            return (
+              <motion.button
+                key={m}
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={() => {
+                  // 이동수단을 바꾸면 그 수단 기준 추정 시간으로 다시 채운다 (이후 직접 조정 가능)
+                  const e = estimateDirections(from, to, m);
+                  onChange(leg.id, { method: m, duration_min: e.durationMin, distance_km: e.distanceKm });
+                }}
+                className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 text-[11px] font-semibold transition ${
+                  on ? "border-primary bg-primary text-white shadow-sm" : "border-border-subtle text-foreground/72 hover:border-primary/40"
+                }`}
+              >
+                <Icon size={18} />
+                {meta.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="mb-2 flex items-center justify-between text-xs font-bold text-foreground/65">
+          소요 시간
+          <span className="font-medium text-foreground/55">거리 약 {est.distanceKm}km</span>
+        </h4>
+        <div className="flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => setMinutes(minutes - 5)}
+            aria-label="5분 줄이기"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-xl font-bold text-foreground/72 active:scale-90"
+          >
+            −
+          </button>
+          <div className="min-w-32 text-center">
+            <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes)}</p>
+            <p className="text-[11px] text-foreground/60">
+              {leg.duration_min == null || leg.duration_min === est.durationMin ? "추정치" : `추정 ${formatDuration(est.durationMin)}`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMinutes(minutes + 5)}
+            aria-label="5분 늘리기"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-xl font-bold text-foreground/72 active:scale-90"
+          >
+            +
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+          {MINUTE_PRESETS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMinutes(m)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                minutes === m ? "bg-foreground text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+              }`}
+            >
+              {formatDuration(m)}
+            </button>
+          ))}
+          {leg.duration_min !== est.durationMin && (
+            <button
+              type="button"
+              onClick={() => setMinutes(est.durationMin)}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold text-primary-strong hover:bg-primary-soft"
+            >
+              추정치로
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="mb-2 text-xs font-bold text-foreground/65">이동 비용</h4>
+        <MoneyInput value={leg.cost} onChange={(cost) => onChange(leg.id, { cost })} />
+      </section>
+
+      <p className="text-xs leading-relaxed text-foreground/60">
+        추정 시간은 직선거리와 이동수단별 평균 속도로 계산해요. 실제와 다르면 직접 맞춰 주세요. 타임테이블과 하루 합계에 바로 반영돼요.
       </p>
       <button onClick={onDone} className="btn btn-primary w-full py-3 text-sm">
         완료

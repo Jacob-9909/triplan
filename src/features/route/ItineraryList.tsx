@@ -18,9 +18,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, MapPin, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, MapPin, Trash2 } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
-import { getCategoryMeta } from "./meta";
+import { PointBadge } from "@/features/map/pointStyle";
 
 export interface ItineraryListProps {
   /** visit_order 기준으로 정렬된 해당 Day의 포인트 목록 */
@@ -36,17 +36,19 @@ export interface ItineraryListProps {
 interface SortableItemProps {
   point: MapPoint;
   index: number;
+  total: number;
+  onMove: (id: string, delta: -1 | 1) => void;
   onDelete?: (id: string) => void;
   isDeleting?: boolean;
 }
 
-function SortablePointItem({ point, index, onDelete, isDeleting }: SortableItemProps) {
+function SortablePointItem({ point, index, total, onMove, onDelete, isDeleting }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: point.id,
   });
 
-  const meta = getCategoryMeta(point.category);
-  const Icon = meta.icon;
+  const arrow =
+    "flex h-7 w-8 items-center justify-center rounded-lg text-foreground/70 transition hover:bg-primary-soft hover:text-primary-strong disabled:pointer-events-none disabled:opacity-25";
 
   return (
     <div
@@ -55,37 +57,37 @@ function SortablePointItem({ point, index, onDelete, isDeleting }: SortableItemP
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={`flex items-center gap-3 rounded-2xl border p-3 transition-shadow md:p-3.5 ${
+      className={`flex items-center gap-2.5 rounded-2xl border p-2.5 transition-shadow md:p-3 ${
         isDragging
           ? "relative z-10 border-primary bg-primary-soft shadow-lg"
           : "border-border-subtle bg-surface shadow-sm hover:shadow-md"
       } ${isDeleting ? "opacity-40" : ""}`}
     >
-      <button
-        type="button"
-        aria-label={`${point.name} 순서 이동`}
-        className="cursor-grab touch-none rounded-lg p-1 text-foreground/30 hover:bg-surface-muted hover:text-foreground/60 active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
-      >
-        <GripVertical size={18} />
-      </button>
+      {/* 순서 바꾸기: 위·아래 화살표 */}
+      <div className="flex shrink-0 flex-col">
+        <button type="button" aria-label={`${point.name} 위로`} disabled={index === 0} onClick={() => onMove(point.id, -1)} className={arrow}>
+          <ChevronUp size={18} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          aria-label={`${point.name} 아래로`}
+          disabled={index === total - 1}
+          onClick={() => onMove(point.id, 1)}
+          className={arrow}
+        >
+          <ChevronDown size={18} strokeWidth={2.5} />
+        </button>
+      </div>
 
-      <span
-        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg}`}
-        aria-hidden
-      >
-        <Icon size={18} className={meta.color} />
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-foreground text-[11px] font-bold text-white">
+        {index + 1}
       </span>
+      <PointBadge point={point} size={34} />
 
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold">
-          <span className="mr-1.5 text-xs text-foreground/40">{index + 1}.</span>
-          {point.name}
-        </p>
-        {point.memo && (
-          <p className="mt-0.5 truncate text-xs text-foreground/50">{point.memo}</p>
-        )}
+      {/* 이름 영역을 끌어서도 옮길 수 있다 */}
+      <div className="min-w-0 flex-1 cursor-grab touch-pan-y active:cursor-grabbing" {...attributes} {...listeners}>
+        <p className="truncate text-sm font-semibold text-foreground">{point.name}</p>
+        {point.memo && <p className="mt-0.5 truncate text-xs text-foreground/65">{point.memo}</p>}
       </div>
 
       {onDelete && (
@@ -93,7 +95,7 @@ function SortablePointItem({ point, index, onDelete, isDeleting }: SortableItemP
           type="button"
           aria-label={`${point.name} 삭제`}
           onClick={() => onDelete(point.id)}
-          className="rounded-lg p-2 text-foreground/30 transition-colors hover:bg-accent-soft hover:text-accent"
+          className="rounded-lg p-2 text-foreground/65 transition-colors hover:bg-accent-soft hover:text-accent"
         >
           <Trash2 size={16} />
         </button>
@@ -133,6 +135,15 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
     if (finalOrder.join(",") !== points.map((p) => p.id).join(",")) onReorder(finalOrder);
   }
 
+  /** 화살표로 한 칸씩 이동 */
+  function handleMove(id: string, delta: -1 | 1) {
+    const ids = points.map((p) => p.id);
+    const from = ids.indexOf(id);
+    const to = from + delta;
+    if (from === -1 || to < 0 || to >= ids.length) return;
+    onReorder(arrayMove(ids, from, to));
+  }
+
   function handleDragStart() {
     // 드래그 시작 시 현재 prop 순서를 로컬 상태에 두어 시각적 일관성 유지
     setLocalOrder(points.map((p) => p.id));
@@ -157,7 +168,7 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
           <MapPin size={20} />
         </span>
         <p className="text-sm font-medium">이 Day에 추가된 장소가 없습니다</p>
-        <p className="text-xs text-foreground/50">지도에서 장소를 추가해 일정을 만들어보세요</p>
+        <p className="text-xs text-foreground/62">지도에서 장소를 추가해 일정을 만들어보세요</p>
       </div>
     );
   }
@@ -178,6 +189,8 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
               <SortablePointItem
                 point={point}
                 index={i}
+                total={orderedPoints.length}
+                onMove={handleMove}
                 onDelete={onDelete}
                 isDeleting={deletingIds?.has(point.id)}
               />

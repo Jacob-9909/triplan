@@ -70,7 +70,7 @@ const DOC_META: Record<
     label: "기타",
     icon: FileText,
     bg: "bg-slate-100",
-    text: "text-slate-500",
+    text: "text-slate-600",
   },
 };
 
@@ -204,9 +204,9 @@ export default function DocsPanel({
 
       {/* 문서 카드 리스트 */}
       {loading ? (
-        <p className="mt-6 text-center text-sm text-slate-400">불러오는 중…</p>
+        <p className="mt-6 text-center text-sm text-slate-500">불러오는 중…</p>
       ) : docs.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-slate-400">
+        <p className="mt-6 text-center text-sm text-slate-500">
           등록된 문서가 없어요. 항공권·숙소 바우처를 저장해보세요!
         </p>
       ) : (
@@ -281,13 +281,13 @@ function DocCard({
           </div>
           <p className="truncate font-semibold">{doc.title}</p>
           {(doc.provider || doc.confirmation_code) && (
-            <p className="truncate text-xs text-slate-400">
+            <p className="truncate text-xs text-slate-500">
               {[doc.provider, doc.confirmation_code]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
           )}
-          <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+          <p className="mt-1 flex items-center gap-1 text-xs text-slate-600">
             <CalendarDays size={12} />
             {doc.starts_at
               ? format(parseISO(doc.starts_at), "M월 d일 (E)", { locale: ko })
@@ -314,7 +314,7 @@ function DocCard({
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${doc.title} 링크 열기`}
-              className="text-slate-300 transition hover:text-[var(--color-primary)]"
+              className="text-slate-400 transition hover:text-[var(--color-primary)]"
             >
               <ExternalLink size={16} />
             </a>
@@ -323,7 +323,7 @@ function DocCard({
             <button
               onClick={onRemove}
               aria-label={`${doc.title} 삭제`}
-              className="text-slate-300 transition hover:text-[var(--color-accent)]"
+              className="text-slate-400 transition hover:text-[var(--color-accent)]"
             >
               <Trash2 size={16} />
             </button>

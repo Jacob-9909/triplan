@@ -36,15 +36,15 @@ export default function TripCard({ trip, index = 0 }: { trip: Trip; index?: numb
           </span>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-          <p className="text-xs font-semibold text-white/80">
+          <p className="text-xs font-semibold text-white/88">
             <MapPin size={12} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
           </p>
           <h3 className="mt-1 line-clamp-2 text-lg font-bold leading-snug tracking-tight">{trip.title}</h3>
-          <p className="mt-1.5 flex items-center gap-1 text-xs text-white/75">
+          <p className="mt-1.5 flex items-center gap-1 text-xs text-white/85">
             <CalendarDays size={12} className="shrink-0" />
             <span className="truncate">{formatRange(trip)}</span>
           </p>
-          {stay && <p className="mt-0.5 pl-4 text-[11px] text-white/60">{stay}</p>}
+          {stay && <p className="mt-0.5 pl-4 text-[11px] text-white/75">{stay}</p>}
         </div>
       </Link>
     </motion.div>

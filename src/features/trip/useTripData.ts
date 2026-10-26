@@ -79,7 +79,7 @@ export async function persistOrder(_tripId: string, orderedIds: string[]) {
 /** 포인트 추가 */
 export async function addPoint(
   tripId: string,
-  draft: { name: string; category: string; memo: string | null; lat: number; lng: number },
+  draft: { name: string; category: string; color?: string | null; memo: string | null; lat: number; lng: number },
   dayNumber: number,
   visitOrder: number,
 ): Promise<MapPoint | null> {

@@ -21,7 +21,7 @@
   --color-sand: #ffc24b;
   --color-violet: #8b7cf6;
 
-  --border: #e2e8f0;
+  --border: #d5dde8;
   /* 일부 컴포넌트가 쓰는 별칭 */
   --border-subtle: var(--border);
 
@@ -145,7 +145,7 @@ body {
 
 /* 사진 위 텍스트 가독성용 그라디언트 */
 .photo-scrim {
-  background: linear-gradient(180deg, rgba(5, 15, 30, 0) 30%, rgba(5, 15, 30, 0.72) 100%);
+  background: linear-gradient(180deg, rgba(5, 15, 30, 0.12) 0%, rgba(5, 15, 30, 0) 28%, rgba(5, 15, 30, 0.25) 55%, rgba(5, 15, 30, 0.82) 100%);
 }
 
 .no-scrollbar {

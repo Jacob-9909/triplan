@@ -1,5 +1,5 @@
 import { getPool, jsonError, type Row } from "@/lib/db";
-import { listChildren, requireEditBody } from "@/lib/crud";
+import { invalidPointField, listChildren, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
   return listChildren(request, "map_points", "visit_order ASC NULLS LAST", "지도 핀");
@@ -13,9 +13,12 @@ export async function POST(request: Request) {
     }
     const denied = await requireEditBody(request, b.trip_id);
     if (denied) return denied;
+    const bad = invalidPointField(b);
+    if (bad) return jsonError(bad, 400);
     const { rows } = await getPool().query<Row>(
-      `INSERT INTO triplan.map_points (trip_id, name, category, memo, lat, lng, day_number, visit_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      `INSERT INTO triplan.map_points
+         (trip_id, name, category, memo, lat, lng, day_number, visit_order, color, start_time, stay_min)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [
         b.trip_id,
         b.name.trim(),
@@ -25,6 +28,9 @@ export async function POST(request: Request) {
         Number(b.lng),
         b.day_number ?? null,
         b.visit_order ?? null,
+        b.color ?? null,
+        b.start_time ?? null,
+        b.stay_min ?? null,
       ]
     );
     return Response.json(rows[0]);

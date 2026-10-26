@@ -45,7 +45,7 @@ export default function Dashboard() {
       <motion.p
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-3 text-sm font-medium text-foreground/50 md:mt-8"
+        className="mt-3 text-sm font-medium text-foreground/62 md:mt-8"
       >
         {greeting()}
       </motion.p>
@@ -86,7 +86,7 @@ export default function Dashboard() {
         {wishes.length === 0 ? (
           <Link
             href="/wishlist"
-            className="card card-lift flex items-center gap-4 p-5 text-sm text-foreground/60"
+            className="card card-lift flex items-center gap-4 p-5 text-sm text-foreground/72"
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent">
               <Heart size={20} />
@@ -111,7 +111,7 @@ export default function Dashboard() {
                   <CoverPhoto country={w.country} continent={w.continent} zoomOnHover />
                   <div className="absolute inset-x-0 bottom-0 p-3 text-white">
                                         <p className="mt-1 truncate text-sm font-bold">{w.name}</p>
-                    <p className="truncate text-[11px] text-white/70">{w.country}</p>
+                    <p className="truncate text-[11px] text-white/82">{w.country}</p>
                   </div>
                   {w.trip_id && (
                     <span className="absolute right-2 top-2 rounded-full bg-mint px-2 py-0.5 text-[10px] font-bold text-white">
@@ -156,7 +156,7 @@ function Section({
         <h2 className="text-lg font-bold tracking-tight">
           {title}
           {count !== undefined && count > 0 && (
-            <span className="ml-1.5 text-sm font-semibold text-foreground/35">{count}</span>
+            <span className="ml-1.5 text-sm font-semibold text-foreground/55">{count}</span>
           )}
         </h2>
         {action}
@@ -198,11 +198,11 @@ function NextTripHero({ trip }: { trip: Trip }) {
                 </p>
               )}
             </div>
-            <p className="mt-4 text-sm font-semibold text-white/80">
+            <p className="mt-4 text-sm font-semibold text-white/88">
               <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
             </p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight md:text-4xl">{trip.title}</h2>
-            <p className="mt-2 flex items-center gap-1.5 text-sm text-white/75">
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-white/85">
               <CalendarDays size={14} /> {formatRange(trip)} {stay && `· ${stay}`}
             </p>
           </div>
@@ -227,7 +227,7 @@ function EmptyHero() {
         <Plane size={180} strokeWidth={1.2} />
       </motion.div>
       <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">첫 여행을 계획해 볼까요?</h2>
-      <p className="mt-2 max-w-sm text-sm text-white/80">
+      <p className="mt-2 max-w-sm text-sm text-white/88">
         목적지와 날짜만 정하면 지도·일정·가계부·준비물이 준비돼요.
       </p>
       <Link href="/trips/new" className="btn mt-5 bg-white px-5 py-3 text-sm text-primary-strong shadow-lift">

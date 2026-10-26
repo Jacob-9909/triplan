@@ -55,6 +55,7 @@ export interface MapPoint {
   category:
     | "attraction"
     | "food"
+    | "cafe"
     | "stay"
     | "transport"
     | "shopping"
@@ -68,6 +69,12 @@ export interface MapPoint {
   visit_order: number | null; // 그 Day 안에서의 방문 순서
   /** 예약·후기·공식 사이트 등 참고 링크 */
   link_url?: string | null;
+  /** 핀 색상 (#rrggbb). 없으면 분류 기본색 */
+  color?: string | null;
+  /** 도착 시각 "HH:MM[:SS]". 없으면 앞 장소에서 이어서 계산 */
+  start_time?: string | null;
+  /** 머무는 시간(분). 없으면 60분 */
+  stay_min?: number | null;
   created_at: string;
 }
 

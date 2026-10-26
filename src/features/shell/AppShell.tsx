@@ -52,7 +52,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   key={href}
                   href={href}
                   className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                    active ? "text-primary-strong" : "text-foreground/55 hover:text-foreground"
+                    active ? "text-primary-strong" : "text-foreground/65 hover:text-foreground"
                   }`}
                 >
                   {active && (
@@ -75,7 +75,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               onClick={logout}
               aria-label="로그아웃"
               title="로그아웃"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/45 transition hover:bg-surface-muted hover:text-foreground"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/60 transition hover:bg-surface-muted hover:text-foreground"
             >
               <LogOut size={17} />
             </button>
@@ -91,7 +91,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <button
           onClick={logout}
           aria-label="로그아웃"
-          className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/45"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/60"
         >
           <LogOut size={17} />
         </button>
@@ -143,7 +143,7 @@ function TabItem({
     <Link
       href={href}
       className={`flex flex-col items-center gap-0.5 text-[11px] font-semibold transition-colors ${
-        active ? "text-primary-strong" : "text-foreground/45"
+        active ? "text-primary-strong" : "text-foreground/60"
       }`}
     >
       <motion.span animate={{ scale: active ? 1.12 : 1 }} transition={{ type: "spring", stiffness: 400, damping: 20 }}>

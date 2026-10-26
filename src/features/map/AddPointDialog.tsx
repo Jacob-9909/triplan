@@ -4,12 +4,14 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MapPin, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
-import { ALL_CATEGORIES, getCategoryColor, getCategoryLabel } from "./categories";
+import StylePicker from "./StylePicker";
 
 /** AddPointDialog가 만들어내는 포인트 초안 (id/trip_id/created_at은 상위에서 채움) */
 export interface PointDraft {
   name: string;
   category: MapPoint["category"];
+  /** 핀 색상. null이면 분류 기본색 */
+  color: string | null;
   memo: string | null;
   lat: number;
   lng: number;
@@ -33,6 +35,7 @@ function PointForm({
 }: Pick<AddPointDialogProps, "latlng" | "prefill" | "onCancel" | "onSave">) {
   const [name, setName] = useState(prefill?.name ?? "");
   const [category, setCategory] = useState<MapPoint["category"]>(prefill?.category ?? "attraction");
+  const [color, setColor] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
 
   const canSave = name.trim().length > 0 && latlng !== null;
@@ -42,6 +45,7 @@ function PointForm({
     onSave({
       name: name.trim(),
       category,
+      color,
       memo: memo.trim() ? memo.trim() : null,
       lat: latlng.lat,
       lng: latlng.lng,
@@ -53,7 +57,7 @@ function PointForm({
       role="dialog"
       aria-modal="true"
       aria-label="새 포인트 추가"
-      className="card w-full max-w-md p-5"
+      className="card max-h-[90dvh] w-full max-w-lg overflow-y-auto p-5"
       initial={{ scale: 0.92, y: 24, opacity: 0 }}
       animate={{ scale: 1, y: 0, opacity: 1 }}
       exit={{ scale: 0.95, y: 12, opacity: 0 }}
@@ -65,19 +69,19 @@ function PointForm({
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft" aria-hidden>
             <MapPin size={16} className="text-primary-strong" />
           </span>
-          새 포인트 추가
+          장소 추가
         </h2>
         <button
           type="button"
           onClick={onCancel}
           aria-label="닫기"
-          className="rounded-lg p-1.5 text-foreground/50 transition hover:bg-primary-soft hover:text-primary-strong"
+          className="rounded-lg p-1.5 text-foreground/62 transition hover:bg-primary-soft hover:text-primary-strong"
         >
           <X size={18} />
         </button>
       </div>
 
-      <label htmlFor="add-point-name" className="mb-1 block text-xs font-semibold text-foreground/60">
+      <label htmlFor="add-point-name" className="mb-1 block text-xs font-semibold text-foreground/72">
         이름
       </label>
       <input
@@ -86,33 +90,22 @@ function PointForm({
         value={name}
         onChange={(e) => setName(e.target.value)}
         placeholder="예: 후쿠오카 타워"
-        className="mb-4 w-full rounded-xl border border-border-subtle bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        className="mb-4 w-full rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
       />
 
-      <p className="mb-2 text-xs font-semibold text-foreground/60">카테고리</p>
-      <div className="mb-4 flex flex-wrap gap-2">
-        {ALL_CATEGORIES.map((c) => {
-          const active = c === category;
-          return (
-            <button
-              key={c}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setCategory(c)}
-              className="rounded-full border px-3 py-1.5 text-xs font-semibold transition"
-              style={
-                active
-                  ? { backgroundColor: getCategoryColor(c), borderColor: getCategoryColor(c), color: "#fff" }
-                  : { borderColor: "var(--border)", color: "rgba(28,43,58,0.6)" }
-              }
-            >
-              {getCategoryLabel(c)}
-            </button>
-          );
-        })}
+      <p className="mb-2 text-xs font-semibold text-foreground/72">분류 · 핀 색</p>
+      <div className="mb-4">
+        <StylePicker
+          category={category}
+          color={color}
+          onChange={(next) => {
+            setCategory(next.category);
+            setColor(next.color);
+          }}
+        />
       </div>
 
-      <label htmlFor="add-point-memo" className="mb-1 block text-xs font-semibold text-foreground/60">
+      <label htmlFor="add-point-memo" className="mb-1 block text-xs font-semibold text-foreground/72">
         메모
       </label>
       <textarea
@@ -121,10 +114,10 @@ function PointForm({
         onChange={(e) => setMemo(e.target.value)}
         rows={2}
         placeholder="예: 야경 명소, 오후 6시 이후 방문 추천"
-        className="mb-1 w-full resize-none rounded-xl border border-border-subtle bg-white px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        className="mb-1 w-full resize-none rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
       />
       {latlng && (
-        <p className="mb-4 text-[11px] tabular-nums text-foreground/40">
+        <p className="mb-4 text-[11px] tabular-nums text-foreground/55">
           위치 확정: {latlng.lat.toFixed(5)}, {latlng.lng.toFixed(5)}
         </p>
       )}
