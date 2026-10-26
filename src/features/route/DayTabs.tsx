@@ -39,7 +39,7 @@ export default function DayTabs({ trip, value = null, onChange }: DayTabsProps) 
 
   if (days.length === 0) {
     return (
-      <div className="card px-4 py-3 text-sm text-foreground/60">
+      <div className="card px-4 py-3 text-sm text-foreground/72">
         여행 날짜를 설정하면 Day별 일정이 표시됩니다.
       </div>
     );
@@ -69,7 +69,7 @@ export default function DayTabs({ trip, value = null, onChange }: DayTabsProps) 
             <span className={`text-xs font-semibold ${isActive ? "text-white/90" : "text-primary-strong"}`}>
               Day {dayNumber}
             </span>
-            <span className={`mt-0.5 text-[11px] ${isActive ? "text-white/80" : "text-foreground/50"}`}>
+            <span className={`mt-0.5 text-[11px] ${isActive ? "text-white/88" : "text-foreground/62"}`}>
               {format(date, "M/d(E)", { locale: ko })}
             </span>
           </button>

@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Triplan
+
+**English** | [한국어](README.ko.md)
+
+A travel planner that starts from the places you dream about. Save places you want to visit someday on a world map, turn one into a trip when you are ready, plan it day by day on a map with a timetable, budget, and packing list, and share it with one link so companions can edit along with you.
+
+- Demo: https://triplan-beryl.vercel.app
+
+![Trip page: day tabs, route map with numbered pins and direction arrows, and the day's timetable](docs/screenshot.jpg)
+
+## Features
+
+| Feature | Description |
+|---|---|
+| Wishlist | Save countries and cities you want to visit with a priority, memo, and tags. Pins on a world map. Turn any of them into a trip in one tap |
+| Day-by-day map | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins. The map opens at the city you picked, and the route is drawn as a line with direction arrows |
+| Visit order | Stops appear as chips joined by arrows (① → ② → ③). Drag a chip to reorder, tap it to open details |
+| Place details | Pick an icon (sight, restaurant, cafe, shopping, heritage, nature, stay, transport) and pin color, and attach photos, a link, and a memo to each stop |
+| Timetable | Set arrival time and stay length per stop and travel mode and minutes per leg; the day becomes a timetable with arrival and departure times |
+| Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
+| Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
+| Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges |
+| Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
+| Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA |
+
+## Access Model
+
+There are no user accounts. One admin password protects everything, and each trip carries two random tokens.
+
+| Who | How | Can do |
+|---|---|---|
+| Admin | Logs in with `ADMIN_PASSWORD` (HMAC-signed cookie) | Everything: trips, wishlist, share links, delete |
+| Edit link `/t/<token>` | Opens the link | Edit that one trip's pins, plan, budget, checklist, bookings |
+| View link `/v/<token>` | Opens the link | Read that one trip. Booking codes and links are removed by the API |
+
+Links can be regenerated at any time, which immediately disables the old one. Every API route checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
+
+## How Korean Labels Work
+
+1. When the map stops moving, the app collects the visible labels that have no `name:ko`.
+2. It sends them in batches to `/api/translate`, guessing the source language from kana or the trip's country.
+3. The server answers from a shared cache table (`triplan.name_translations`) and asks the free [MyMemory](https://mymemory.translated.net/) API only for names it has not seen.
+4. The answers are swapped into the map's label expression, so an area you have seen once shows in Korean right away.
+
+The free limit is about 5,000 characters a day, or 50,000 with `MYMEMORY_EMAIL` set. When it runs out, labels stay in the local language. Translations are machine-made, so names can be off; place names are editable.
+
+## Tech Stack
+
+- Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
+- Supabase Postgres via `pg` (tables in the `triplan` schema)
+- MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
+- MyMemory translation API (free, no key)
 
 ## Getting Started
 
-First, run the development server:
+### 1. Database (Supabase)
+
+1. Create a Supabase project.
+2. Apply the files in [`supabase/migrations/`](supabase/migrations) in order, either with `supabase db push` or by pasting them into the SQL editor.
+3. Copy the **Transaction pooler** connection string (port 6543) from Connect in the dashboard. URL-encode special characters in the password (`?` → `%3F`, `@` → `%40`).
+
+The tables live in the `triplan` schema, which the Supabase Data API does not expose, and RLS is enabled as a second guard. Only the Next.js server talks to the database.
+
+For local development you can use any Postgres instead:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker run -d --name triplan-pg -e POSTGRES_PASSWORD=triplan -e POSTGRES_DB=triplan -p 5433:5432 postgres:16-alpine
+for f in supabase/migrations/*.sql; do docker exec -i triplan-pg psql -U postgres -d triplan < "$f"; done
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. App
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+cp .env.example .env.local
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
 
-## Learn More
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `ADMIN_PASSWORD` | Yes | Admin login |
+| `SESSION_SECRET` | Yes | Signs the login cookie (32+ random characters) |
+| `KAKAO_REST_KEY` | No | Place search in Korea |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
+| `MYMEMORY_EMAIL` | No | Raises the free translation limit |
+| `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Deploy (Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Set the required variables in the Vercel project, then deploy with `vercel deploy --prod`. The Supabase direct connection (`db.<ref>.supabase.co:5432`) is IPv6-only and does not work on Vercel, so use the Transaction pooler.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+├── app/
+│   ├── (admin)/         Admin-only pages: wishlist, new trip, trip workspace
+│   ├── t/[token]/       Edit link
+│   ├── v/[token]/       View link
+│   ├── login/           Admin login
+│   └── api/             Route handlers (all access-checked)
+├── features/
+│   ├── home/            Landing and dashboard
+│   ├── wishlist/        Wishlist map, cards, form
+│   ├── trip/            Trip workspace, place details, share panel
+│   ├── map/             Map engine wrapper, pins, route arrows, Korean labels
+│   ├── route/           Day tabs, visit order chips, timetable
+│   ├── expenses/        Budget
+│   ├── prep/            Checklist and booking records
+│   ├── shell/           App shell (top bar, bottom tab bar)
+│   └── ui/              Cover photo, bottom sheet, money input, date helpers
+├── lib/                 DB pool, auth, translation, API client, types
+└── data/                Countries, cities, map centers, background photos
+supabase/migrations/     Database schema
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Credits
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Country photos are from Wikimedia Commons. See [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md). Map data © OpenStreetMap contributors, tiles by OpenFreeMap.

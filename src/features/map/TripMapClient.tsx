@@ -19,17 +19,27 @@ export interface TripMapProps {
     poi?: { name: string; category: MapPoint["category"] }
   ) => void;
   onPointClick?: (id: string) => void;
+  /** 팝업의 자세히 버튼: 장소 상세(사진·링크·메모) 열기 */
+  onPointOpen?: (id: string) => void;
   /** true면 지도 클릭으로 포인트 추가 플로우 시작 */
   editable?: boolean;
   /** AddPointDialog에서 저장 시 호출 (editable일 때만 동작) */
   onPointCreate?: (draft: PointDraft) => void;
+  /** false면 핀 사이 경로선을 그리지 않는다 (위시리스트 지도) */
+  showRoute?: boolean;
+  /** false면 핀 위 순번을 숨긴다 */
+  numbered?: boolean;
+  /** 지도 높이 클래스 덮어쓰기 */
+  heightClass?: string;
   /** 포인트가 없을 때 사용할 기본 중심 좌표 (여행 국가) */
   defaultCenter?: { lat: number; lng: number; zoom?: number } | null;
+  /** 여행 나라 (지도 라벨 한국어 번역의 원문 언어 힌트) */
+  labelCountry?: string | null;
 }
 
 const loading = () => (
   <div className="card flex h-full min-h-[320px] items-center justify-center">
-    <p className="animate-pulse text-sm font-semibold text-foreground/50">지도를 불러오는 중…</p>
+    <p className="animate-pulse text-sm font-semibold text-foreground/62">지도를 불러오는 중…</p>
   </div>
 );
 

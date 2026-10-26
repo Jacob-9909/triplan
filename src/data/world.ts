@@ -439,7 +439,7 @@ export const WORLD: ContinentData[] = [
         currency: "BSD",
         cities: [
           { name: "나소", lat: 25.0443, lng: -77.3504, emoji: "🚢", description: "카지노와 항구 크루즈의 수도" },
-          { name: "엑수마", lat: -24.6833, lng: 76.8333, emoji: "🐷", description: "수영하는 돼지와 썬더볼 그로토" },
+          { name: "엑수마", lat: 23.5167, lng: -75.7833, emoji: "🐷", description: "수영하는 돼지와 썬더볼 그로토" },
           { name: "프리포트", lat: 26.5333, lng: -78.6957, emoji: "🐠", description: "세계에서 두 번째로 깊은 블루홀" },
           { name: "할버섬", lat: 25.7333, lng: -77.8, emoji: "🦈", description: "상어 다이빙의 모험 섬" },
           { name: "안다로스", lat: 24.5167, lng: -78.1, emoji: "🕳️", description: "세계 최대의 산호초 벽" },
@@ -928,4 +928,24 @@ export function searchDestinations(query: string): DestinationSelection[] {
     }
   }
   return results;
+}
+
+/** 저장된 나라·지역 이름으로 선택값 복원 (위시리스트 → 여행 전환용) */
+export function findSelection(country?: string | null, region?: string | null): DestinationSelection | null {
+  for (const continent of WORLD) {
+    const c = continent.countries.find((x) => x.name === country);
+    if (!c) continue;
+    const city = c.cities.find((x) => x.name === region) ?? c.cities[0];
+    return city ? { continent, country: c, city } : null;
+  }
+  return null;
+}
+
+/** 나라 이름 → 국기 이모지 */
+export function flagOf(country?: string | null): string {
+  for (const continent of WORLD) {
+    const c = continent.countries.find((x) => x.name === country);
+    if (c) return c.flag;
+  }
+  return "📍";
 }

@@ -1,29 +1,19 @@
-import { getPool, jsonError } from "@/lib/db";
-
-type Row = Record<string, unknown>;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { getPool, jsonError, type Row } from "@/lib/db";
+import { listChildren, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
-  const tripId = new URL(request.url).searchParams.get("trip_id") ?? "";
-  if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
-  try {
-    const { rows } = await getPool().query<Row>(
-      "SELECT * FROM triplan.travel_docs WHERE trip_id = $1 ORDER BY starts_at ASC NULLS LAST",
-      [tripId]
-    );
-    return Response.json(rows);
-  } catch (err) {
-    console.error("GET /api/travel-docs failed:", err);
-    return jsonError("문서를 불러오지 못했어요.");
-  }
+  // 보기 전용 링크에는 예약번호와 예약 링크를 내보내지 않는다
+  return listChildren(request, "travel_docs", "starts_at ASC NULLS LAST", "예약 문서", (rows, access) =>
+    access === "view" ? rows.map((r) => ({ ...r, confirmation_code: null, url: null })) : rows
+  );
 }
 
 export async function POST(request: Request) {
   try {
     const b = await request.json();
-    for (const key of ["trip_id", "title"]) {
-      if (!b?.[key]) return jsonError(`${key} is required`, 400);
-    }
+    if (!b?.title) return jsonError("title is required", 400);
+    const denied = await requireEditBody(request, b.trip_id);
+    if (denied) return denied;
     const { rows } = await getPool().query<Row>(
       `INSERT INTO triplan.travel_docs
          (trip_id, type, title, provider, confirmation_code, url, starts_at, ends_at, file_path)
@@ -34,7 +24,7 @@ export async function POST(request: Request) {
         b.title,
         b.provider ?? null,
         b.confirmation_code ?? null,
-        b.url ?? null,
+        typeof b.url === "string" && /^https?:\/\//i.test(b.url) ? b.url : null,
         b.starts_at ?? null,
         b.ends_at ?? null,
         b.file_path ?? null,

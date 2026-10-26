@@ -70,7 +70,7 @@ const DOC_META: Record<
     label: "기타",
     icon: FileText,
     bg: "bg-slate-100",
-    text: "text-slate-500",
+    text: "text-slate-600",
   },
 };
 
@@ -84,7 +84,19 @@ const EMPTY_FORM = {
   ends_at: "",
 };
 
-export default function DocsPanel({ tripId }: { tripId: string }) {
+/** 링크는 http(s)만 연다 (공유 편집자가 javascript: 등을 넣는 것 방지) */
+function safeUrl(url: string | null) {
+  return url && /^https?:\/\//i.test(url) ? url : null;
+}
+
+export default function DocsPanel({
+  tripId,
+  readOnly = false,
+}: {
+  tripId: string;
+  /** 보기 전용 링크: 등록·삭제 UI 숨김 (예약번호는 서버에서 이미 제거됨) */
+  readOnly?: boolean;
+}) {
   const { docs, loading, addDoc, removeDoc } = useTravelDocs(tripId);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -122,6 +134,7 @@ export default function DocsPanel({ tripId }: { tripId: string }) {
       </h2>
 
       {/* 등록 폼 */}
+      {!readOnly && (
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface-muted)] p-4 sm:grid-cols-4">
         <select
           value={form.type}
@@ -187,19 +200,24 @@ export default function DocsPanel({ tripId }: { tripId: string }) {
           등록
         </button>
       </div>
+      )}
 
       {/* 문서 카드 리스트 */}
       {loading ? (
-        <p className="mt-6 text-center text-sm text-slate-400">불러오는 중…</p>
+        <p className="mt-6 text-center text-sm text-slate-500">불러오는 중…</p>
       ) : docs.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-slate-400">
+        <p className="mt-6 text-center text-sm text-slate-500">
           등록된 문서가 없어요. 항공권·숙소 바우처를 저장해보세요!
         </p>
       ) : (
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           <AnimatePresence initial={false}>
             {docs.map((doc) => (
-              <DocCard key={doc.id} doc={doc} onRemove={() => void removeDoc(doc.id)} />
+              <DocCard
+                key={doc.id}
+                doc={doc}
+                onRemove={readOnly ? undefined : () => void removeDoc(doc.id)}
+              />
             ))}
           </AnimatePresence>
         </ul>
@@ -213,9 +231,10 @@ function DocCard({
   onRemove,
 }: {
   doc: TravelDoc;
-  onRemove: () => void;
+  onRemove?: () => void;
 }) {
   const meta = DOC_META[doc.type];
+  const url = safeUrl(doc.url);
   const Icon = meta.icon;
 
   let dDay: number | null = null;
@@ -262,13 +281,13 @@ function DocCard({
           </div>
           <p className="truncate font-semibold">{doc.title}</p>
           {(doc.provider || doc.confirmation_code) && (
-            <p className="truncate text-xs text-slate-400">
+            <p className="truncate text-xs text-slate-500">
               {[doc.provider, doc.confirmation_code]
                 .filter(Boolean)
                 .join(" · ")}
             </p>
           )}
-          <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+          <p className="mt-1 flex items-center gap-1 text-xs text-slate-600">
             <CalendarDays size={12} />
             {doc.starts_at
               ? format(parseISO(doc.starts_at), "M월 d일 (E)", { locale: ko })
@@ -289,24 +308,26 @@ function DocCard({
           )}
         </div>
         <div className="flex shrink-0 flex-col gap-1.5">
-          {doc.url && (
+          {url && (
             <a
-              href={doc.url}
+              href={url}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`${doc.title} 링크 열기`}
-              className="text-slate-300 transition hover:text-[var(--color-primary)]"
+              className="text-slate-400 transition hover:text-[var(--color-primary)]"
             >
               <ExternalLink size={16} />
             </a>
           )}
-          <button
-            onClick={onRemove}
-            aria-label={`${doc.title} 삭제`}
-            className="text-slate-300 transition hover:text-[var(--color-accent)]"
-          >
-            <Trash2 size={16} />
-          </button>
+          {onRemove && (
+            <button
+              onClick={onRemove}
+              aria-label={`${doc.title} 삭제`}
+              className="text-slate-400 transition hover:text-[var(--color-accent)]"
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       </div>
     </motion.li>

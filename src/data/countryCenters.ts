@@ -1,3 +1,5 @@
+import { WORLD } from "./world";
+
 /** 국가별 지도 기본 중심 좌표 (수도 또는 대표 도시) */
 export const COUNTRY_CENTERS: Record<string, { lat: number; lng: number; zoom?: number }> = {
   // ── 아시아 ──
@@ -55,6 +57,7 @@ export const COUNTRY_CENTERS: Record<string, { lat: number; lng: number; zoom?: 
   호주: { lat: -33.8688, lng: 151.2093, zoom: 12 }, // 시드니
   뉴질랜드: { lat: -36.8485, lng: 174.7633, zoom: 11 }, // 오클랜드
   피지: { lat: -18.1416, lng: 178.4419, zoom: 11 }, // 수바
+  "프랑스령 폴리네시아": { lat: -17.5347, lng: -149.5585, zoom: 11 }, // 파페에테
   괌: { lat: 13.4443, lng: 144.7937, zoom: 12 },
   사이판: { lat: 15.185, lng: 145.7513, zoom: 12 },
   팔라우: { lat: 7.5006, lng: 134.6242, zoom: 11 },
@@ -75,4 +78,15 @@ export const COUNTRY_CENTERS: Record<string, { lat: number; lng: number; zoom?: 
 export function getCountryCenter(country?: string | null) {
   if (!country) return null;
   return COUNTRY_CENTERS[country] ?? null;
+}
+
+/** 여행 지도 시작 위치: 고른 도시가 있으면 그 도시, 없으면 나라 대표 도시 */
+export function getTripCenter(country?: string | null, region?: string | null) {
+  if (country && region) {
+    for (const continent of WORLD) {
+      const city = continent.countries.find((c) => c.name === country)?.cities.find((c) => c.name === region);
+      if (city) return { lat: city.lat, lng: city.lng, zoom: 12 };
+    }
+  }
+  return getCountryCenter(country);
 }

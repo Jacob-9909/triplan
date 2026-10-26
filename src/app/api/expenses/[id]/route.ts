@@ -1,46 +1,14 @@
-import { getPool, jsonError } from "@/lib/db";
+import { deleteChild, patchChild } from "@/lib/crud";
 
-type Row = Record<string, unknown>;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ALLOWED = [
+  "point_id", "day_number", "category", "title",
+  "amount_local", "currency_code", "exchange_rate_krw", "amount_krw", "spent_at",
+] as const;
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  if (!UUID_RE.test(id)) return jsonError("invalid id", 400);
-  try {
-    const b = await request.json();
-    const allowed = [
-      "point_id", "day_number", "category", "title",
-      "amount_local", "currency_code", "exchange_rate_krw", "amount_krw", "spent_at",
-    ] as const;
-    const sets: string[] = [];
-    const vals: unknown[] = [];
-    for (const key of allowed) {
-      if (b?.[key] !== undefined) {
-        sets.push(`${key} = $${sets.length + 1}`);
-        vals.push(b[key]);
-      }
-    }
-    if (!sets.length) return jsonError("no fields to update", 400);
-    vals.push(id);
-    await getPool().query(
-      `UPDATE triplan.expenses SET ${sets.join(", ")} WHERE id = $${vals.length}`,
-      vals
-    );
-    return Response.json({ ok: true });
-  } catch (err) {
-    console.error("PATCH /api/expenses/[id] failed:", err);
-    return jsonError("업데이트에 실패했어요.");
-  }
+  return patchChild(request, "expenses", (await params).id, ALLOWED);
 }
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  if (!UUID_RE.test(id)) return jsonError("invalid id", 400);
-  try {
-    await getPool().query("DELETE FROM triplan.expenses WHERE id = $1", [id]);
-    return Response.json({ ok: true });
-  } catch (err) {
-    console.error("DELETE /api/expenses/[id] failed:", err);
-    return jsonError("삭제에 실패했어요.");
-  }
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  return deleteChild(request, "expenses", (await params).id);
 }

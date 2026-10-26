@@ -1,7 +1,6 @@
-import { getPool, jsonError } from "@/lib/db";
-
-type Row = Record<string, unknown>;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { getPool, jsonError, UUID_RE, type Row } from "@/lib/db";
+import { requireTrip } from "@/lib/auth";
+import { pointsBelongTo, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
   const sp = new URL(request.url).searchParams;
@@ -9,6 +8,8 @@ export async function GET(request: Request) {
   const from = sp.get("from_point_id") ?? "";
   const to = sp.get("to_point_id") ?? "";
   if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
+  const access = await requireTrip(request, tripId, "view");
+  if (access instanceof Response) return access;
   try {
     if (from && to) {
       if (!UUID_RE.test(from) || !UUID_RE.test(to)) return jsonError("invalid point id", 400);
@@ -32,11 +33,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const b = await request.json();
-    if (
-      !b?.trip_id || !b?.from_point_id || !b?.to_point_id ||
-      !UUID_RE.test(b.trip_id) || !UUID_RE.test(b.from_point_id) || !UUID_RE.test(b.to_point_id)
-    ) {
+    if (!UUID_RE.test(b?.from_point_id ?? "") || !UUID_RE.test(b?.to_point_id ?? "")) {
       return jsonError("trip_id, from_point_id, to_point_id are required", 400);
+    }
+    const denied = await requireEditBody(request, b.trip_id);
+    if (denied) return denied;
+    if (!(await pointsBelongTo(b.trip_id, [b.from_point_id, b.to_point_id]))) {
+      return jsonError("points must belong to the trip", 400);
     }
     const { rows } = await getPool().query<Row>(
       `INSERT INTO triplan.route_legs (trip_id, from_point_id, to_point_id, method)

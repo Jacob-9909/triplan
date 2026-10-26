@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronRight, MapPin, Search, X } from "lucide-react";
 import type { City } from "@/data/world";
+import CoverPhoto from "@/features/ui/CoverPhoto";
 import {
   searchDestinations,
   WORLD,
@@ -84,7 +85,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
           <button
             aria-label="검색 지우기"
             onClick={() => setQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
           >
             <X size={16} />
           </button>
@@ -93,10 +94,10 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
 
       {/* 브레드크럼 */}
       {!searching && step !== "continent" && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
+        <div className="mb-4 flex items-center gap-2 text-sm text-slate-600">
           <button
             onClick={back}
-            className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 border border-[color:var(--border)] shadow-sm hover:bg-[color:var(--surface-muted)]"
+            className="flex items-center gap-1 rounded-full bg-surface px-3 py-1.5 border border-[color:var(--border)] shadow-sm hover:bg-[color:var(--surface-muted)]"
           >
             <ArrowLeft size={14} />
             이전
@@ -120,7 +121,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
       {searching ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
           {results.length === 0 && (
-            <p className="col-span-full text-center text-sm text-slate-400 py-8">
+            <p className="col-span-full text-center text-sm text-slate-500 py-8">
               &ldquo;{query}&rdquo; 에 대한 결과가 없어요 🥲
             </p>
           )}
@@ -137,11 +138,11 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold truncate">
                   {city.name}{" "}
-                  <span className="text-sm font-normal text-slate-400">
+                  <span className="text-sm font-normal text-slate-500">
                     {country.flag} {country.name}
                   </span>
                 </span>
-                <span className="block text-xs text-slate-400 truncate">
+                <span className="block text-xs text-slate-500 truncate">
                   {continent.emoji} {continent.name} · {city.description}
                 </span>
               </span>
@@ -182,6 +183,8 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
                     subtitle={`${c.currency} · ${c.cities.length}개 도시`}
                     onClick={() => pickCountry(c)}
                     accent="accent"
+                    photoCountry={c.name}
+                    continentName={continent.name}
                   />
                 ))}
 
@@ -195,7 +198,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
                     onClick={() => pickCity(c)}
                     accent="mint"
                     footer={
-                      <span className="text-[10px] text-slate-300 tabular-nums">
+                      <span className="text-[10px] text-slate-400 tabular-nums">
                         {c.lat.toFixed(1)}°, {c.lng.toFixed(1)}°
                       </span>
                     }
@@ -232,6 +235,8 @@ function CardButton({
   footer,
   onClick,
   accent,
+  photoCountry,
+  continentName,
 }: {
   emoji: string;
   title: string;
@@ -239,7 +244,27 @@ function CardButton({
   footer?: React.ReactNode;
   onClick: () => void;
   accent: "primary" | "accent" | "mint";
+  /** 지정하면 나라 대표 사진 카드로 렌더링 */
+  photoCountry?: string;
+  continentName?: string;
 }) {
+  if (photoCountry) {
+    return (
+      <motion.button
+        whileHover={{ y: -3 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={onClick}
+        className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-[var(--radius-card)] bg-slate-200 p-3.5 text-left text-white shadow-card md:p-4"
+      >
+        <CoverPhoto country={photoCountry} continent={continentName} zoomOnHover />
+        <span className="relative text-2xl leading-none drop-shadow" role="img" aria-hidden>
+          {emoji}
+        </span>
+        <span className="relative mt-1.5 font-bold">{title}</span>
+        <span className="relative text-[11px] text-white/85">{subtitle}</span>
+      </motion.button>
+    );
+  }
   const accentClass =
     accent === "primary"
       ? "group-hover:border-[color:var(--color-primary)] group-hover:bg-[color:var(--color-primary-soft)]"
@@ -260,7 +285,7 @@ function CardButton({
         {emoji}
       </span>
       <span className="mt-1.5 font-semibold">{title}</span>
-      <span className="text-xs text-slate-400 line-clamp-2">{subtitle}</span>
+      <span className="text-xs text-slate-500 line-clamp-2">{subtitle}</span>
       {footer && <span className="mt-auto pt-1">{footer}</span>}
     </motion.button>
   );

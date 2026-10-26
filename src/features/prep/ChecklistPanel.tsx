@@ -58,7 +58,7 @@ function CircularProgress({ value, total }: { value: number; total: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-sm font-bold text-foreground">{pct}%</span>
-        <span className="text-[10px] text-slate-400">
+        <span className="text-[10px] text-slate-500">
           {value}/{total}
         </span>
       </div>
@@ -66,9 +66,17 @@ function CircularProgress({ value, total }: { value: number; total: number }) {
   );
 }
 
-export default function ChecklistPanel({ tripId }: { tripId: string }) {
-  const { items, loading, addItem, addItems, toggleItem, removeItem } =
+export default function ChecklistPanel({
+  tripId,
+  readOnly = false,
+}: {
+  tripId: string;
+  /** 보기 전용 링크: 추가·체크·삭제 UI를 숨긴다 */
+  readOnly?: boolean;
+}) {
+  const { items, loading, addItem, addItems, toggleItem: toggle, removeItem } =
     useChecklist(tripId);
+  const toggleItem = (id: string) => (readOnly ? Promise.resolve() : toggle(id));
   const [newLabel, setNewLabel] = useState("");
   const [newCategory, setNewCategory] = useState<ChecklistCategory>("etc");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -128,7 +136,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
         </div>
         <div>
           <h2 className="text-lg font-bold">출국 전 준비물 체크리스트</h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-600">
             {doneCount}/{items.length} 완료 · 챙기고 떠나요!
           </p>
         </div>
@@ -137,6 +145,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
         </div>
       </div>
 
+      {!readOnly && (<>
       <div className="mt-5 space-y-2">
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(CHECKLIST_CATEGORY_LABEL) as ChecklistCategory[]).map(
@@ -150,7 +159,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
                   className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition ${
                     isActive
                       ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
-                      : "border-[var(--border-subtle)] bg-white text-slate-500 hover:border-[var(--color-primary)]/50"
+                      : "border-[var(--border-subtle)] bg-white text-slate-600 hover:border-[var(--color-primary)]/50"
                   }`}
                 >
                   <Icon size={13} />
@@ -233,7 +242,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
                             onClick={() => void addItems([t.label], [category])}
                             className={`rounded-full px-3 py-1 text-xs transition ${
                               exists
-                                ? "cursor-default bg-slate-200/60 text-slate-400 line-through"
+                                ? "cursor-default bg-slate-200/60 text-slate-500 line-through"
                                 : "bg-white text-slate-700 shadow-sm ring-1 ring-[var(--border-subtle)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
                             }`}
                           >
@@ -265,13 +274,14 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
 
       {loading ? (
-        <p className="mt-6 text-center text-sm text-slate-400">
+        <p className="mt-6 text-center text-sm text-slate-500">
           불러오는 중…
         </p>
       ) : items.length === 0 ? (
-        <p className="mt-6 text-center text-sm text-slate-400">
+        <p className="mt-6 text-center text-sm text-slate-500">
           아직 준비물이 없어요. 템플릿으로 시작해보세요!
         </p>
       ) : (
@@ -286,7 +296,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
                     <Icon size={13} />
                   </span>
                   {CHECKLIST_CATEGORY_LABEL[category]}
-                  <span className="ml-auto font-normal text-slate-400">
+                  <span className="ml-auto font-normal text-slate-500">
                     {done}/{list.length}
                   </span>
                 </div>
@@ -333,7 +343,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
                   className="relative flex-1 cursor-pointer select-none text-sm"
                   onClick={() => void toggleItem(item.id)}
                 >
-                  <span className={item.is_checked ? "text-slate-400" : ""}>
+                  <span className={item.is_checked ? "text-slate-500" : ""}>
                     {item.label}
                   </span>
                   <motion.span
@@ -348,13 +358,15 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
                   />
                 </span>
 
-                <button
-                  onClick={() => void removeItem(item.id)}
-                  aria-label={`${item.label} 삭제`}
-                  className="opacity-0 transition group-hover:opacity-100 text-slate-300 hover:text-[var(--color-accent)]"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => void removeItem(item.id)}
+                    aria-label={`${item.label} 삭제`}
+                    className="text-slate-400 transition hover:text-[var(--color-accent)] md:opacity-0 md:group-hover:opacity-100"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </motion.li>
                     ))}
                   </AnimatePresence>

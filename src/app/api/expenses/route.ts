@@ -1,28 +1,20 @@
-import { getPool, jsonError } from "@/lib/db";
-
-type Row = Record<string, unknown>;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { getPool, jsonError, type Row } from "@/lib/db";
+import { listChildren, pointsBelongTo, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
-  const tripId = new URL(request.url).searchParams.get("trip_id") ?? "";
-  if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
-  try {
-    const { rows } = await getPool().query<Row>(
-      "SELECT * FROM triplan.expenses WHERE trip_id = $1 ORDER BY spent_at ASC NULLS LAST",
-      [tripId]
-    );
-    return Response.json(rows);
-  } catch (err) {
-    console.error("GET /api/expenses failed:", err);
-    return jsonError("가계부를 불러오지 못했어요.");
-  }
+  return listChildren(request, "expenses", "spent_at ASC NULLS LAST, created_at ASC", "가계부");
 }
 
 export async function POST(request: Request) {
   try {
     const b = await request.json();
-    for (const key of ["trip_id", "category", "title", "amount_local", "currency_code", "exchange_rate_krw", "amount_krw"]) {
+    for (const key of ["category", "title", "amount_local", "currency_code", "exchange_rate_krw", "amount_krw"]) {
       if (b?.[key] === undefined) return jsonError(`${key} is required`, 400);
+    }
+    const denied = await requireEditBody(request, b.trip_id);
+    if (denied) return denied;
+    if (b.point_id && !(await pointsBelongTo(b.trip_id, [b.point_id]))) {
+      return jsonError("point must belong to the trip", 400);
     }
     const { rows } = await getPool().query<Row>(
       `INSERT INTO triplan.expenses

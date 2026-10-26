@@ -1,22 +1,6 @@
-import {
-  Bike,
-  Bus,
-  Camera,
-  CarFront,
-  CircleHelp,
-  Footprints,
-  Landmark,
-  MapPin,
-  Plane,
-  Ship,
-  ShoppingBag,
-  TrainFront,
-  Trees,
-  Utensils,
-  Hotel,
-  type LucideIcon,
-} from "lucide-react";
+import { Bike, Bus, CarFront, Footprints, MapPin, Plane, Ship, type LucideIcon } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
+import { CATEGORIES } from "@/features/map/pointStyle";
 
 export type PointCategory = MapPoint["category"];
 export type LegMethod = RouteLeg["method"];
@@ -30,16 +14,10 @@ interface CategoryMeta {
   bg: string;
 }
 
-export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
-  attraction: { icon: Camera, label: "관광", color: "text-primary-strong", bg: "bg-primary-soft" },
-  food: { icon: Utensils, label: "식당", color: "text-accent", bg: "bg-accent-soft" },
-  stay: { icon: Hotel, label: "숙소", color: "text-violet", bg: "bg-violet/15" },
-  transport: { icon: TrainFront, label: "교통", color: "text-mint", bg: "bg-mint/15" },
-  shopping: { icon: ShoppingBag, label: "쇼핑", color: "text-sand", bg: "bg-sand/20" },
-  nature: { icon: Trees, label: "자연", color: "text-mint", bg: "bg-mint/10" },
-  culture: { icon: Landmark, label: "문화", color: "text-violet", bg: "bg-violet/15" },
-  etc: { icon: CircleHelp, label: "기타", color: "text-foreground/60", bg: "bg-surface-muted" },
-};
+/** 분류별 아이콘·이름 (map/pointStyle의 CATEGORIES에서 파생, 색은 pointColor 사용) */
+export const CATEGORY_META = Object.fromEntries(
+  CATEGORIES.map((c) => [c.id, { icon: c.icon, label: c.label, color: "", bg: "" }])
+) as Record<PointCategory, CategoryMeta>;
 
 export interface MethodMeta {
   icon: LucideIcon;

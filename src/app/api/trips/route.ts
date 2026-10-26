@@ -1,11 +1,13 @@
-import { getPool, jsonError } from "@/lib/db";
+import { getPool, jsonError, type Row } from "@/lib/db";
+import { newToken, requireAdmin } from "@/lib/auth";
 
-type Row = Record<string, unknown>;
-
+/** 여행 목록·생성은 관리자 전용 */
 export async function GET() {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const { rows } = await getPool().query<Row>(
-      "SELECT * FROM triplan.trips ORDER BY created_at DESC"
+      "SELECT * FROM triplan.trips ORDER BY start_date ASC NULLS LAST, created_at DESC"
     );
     return Response.json(rows);
   } catch (err) {
@@ -15,14 +17,17 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
   try {
     const b = await request.json();
     if (typeof b?.title !== "string" || !b.title.trim()) {
       return jsonError("title is required", 400);
     }
     const { rows } = await getPool().query<Row>(
-      `INSERT INTO triplan.trips (title, continent, country, region, start_date, end_date, base_currency)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      `INSERT INTO triplan.trips
+         (title, continent, country, region, start_date, end_date, base_currency, edit_token, view_token)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
       [
         b.title.trim(),
         b.continent ?? null,
@@ -31,6 +36,8 @@ export async function POST(request: Request) {
         b.start_date ?? null,
         b.end_date ?? null,
         b.base_currency ?? "KRW",
+        newToken(),
+        newToken(),
       ]
     );
     return Response.json(rows[0]);

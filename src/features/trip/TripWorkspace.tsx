@@ -1,75 +1,146 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Banknote,
-  CalendarRange,
+  CalendarDays,
+  Eye,
   Luggage,
   MapPin,
+  MousePointerClick,
+  PencilLine,
   Plane,
-  Route as RouteIcon,
+  Share2,
 } from "lucide-react";
-import type { MapPoint, Trip } from "@/lib/types";
-import { useTripData, persistOrder, addPoint, ensureLeg, updateLeg } from "./useTripData";
+import type { Access, MapPoint, RouteLeg } from "@/lib/types";
+import { apiPatch, setTripToken } from "@/lib/api";
+import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
-import { getCountryCenter } from "@/data/countryCenters";
-import PointListMini from "@/features/map/PointListMini";
+import { getTripCenter } from "@/data/countryCenters";
 import DayTabs from "@/features/route/DayTabs";
 import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
 import DaySummary from "@/features/route/DaySummary";
-import LegEditor from "@/features/route/LegEditor";
-import SearchTabs from "@/features/search/SearchTabs";
+import { estimateDirections, fetchDirections } from "@/features/route/directions";
+import { formatDuration } from "@/features/route/schedule";
+import { METHOD_META } from "@/features/route/meta";
+import { PointBadge } from "@/features/map/pointStyle";
+import MoneyInput from "@/features/ui/MoneyInput";
+import Sheet from "@/features/ui/Sheet";
+import PlaceDetail, { type PointPatch } from "./PlaceDetail";
 import ExpenseForm from "@/features/expenses/ExpenseForm";
 import ExpenseList from "@/features/expenses/ExpenseList";
 import ExpenseSummary from "@/features/expenses/ExpenseSummary";
 import { useExpenses } from "@/features/expenses/useExpenses";
 import ChecklistPanel from "@/features/prep/ChecklistPanel";
 import DocsPanel from "@/features/prep/DocsPanel";
-import CountryBackdrop from "@/features/ui/CountryBackdrop";
+import CoverPhoto from "@/features/ui/CoverPhoto";
+import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
+import SharePanel from "./SharePanel";
 
-type Tab = "plan" | "search" | "expenses" | "prep";
+type Tab = "plan" | "expenses" | "prep";
 
 const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
-  { id: "plan", label: "지도·일정", icon: MapPin },
-  { id: "search", label: "항공·숙소", icon: Plane },
+  { id: "plan", label: "일정", icon: MapPin },
   { id: "expenses", label: "가계부", icon: Banknote },
-  { id: "prep", label: "준비물", icon: Luggage },
+  { id: "prep", label: "준비", icon: Luggage },
 ];
 
-export default function TripWorkspace({ tripId }: { tripId: string }) {
-  const { trip, points, legs, loading, notConfigured, setPoints, setLegs } =
-    useTripData(tripId);
+export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: Access }) {
+  // 관리자 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
+  if (mode === "admin") setTripToken(null);
+  const canEdit = mode !== "view";
+
+  const { trip, points, legs, loading, notConfigured, setPoints, setLegs } = useTripData(tripId);
   const { expenses } = useExpenses(tripId);
   const [tab, setTab] = useState<Tab>("plan");
   const [day, setDay] = useState(1);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
-  /** 지도 POI 라벨 클릭 시 자동 완성되는 장소 정보 */
+  /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const dayPoints = useMemo(
     () =>
       points
         .filter((p) => p.day_number === day)
         .sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99)),
-    [points, day],
+    [points, day]
   );
+  // 지금 순서에서 바로 이웃한 장소 사이의 구간만 쓴다 (순서를 바꾸면 예전 구간은 합계에서 빠진다)
   const dayLegs = useMemo(() => {
-    const ids = new Set(dayPoints.map((p) => p.id));
-    return legs.filter((l) => ids.has(l.from_point_id) && ids.has(l.to_point_id));
+    const out: RouteLeg[] = [];
+    for (let i = 0; i < dayPoints.length - 1; i++) {
+      const leg = legs.find((l) => l.from_point_id === dayPoints[i].id && l.to_point_id === dayPoints[i + 1].id);
+      if (leg) out.push(leg);
+    }
+    return out;
   }, [legs, dayPoints]);
+
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [legEditId, setLegEditId] = useState<string | null>(null);
+  const detailPoint = points.find((p) => p.id === detailId) ?? null;
+  const editingLeg = legs.find((l) => l.id === legEditId) ?? null;
+
+  // 시간이 비어 있는 구간은 거리 기반 추정치를 자동으로 채운다
+  const estimated = useRef(new Set<string>());
+  useEffect(() => {
+    if (!canEdit) return;
+    for (const leg of dayLegs) {
+      if (leg.duration_min != null || estimated.current.has(leg.id)) continue;
+      const from = points.find((p) => p.id === leg.from_point_id);
+      const to = points.find((p) => p.id === leg.to_point_id);
+      if (!from || !to) continue;
+      estimated.current.add(leg.id);
+      void fetchDirections(from, to, leg.method).then((r) => {
+        const patch = { duration_min: r.durationMin, distance_km: r.distanceKm };
+        setLegs((prev) => prev.map((l) => (l.id === leg.id ? { ...l, ...patch } : l)));
+        void updateLeg(leg.id, patch);
+      });
+    }
+  }, [dayLegs, points, canEdit, setLegs]);
+
+  // 구간 수정: 화면은 바로 바꾸고, 저장은 입력이 멈춘 뒤 한 번만
+  const legSaveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const legPending = useRef(new Map<string, Partial<RouteLeg>>());
+  function changeLeg(id: string, patch: Partial<RouteLeg>) {
+    setLegs((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    // 이동수단·시간·비용을 연달아 바꿔도 모두 저장되게 합쳐 둔다
+    legPending.current.set(id, { ...legPending.current.get(id), ...patch });
+    const timer = legSaveTimers.current.get(id);
+    if (timer) clearTimeout(timer);
+    legSaveTimers.current.set(
+      id,
+      setTimeout(() => {
+        const merged = legPending.current.get(id);
+        legPending.current.delete(id);
+        legSaveTimers.current.delete(id);
+        if (merged) void updateLeg(id, merged);
+      }, 500)
+    );
+  }
+
+  async function savePoint(id: string, patch: PointPatch) {
+    try {
+      await apiPatch(`/api/map-points/${id}`, patch);
+      setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "저장하지 못했어요.";
+    }
+  }
 
   async function handleReorder(orderedIds: string[]) {
     setPoints((prev) =>
       prev.map((p) => {
         const idx = orderedIds.indexOf(p.id);
         return idx >= 0 ? { ...p, visit_order: idx + 1 } : p;
-      }),
+      })
     );
     await persistOrder(tripId, orderedIds);
     // 순서가 바뀐 인접 구간의 leg 확보
@@ -84,12 +155,7 @@ export default function TripWorkspace({ tripId }: { tripId: string }) {
   async function handlePointCreate(draft: PointDraft) {
     if (!pendingLatLng) return;
     const maxOrder = Math.max(0, ...dayPoints.map((p) => p.visit_order ?? 0));
-    const created = await addPoint(
-      tripId,
-      { ...draft, lat: pendingLatLng.lat, lng: pendingLatLng.lng },
-      day,
-      maxOrder + 1,
-    );
+    const created = await addPoint(tripId, { ...draft, lat: pendingLatLng.lat, lng: pendingLatLng.lng }, day, maxOrder + 1);
     if (created) {
       setPoints((prev) => [...prev, created]);
       const prevPoint = dayPoints[dayPoints.length - 1];
@@ -102,225 +168,293 @@ export default function TripWorkspace({ tripId }: { tripId: string }) {
     setPoiPrefill(null);
   }
 
-  function handleLegChange(legId: string, patch: Partial<MapPoint> | Record<string, unknown>) {
-    setLegs((prev) => prev.map((l) => (l.id === legId ? { ...l, ...patch } : l)));
-    updateLeg(legId, patch as never);
+  async function handlePointDelete(id: string) {
+    const idx = dayPoints.findIndex((p) => p.id === id);
+    if (!(await deletePoint(id))) return;
+    setPoints((prev) => prev.filter((p) => p.id !== id));
+    setLegs((prev) => prev.filter((l) => l.from_point_id !== id && l.to_point_id !== id));
+    // 가운데 장소를 지웠으면 앞뒤 장소를 새 구간으로 잇는다
+    const before = dayPoints[idx - 1];
+    const after = dayPoints[idx + 1];
+    if (before && after) {
+      const leg = await ensureLeg(tripId, before.id, after.id);
+      if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+    }
   }
 
   if (notConfigured) {
     return (
-      <div className="card mx-auto mt-20 max-w-md p-8 text-center">
-        <CalendarRange className="mx-auto text-primary" size={40} />
-        <h2 className="mt-4 text-lg font-bold">Supabase 연결 필요</h2>
-        <p className="mt-2 text-sm text-foreground/60">
-          .env.local에 Supabase 키를 설정하고 마이그레이션을 실행하세요.
-          <br />
-          <code className="mt-2 block rounded bg-surface-muted p-2 text-xs">
-            supabase/migrations/0001_init.sql
-          </code>
+      <div className="mx-auto mt-24 max-w-sm px-6 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+          <MapPin size={26} />
+        </div>
+        <h2 className="mt-4 text-lg font-bold">여행을 열 수 없어요</h2>
+        <p className="mt-2 text-sm text-foreground/65">
+          삭제되었거나 링크가 바뀌었을 수 있어요. {mode === "admin" ? "" : "링크를 보낸 사람에게 새 링크를 받아 주세요."}
         </p>
-        <Link href="/" className="mt-4 inline-block text-sm font-medium text-primary-strong">
-          ← 홈으로
-        </Link>
+        {mode === "admin" && (
+          <Link href="/" className="btn btn-ghost mt-5 px-5 py-2.5 text-sm">
+            내 여행으로
+          </Link>
+        )}
       </div>
     );
   }
 
   if (loading || !trip) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-[70dvh] items-center justify-center">
         <motion.div
-          animate={{ y: [-6, 6, -6] }}
-          transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+          animate={{ x: [-30, 30], y: [6, -6], rotate: [8, -8] }}
+          transition={{ repeat: Infinity, repeatType: "mirror", duration: 1.2, ease: "easeInOut" }}
           className="text-primary"
         >
-          <Plane size={44} />
+          <Plane size={40} />
         </motion.div>
       </div>
     );
   }
 
+  const phase = tripPhase(trip);
+  const stay = stayLabel(trip);
+  const mapCenter =
+    dayPoints.length > 0
+      ? {
+          lat: dayPoints.reduce((s, p) => s + p.lat, 0) / dayPoints.length,
+          lng: dayPoints.reduce((s, p) => s + p.lng, 0) / dayPoints.length,
+        }
+      : getTripCenter(trip.country, trip.region);
+
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pb-16 md:px-6 xl:max-w-[96rem]">
-      {/* 헤더 */}
-      <header className="relative isolate flex items-center justify-between overflow-hidden rounded-2xl px-4 py-5 shadow-card md:px-6 md:py-7">
-        <CountryBackdrop country={trip.country} continent={trip.continent ?? undefined} />
-        <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-sm text-foreground/50 hover:text-primary-strong"
-          >
-            <ArrowLeft size={15} /> 내 여행
-          </Link>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-3xl xl:text-4xl">
-            {trip.title}
-          </h1>
-          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60">
-            <MapPin size={14} className="text-accent" />
-            {[trip.continent, trip.country, trip.region].filter(Boolean).join(" · ")}
-            <span className="ml-2 inline-flex items-center gap-1">
-              <CalendarRange size={14} className="text-mint" />
-              {trip.start_date} ~ {trip.end_date}
+    <div className={mode === "admin" ? "" : "min-h-dvh pb-16"}>
+      {/* 사진 헤더 */}
+      <header className="relative isolate overflow-hidden bg-slate-300 text-white md:mx-auto md:mt-6 md:max-w-6xl md:rounded-[1.75rem]">
+        <motion.div
+          initial={{ scale: 1.08 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.4, ease: [0.2, 0.8, 0.2, 1] }}
+          className="absolute inset-0 -z-10"
+        >
+          <CoverPhoto country={trip.country} continent={trip.continent} />
+        </motion.div>
+        <div className="flex min-h-56 flex-col justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] md:min-h-72 md:p-8">
+          <div className="flex items-center justify-between gap-2">
+            {mode === "admin" ? (
+              <Link
+                href="/"
+                aria-label="내 여행으로"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/25 backdrop-blur-md transition hover:bg-black/40"
+              >
+                <ArrowLeft size={18} />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
+                {mode === "edit" ? <PencilLine size={13} /> : <Eye size={13} />}
+                {mode === "edit" ? "공유받은 여행 · 함께 편집 중" : "공유받은 여행 · 보기 전용"}
+              </span>
+            )}
+            {mode === "admin" && (
+              <button
+                onClick={() => setShareOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-lift transition active:scale-95"
+              >
+                <Share2 size={15} /> 공유
+              </button>
+            )}
+          </div>
+          <div>
+            <span
+              className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                phase.phase === "ongoing" ? "bg-mint text-white" : "bg-white/90 text-foreground"
+              }`}
+            >
+              {ddayLabel(trip)}
             </span>
-          </p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight md:text-5xl">{trip.title}</h1>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/88">
+              <span>
+                <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays size={14} />
+                {formatRange(trip)}
+                {stay && ` · ${stay}`}
+              </span>
+            </p>
+          </div>
         </div>
       </header>
 
       {/* 탭 */}
-      <nav className="mb-6 flex gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm sm:w-fit">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`relative flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors md:px-5 md:py-2.5 ${
-              tab === id ? "text-white" : "text-foreground/60 hover:text-primary-strong"
-            }`}
-          >
-            {tab === id && (
-              <motion.span
-                layoutId="tab-pill"
-                className="absolute inset-0 rounded-full bg-primary"
-                transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
-              />
-            )}
-            <Icon size={15} className="relative z-10" />
-            <span className="relative z-10">{label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {/* 지도·일정 — 모바일에선 Day 선택이 최상단, 데스크톱에선 지도 3 : 사이드 2 */}
-      {tab === "plan" && (
-        <div className="fade-up grid gap-5 lg:grid-cols-5 xl:gap-7">
-          {/* 모바일용 Day 탭 (데스크톱에선 aside의 것 사용) */}
-          <div className="lg:hidden">
-            <DayTabs trip={trip} value={day} onChange={setDay} />
-          </div>
-
-          <div className="space-y-4 lg:col-span-3 xl:space-y-5">
-            <div className="relative card overflow-hidden p-0">
-              {/* 지도 위 장소 검색 (카카오 로컬) */}
-              <div className="absolute left-3 top-3 z-10">
-                <PlaceSearch
-                  center={
-                    dayPoints.length > 0
-                      ? {
-                          lat: dayPoints.reduce((s, p) => s + p.lat, 0) / dayPoints.length,
-                          lng: dayPoints.reduce((s, p) => s + p.lng, 0) / dayPoints.length,
-                        }
-                      : getCountryCenter(trip.country)
-                  }
-                  onPick={(place: PickedPlace) => {
-                    setPendingLatLng({ lat: place.lat, lng: place.lng });
-                    setPoiPrefill({ name: place.name, category: place.category });
-                  }}
+      <div className="glass sticky top-0 z-30 border-b border-border-subtle md:top-16 md:border-none md:bg-transparent md:backdrop-blur-none">
+        <nav className="mx-auto flex max-w-6xl gap-1 px-4 py-2 md:px-0 md:py-4">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors md:flex-none md:px-5 ${
+                tab === id ? "text-white" : "text-foreground/65 hover:text-foreground"
+              }`}
+            >
+              {tab === id && (
+                <motion.span
+                  layoutId="trip-tab"
+                  className="absolute inset-0 rounded-full bg-foreground"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                 />
+              )}
+              <Icon size={15} className="relative" />
+              <span className="relative">{label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 pt-3 md:px-0">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22 }}
+          >
+            {tab === "plan" && (
+              <div className="space-y-4">
+                <DayTabs trip={trip} value={day} onChange={setDay} />
+                <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
+                  <div className="space-y-4 lg:col-span-3">
+                    <div className="relative overflow-hidden rounded-[var(--radius-card)] shadow-card">
+                      {canEdit && (
+                        <div className="absolute left-3 right-14 top-3 z-10 sm:right-auto">
+                          <PlaceSearch
+                            center={mapCenter}
+                            onPick={(place: PickedPlace) => {
+                              setPendingLatLng({ lat: place.lat, lng: place.lng });
+                              setPoiPrefill({ name: place.name, category: place.category });
+                            }}
+                          />
+                        </div>
+                      )}
+                      <TripMap
+                        points={dayPoints}
+                        legs={dayLegs}
+                        expenses={expenses}
+                        defaultCenter={getTripCenter(trip.country, trip.region)}
+                        labelCountry={trip.country}
+                        selectedPointId={selectedPointId}
+                        focusPointId={selectedPointId}
+                        onMapClick={
+                          canEdit
+                            ? (latlng: { lat: number; lng: number }, poi) => {
+                                setPendingLatLng(latlng);
+                                setPoiPrefill(poi ?? null);
+                              }
+                            : undefined
+                        }
+                        onPointClick={(id: string) => setSelectedPointId(id)}
+                        onPointOpen={(id: string) => setDetailId(id)}
+                        editable={canEdit}
+                      />
+                    </div>
+                    <DaySummary points={dayPoints} legs={dayLegs} />
+                  </div>
+                  <aside className="space-y-4 lg:col-span-2">
+                    {canEdit && (
+                      <>
+                        <ItineraryList
+                          points={dayPoints}
+                          onReorder={handleReorder}
+                          onDelete={handlePointDelete}
+                          onOpen={(p) => setDetailId(p.id)}
+                        />
+                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/60">
+                          <MousePointerClick size={13} /> 지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.
+                        </p>
+                      </>
+                    )}
+                    {canEdit && dayLegs.length > 0 && (
+                      <p className="px-1 text-xs text-foreground/60">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
+                    )}
+                    <RouteTimeline
+                      points={dayPoints}
+                      legs={dayLegs}
+                      onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}
+                      onPointClick={(p) => setDetailId(p.id)}
+                    />
+                  </aside>
+                </div>
               </div>
-              <TripMap
-                points={points.filter((p) => p.day_number === day)}
-                legs={dayLegs}
-                expenses={expenses}
-                defaultCenter={getCountryCenter(trip.country)}
-                selectedPointId={selectedPointId}
-                onMapClick={(latlng: { lat: number; lng: number }, poi) => {
-                  setPendingLatLng(latlng);
-                  setPoiPrefill(poi ?? null);
-                }}
-                onPointClick={(id: string) => setSelectedPointId(id)}
-                editable
-              />
-            </div>
-            <DaySummary points={dayPoints} legs={dayLegs} />
-            <RouteTimeline points={dayPoints} legs={dayLegs} />
-          </div>
+            )}
 
-          <aside className="hidden space-y-4 lg:col-span-2 lg:block xl:space-y-5">
-            <DayTabs trip={trip} value={day} onChange={setDay} />
-            <ItineraryList
-              points={dayPoints}
-              onReorder={handleReorder}
-              onDelete={(id) => {
-                setPoints((prev) => prev.filter((p) => p.id !== id));
-              }}
-            />
-            <p className="flex items-center gap-1.5 text-xs text-foreground/40">
-              <RouteIcon size={13} /> 지도를 클릭해 새 포인트를 추가하고, 드래그로 방문 순서를
-              바꿔보세요.
-            </p>
-          </aside>
+            {tab === "expenses" && (
+              <ExpensesTab tripId={tripId} day={day} canEdit={canEdit} startDate={trip.start_date} endDate={trip.end_date} />
+            )}
 
-          {/* 모바일용 일정 리스트 */}
-          <div className="space-y-4 lg:hidden">
-            <ItineraryList
-              points={dayPoints}
-              onReorder={handleReorder}
-              onDelete={(id) => {
-                setPoints((prev) => prev.filter((p) => p.id !== id));
-              }}
-            />
-          </div>
-        </div>
+            {tab === "prep" && (
+              <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+                <ChecklistPanel tripId={tripId} readOnly={!canEdit} />
+                <DocsPanel tripId={tripId} readOnly={!canEdit} />
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {canEdit && (
+        <AddPointDialog
+          open={pendingLatLng !== null}
+          latlng={pendingLatLng}
+          prefill={poiPrefill ?? undefined}
+          country={trip.country}
+          onCancel={() => {
+            setPendingLatLng(null);
+            setPoiPrefill(null);
+          }}
+          onSave={handlePointCreate}
+        />
       )}
 
-      {/* 항공·숙소 검색 — 다른 탭과 동일한 grid 프레임(간격·페이드) 사용 */}
-      {tab === "search" && (
-        <div className="fade-up grid gap-5 lg:grid-cols-5 xl:gap-7">
-          <div className="space-y-4 lg:col-span-5 xl:space-y-5">
-            <SearchTabs
-              flightDefaults={{
-                origin: "ICN",
-                destination: undefined,
-                date: trip.start_date ?? undefined,
-              }}
-              hotelDefaults={{
-                checkIn: trip.start_date ?? undefined,
-                checkOut: trip.end_date ?? undefined,
-              }}
-            />
-          </div>
-        </div>
-      )}
+      {mode === "admin" && <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} />}
 
-      {/* 가계부 */}
-      {tab === "expenses" && <ExpensesTab tripId={tripId} dayPoints={dayPoints} day={day} />}
+      <PlaceDetail point={detailPoint} canEdit={canEdit} onClose={() => setDetailId(null)} onSave={savePoint} />
 
-      {/* 준비물 */}
-      {tab === "prep" && (
-        <div className="fade-up grid gap-5 lg:grid-cols-2 xl:gap-7">
-          <ChecklistPanel tripId={tripId} />
-          <DocsPanel tripId={tripId} />
-        </div>
-      )}
-
-      <AddPointDialog
-        open={pendingLatLng !== null}
-        latlng={pendingLatLng}
-        prefill={poiPrefill ?? undefined}
-        onCancel={() => {
-          setPendingLatLng(null);
-          setPoiPrefill(null);
-        }}
-        onSave={handlePointCreate}
-      />
+      <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title="이동 구간">
+        {editingLeg && (
+          <LegSheetBody
+            leg={editingLeg}
+            points={points}
+            onChange={changeLeg}
+            onDone={() => setLegEditId(null)}
+          />
+        )}
+      </Sheet>
     </div>
   );
 }
 
 function ExpensesTab({
   tripId,
-  dayPoints,
   day,
+  canEdit,
+  startDate,
+  endDate,
 }: {
   tripId: string;
-  dayPoints: MapPoint[];
   day: number;
+  canEdit: boolean;
+  startDate: string | null;
+  endDate: string | null;
 }) {
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(tripId);
-  const pointOptions = dayPoints.map((p) => ({ id: p.id, name: p.name }));
+
+  if (!canEdit) {
+    return <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />;
+  }
 
   return (
-    <div className="fade-up grid gap-5 lg:grid-cols-5 xl:gap-7">
-      <div className="space-y-4 lg:col-span-2 xl:space-y-5">
+    <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
+      <div className="space-y-4 lg:col-span-2">
         <ExpenseForm
           baseCurrency="KRW"
           onSubmit={async (input) => {
@@ -328,14 +462,10 @@ function ExpensesTab({
             return saved !== null;
           }}
         />
-        {pointOptions.length > 0 && (
-          <p className="text-xs text-foreground/40">
-            오늘(Day {day}) 방문지에 지출을 연결할 수 있어요.
-          </p>
-        )}
+        <p className="px-1 text-xs text-foreground/60">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
       </div>
-      <div className="space-y-4 lg:col-span-3 xl:space-y-5">
-        <ExpenseSummary expenses={expenses} />
+      <div className="space-y-4 lg:col-span-3">
+        <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />
         <ExpenseList
           expenses={expenses}
           onDelete={async (e) => {
@@ -346,6 +476,134 @@ function ExpensesTab({
           }}
         />
       </div>
+    </div>
+  );
+}
+
+const LEG_METHODS: RouteLeg["method"][] = ["walk", "transit", "taxi", "bike", "rental-car", "plane", "ferry"];
+const MINUTE_PRESETS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
+
+/** 구간 편집: 이동수단 · 소요 시간(직접 지정) · 비용 */
+function LegSheetBody({
+  leg,
+  points,
+  onChange,
+  onDone,
+}: {
+  leg: RouteLeg;
+  points: MapPoint[];
+  onChange: (id: string, patch: Partial<RouteLeg>) => void;
+  onDone: () => void;
+}) {
+  const from = points.find((p) => p.id === leg.from_point_id);
+  const to = points.find((p) => p.id === leg.to_point_id);
+  if (!from || !to) return null;
+  const est = estimateDirections(from, to, leg.method);
+  const minutes = leg.duration_min ?? est.durationMin;
+  const setMinutes = (m: number) => onChange(leg.id, { duration_min: Math.max(0, Math.min(24 * 60, Math.round(m))) });
+
+  return (
+    <div className="space-y-5">
+      <p className="flex items-center gap-2 text-sm font-semibold">
+        <PointBadge point={from} size={26} /> <span className="truncate">{from.name}</span>
+        <span className="text-foreground/55">→</span>
+        <PointBadge point={to} size={26} /> <span className="truncate">{to.name}</span>
+      </p>
+
+      <section>
+        <h4 className="mb-2 text-xs font-bold text-foreground/65">이동수단</h4>
+        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
+          {LEG_METHODS.map((m) => {
+            const meta = METHOD_META[m];
+            const Icon = meta.icon;
+            const on = m === leg.method;
+            return (
+              <motion.button
+                key={m}
+                type="button"
+                whileTap={{ scale: 0.92 }}
+                onClick={() => {
+                  // 이동수단을 바꾸면 그 수단 기준 추정 시간으로 다시 채운다 (이후 직접 조정 가능)
+                  const e = estimateDirections(from, to, m);
+                  onChange(leg.id, { method: m, duration_min: e.durationMin, distance_km: e.distanceKm });
+                }}
+                className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 text-[11px] font-semibold transition ${
+                  on ? "border-primary bg-primary text-white shadow-sm" : "border-border-subtle text-foreground/72 hover:border-primary/40"
+                }`}
+              >
+                <Icon size={18} />
+                {meta.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="mb-2 flex items-center justify-between text-xs font-bold text-foreground/65">
+          소요 시간
+          <span className="font-medium text-foreground/55">거리 약 {est.distanceKm}km</span>
+        </h4>
+        <div className="flex items-center justify-center gap-4">
+          <button
+            type="button"
+            onClick={() => setMinutes(minutes - 5)}
+            aria-label="5분 줄이기"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-xl font-bold text-foreground/72 active:scale-90"
+          >
+            −
+          </button>
+          <div className="min-w-32 text-center">
+            <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes)}</p>
+            <p className="text-[11px] text-foreground/60">
+              {leg.duration_min == null || leg.duration_min === est.durationMin ? "추정치" : `추정 ${formatDuration(est.durationMin)}`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMinutes(minutes + 5)}
+            aria-label="5분 늘리기"
+            className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-xl font-bold text-foreground/72 active:scale-90"
+          >
+            +
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+          {MINUTE_PRESETS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMinutes(m)}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                minutes === m ? "bg-foreground text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+              }`}
+            >
+              {formatDuration(m)}
+            </button>
+          ))}
+          {leg.duration_min !== est.durationMin && (
+            <button
+              type="button"
+              onClick={() => setMinutes(est.durationMin)}
+              className="rounded-full px-3 py-1.5 text-xs font-semibold text-primary-strong hover:bg-primary-soft"
+            >
+              추정치로
+            </button>
+          )}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="mb-2 text-xs font-bold text-foreground/65">이동 비용</h4>
+        <MoneyInput value={leg.cost} onChange={(cost) => onChange(leg.id, { cost })} />
+      </section>
+
+      <p className="text-xs leading-relaxed text-foreground/60">
+        추정 시간은 직선거리와 이동수단별 평균 속도로 계산해요. 실제와 다르면 직접 맞춰 주세요. 타임테이블과 하루 합계에 바로 반영돼요.
+      </p>
+      <button onClick={onDone} className="btn btn-primary w-full py-3 text-sm">
+        완료
+      </button>
     </div>
   );
 }

@@ -1,32 +1,24 @@
-import { getPool, jsonError } from "@/lib/db";
-
-type Row = Record<string, unknown>;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { getPool, jsonError, type Row } from "@/lib/db";
+import { invalidPointField, listChildren, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
-  const tripId = new URL(request.url).searchParams.get("trip_id") ?? "";
-  if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
-  try {
-    const { rows } = await getPool().query<Row>(
-      "SELECT * FROM triplan.map_points WHERE trip_id = $1 ORDER BY visit_order ASC NULLS LAST",
-      [tripId]
-    );
-    return Response.json(rows);
-  } catch (err) {
-    console.error("GET /api/map-points failed:", err);
-    return jsonError("지도 핀을 불러오지 못했어요.");
-  }
+  return listChildren(request, "map_points", "visit_order ASC NULLS LAST", "지도 핀");
 }
 
 export async function POST(request: Request) {
   try {
     const b = await request.json();
-    if (!b?.trip_id || typeof b?.name !== "string" || !b.name.trim()) {
+    if (typeof b?.name !== "string" || !b.name.trim()) {
       return jsonError("trip_id and name are required", 400);
     }
+    const denied = await requireEditBody(request, b.trip_id);
+    if (denied) return denied;
+    const bad = invalidPointField(b);
+    if (bad) return jsonError(bad, 400);
     const { rows } = await getPool().query<Row>(
-      `INSERT INTO triplan.map_points (trip_id, name, category, memo, lat, lng, day_number, visit_order)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      `INSERT INTO triplan.map_points
+         (trip_id, name, category, memo, lat, lng, day_number, visit_order, color, start_time, stay_min)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [
         b.trip_id,
         b.name.trim(),
@@ -36,6 +28,9 @@ export async function POST(request: Request) {
         Number(b.lng),
         b.day_number ?? null,
         b.visit_order ?? null,
+        b.color ?? null,
+        b.start_time ?? null,
+        b.stay_min ?? null,
       ]
     );
     return Response.json(rows[0]);

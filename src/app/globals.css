@@ -1,28 +1,35 @@
 @import "tailwindcss";
 
-/* ===== Triplan 디자인 토큰 — 밝고 산뜻한 여행 테마 ===== */
+/* ===== Triplan 디자인 토큰 — 사진이 주인공인 여행 앱 테마 ===== */
 :root {
-  --background: #f6fbff; /* 하늘빛 배경 */
-  --foreground: #1c2b3a;
+  --background: #f4f6f9;
+  --foreground: #0d1b2a;
   --surface: #ffffff;
-  --surface-muted: #eef6fc;
+  --surface-muted: #eef2f7;
 
-  /* Primary: 청량한 스카이블루 */
-  --color-primary: #0ea5e9;
-  --color-primary-soft: #e0f2fe;
-  --color-primary-strong: #0284c7;
+  /* Primary: 깊은 바다 블루 */
+  --color-primary: #0b84e0;
+  --color-primary-soft: #e2f1fd;
+  --color-primary-strong: #0563b0;
 
-  /* Accent: 산호빛 석양 */
-  --color-accent: #fb7185;
-  --color-accent-soft: #ffe4e6;
+  /* Accent: 석양 코랄 */
+  --color-accent: #ff6b5e;
+  --color-accent-soft: #ffe9e6;
 
   /* 서브 컬러 */
-  --color-mint: #34d399;
-  --color-sand: #fcd34d;
-  --color-violet: #a78bfa;
+  --color-mint: #22c79a;
+  --color-sand: #ffc24b;
+  --color-violet: #8b7cf6;
 
-  --border: #dcebf5;
-  --shadow-card: 0 8px 24px rgba(14, 165, 233, 0.08);
+  --border: #d5dde8;
+  /* 일부 컴포넌트가 쓰는 별칭 */
+  --border-subtle: var(--border);
+
+  --shadow-card: 0 1px 2px rgba(13, 27, 42, 0.04), 0 8px 24px -8px rgba(13, 27, 42, 0.1);
+  --shadow-lift: 0 2px 4px rgba(13, 27, 42, 0.05), 0 20px 40px -12px rgba(13, 27, 42, 0.22);
+
+  --radius-card: 1.25rem;
+  --nav-height: 4.25rem;
 }
 
 @theme inline {
@@ -39,31 +46,121 @@
   --color-sand: var(--color-sand);
   --color-violet: var(--color-violet);
   --color-border-subtle: var(--border);
-  --font-sans: var(--font-geist-sans);
+  --shadow-card: var(--shadow-card);
+  --shadow-lift: var(--shadow-lift);
+  --font-sans: "Pretendard Variable", Pretendard, var(--font-geist-sans), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-geist-sans), "Pretendard Variable", Pretendard, sans-serif;
 }
 
 /* 문서 스크롤바 자리를 항상 확보 → 콘텐츠 길이가 변해도 가로 정렬 고정 */
 html {
   scrollbar-gutter: stable;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-feature-settings: "ss06", "tnum";
+  word-break: keep-all;
 }
 
-/* 공통 카드 스타일 */
+/* ===== 공통 컴포넌트 (유틸리티로 덮어쓸 수 있게 components 레이어) ===== */
+@layer components {
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 1rem;
+  border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
 }
 
-/* 부드러운 등장 모션 */
+.card-lift {
+  transition:
+    transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 0.25s ease;
+}
+.card-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lift);
+}
+
+.glass {
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  backdrop-filter: saturate(1.6) blur(18px);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-primary) 70%, transparent);
+}
+.btn-primary:hover {
+  background: var(--color-primary-strong);
+}
+.btn-ghost {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+.btn-ghost:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary-strong);
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.875rem;
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.input:focus {
+  border-color: var(--color-primary);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px var(--color-primary-soft);
+}
+
+/* 사진 위 텍스트 가독성용 그라디언트 */
+.photo-scrim {
+  background: linear-gradient(180deg, rgba(5, 15, 30, 0.12) 0%, rgba(5, 15, 30, 0) 28%, rgba(5, 15, 30, 0.25) 55%, rgba(5, 15, 30, 0.82) 100%);
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+}
+
+/* ===== 모션 ===== */
 .fade-up {
-  animation: fade-up 0.45s ease both;
+  animation: fade-up 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 @keyframes fade-up {
   from {
@@ -74,4 +171,53 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-muted) 25%, #f8fafc 50%, var(--surface-muted) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+/* 지도 위 핀이 떨어지는 효과 */
+.pin-drop {
+  animation: pin-drop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes pin-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ===== 지도 팝업 (maplibre/mapbox 기본 스타일 덮어쓰기) ===== */
+.maplibregl-popup .maplibregl-popup-content,
+.mapboxgl-popup .mapboxgl-popup-content {
+  border-radius: 1rem;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-lift);
+  font-family: inherit;
 }
