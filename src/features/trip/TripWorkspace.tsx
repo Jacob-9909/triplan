@@ -20,7 +20,7 @@ import { apiPatch, setTripToken } from "@/lib/api";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
-import { getCountryCenter } from "@/data/countryCenters";
+import { getTripCenter } from "@/data/countryCenters";
 import DayTabs from "@/features/route/DayTabs";
 import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
@@ -223,7 +223,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           lat: dayPoints.reduce((s, p) => s + p.lat, 0) / dayPoints.length,
           lng: dayPoints.reduce((s, p) => s + p.lng, 0) / dayPoints.length,
         }
-      : getCountryCenter(trip.country);
+      : getTripCenter(trip.country, trip.region);
 
   return (
     <div className={mode === "admin" ? "" : "min-h-dvh pb-16"}>
@@ -340,7 +340,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         points={dayPoints}
                         legs={dayLegs}
                         expenses={expenses}
-                        defaultCenter={getCountryCenter(trip.country)}
+                        defaultCenter={getTripCenter(trip.country, trip.region)}
                         selectedPointId={selectedPointId}
                         focusPointId={selectedPointId}
                         onMapClick={
