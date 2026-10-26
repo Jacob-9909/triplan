@@ -7,6 +7,7 @@ import { getPool, jsonError } from "@/lib/db";
  * - 관리자: ADMIN_PASSWORD로 로그인하면 HMAC 서명 쿠키를 받는다. 모든 여행·위시리스트 접근.
  * - 공유 링크: 여행마다 edit_token(편집), view_token(보기) 두 개. 요청 헤더 x-trip-token으로 전달.
  * - 체험 회원: 관리자가 만든 아이디/비밀번호로 로그인. is_demo 여행만 보기 전용, 외부 API(검색·번역·환율)는 못 쓴다.
+ *   is_admin 회원은 관리자 세션을 받아 관리자와 똑같이 쓴다.
  */
 
 const COOKIE = "triplan_admin";
@@ -55,14 +56,17 @@ function verifyPassword(password: string, stored: string) {
   return safeEqual(scryptSync(password, salt, 32).toString("hex"), hash);
 }
 
-/** 아이디/비밀번호가 맞으면 회원 id */
-export async function checkMember(username: string, password: string): Promise<string | null> {
-  const { rows } = await getPool().query<{ id: string; password_hash: string }>(
-    "SELECT id, password_hash FROM triplan.members WHERE username = $1",
+/** 아이디/비밀번호가 맞으면 회원 */
+export async function checkMember(
+  username: string,
+  password: string
+): Promise<{ id: string; is_admin: boolean } | null> {
+  const { rows } = await getPool().query<{ id: string; is_admin: boolean; password_hash: string }>(
+    "SELECT id, is_admin, password_hash FROM triplan.members WHERE username = $1",
     [username]
   );
   const row = rows[0];
-  return row && verifyPassword(password, row.password_hash) ? row.id : null;
+  return row && verifyPassword(password, row.password_hash) ? { id: row.id, is_admin: row.is_admin } : null;
 }
 
 async function setSession(name: string, value: string) {
@@ -78,9 +82,13 @@ async function setSession(name: string, value: string) {
   });
 }
 
-export async function startAdminSession() {
+/** memberId 없이 부르면 ADMIN_PASSWORD 관리자, 있으면 관리자 권한을 받은 회원 */
+export async function startAdminSession(memberId?: string) {
   const exp = Date.now() + SESSION_DAYS * 86400_000;
-  await setSession(COOKIE, `${exp}.${sign(`admin:${exp}`)}`);
+  await setSession(
+    COOKIE,
+    memberId ? `${memberId}.${exp}.${sign(`admin:${memberId}:${exp}`)}` : `${exp}.${sign(`admin:${exp}`)}`
+  );
 }
 
 export async function startMemberSession(memberId: string) {
@@ -115,13 +123,19 @@ export async function currentMember(): Promise<{ id: string; username: string } 
 export async function isAdmin() {
   const raw = (await cookies()).get(COOKIE)?.value;
   if (!raw) return false;
-  const [exp, sig] = raw.split(".");
+  const parts = raw.split(".");
+  // exp.sig = ADMIN_PASSWORD 관리자, memberId.exp.sig = 관리자 권한 회원
+  const [memberId, exp, sig] = parts.length === 3 ? parts : [null, ...parts];
   if (!exp || !sig || Number(exp) < Date.now()) return false;
   try {
-    return safeEqual(sig, sign(`admin:${exp}`));
+    if (!safeEqual(sig, sign(memberId ? `admin:${memberId}:${exp}` : `admin:${exp}`))) return false;
   } catch {
     return false;
   }
+  if (!memberId) return true;
+  // 권한을 빼거나 회원을 지우면 바로 막히도록 DB를 확인한다
+  const { rows } = await getPool().query("SELECT 1 FROM triplan.members WHERE id = $1 AND is_admin", [memberId]);
+  return rows.length > 0;
 }
 
 /** 공유 토큰으로 여행 찾기 (공유 페이지 서버 컴포넌트용) */
