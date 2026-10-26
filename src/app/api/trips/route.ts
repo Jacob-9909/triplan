@@ -1,15 +1,15 @@
 import { getPool, jsonError, type Row } from "@/lib/db";
-import { newToken, requireAdmin } from "@/lib/auth";
+import { currentMember, isAdmin, newToken, requireAdmin, stripTokens } from "@/lib/auth";
 
-/** 여행 목록·생성은 관리자 전용 */
+/** 여행 목록: 관리자는 전부, 체험 회원은 is_demo 여행만. 생성은 관리자 전용 */
 export async function GET() {
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const admin = await isAdmin();
+  if (!admin && !(await currentMember())) return jsonError("unauthorized", 401);
   try {
     const { rows } = await getPool().query<Row>(
-      "SELECT * FROM triplan.trips ORDER BY start_date ASC NULLS LAST, created_at DESC"
+      `SELECT * FROM triplan.trips ${admin ? "" : "WHERE is_demo"} ORDER BY start_date ASC NULLS LAST, created_at DESC`
     );
-    return Response.json(rows);
+    return Response.json(admin ? rows : rows.map((r) => stripTokens(r, "view")));
   } catch (err) {
     console.error("GET /api/trips failed:", err);
     return jsonError("여행 목록을 불러오지 못했어요.");

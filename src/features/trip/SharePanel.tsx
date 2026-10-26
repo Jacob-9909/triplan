@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, Eye, PencilLine, RefreshCw, Share, Trash2 } from "lucide-react";
 import type { Trip } from "@/lib/types";
-import { apiDelete, apiPost } from "@/lib/api";
+import { apiDelete, apiPatch, apiPost } from "@/lib/api";
 import Sheet from "@/features/ui/Sheet";
 
 type Kind = "edit" | "view";
@@ -32,6 +32,7 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
   const [tokens, setTokens] = useState({ edit: trip.edit_token ?? "", view: trip.view_token ?? "" });
   const [copied, setCopied] = useState<Kind | null>(null);
   const [confirming, setConfirming] = useState<Kind | "delete" | null>(null);
+  const [demo, setDemo] = useState(trip.is_demo ?? false);
   // 시트는 열릴 때만 렌더되므로(클라이언트 전용) window를 바로 써도 된다
   const origin = typeof window === "undefined" ? "" : window.location.origin;
 
@@ -55,6 +56,12 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
     const res = await apiPost<{ edit_token: string; view_token: string }>(`/api/trips/${trip.id}/share`, { kind: k });
     setTokens({ edit: res.edit_token, view: res.view_token });
     setConfirming(null);
+  }
+
+  async function toggleDemo() {
+    const next = !demo;
+    setDemo(next);
+    await apiPatch(`/api/trips/${trip.id}`, { is_demo: next }).catch(() => setDemo(!next));
   }
 
   async function remove() {
@@ -131,6 +138,16 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
           );
         })}
       </div>
+
+      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle p-4">
+        <input type="checkbox" checked={demo} onChange={() => void toggleDemo()} className="mt-1 h-4 w-4 accent-primary" />
+        <span>
+          <span className="font-bold">체험 회원에게 공개</span>
+          <span className="mt-0.5 block text-xs leading-relaxed text-foreground/65">
+            회원 관리에서 만든 체험 계정이 이 여행을 보기 전용으로 볼 수 있어요.
+          </span>
+        </span>
+      </label>
 
       <div className="mt-6 border-t border-border-subtle pt-4">
         {confirming === "delete" ? (

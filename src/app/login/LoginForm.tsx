@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, Lock } from "lucide-react";
+import { ArrowRight, Loader2, Lock, User } from "lucide-react";
 import { Logo } from "@/features/shell/AppShell";
 import CoverPhoto from "@/features/ui/CoverPhoto";
 
 export default function LoginForm() {
   const router = useRouter();
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -21,7 +22,7 @@ export default function LoginForm() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
     });
     if (res.ok) {
       router.replace("/");
@@ -46,14 +47,27 @@ export default function LoginForm() {
       >
         <Logo />
         <h1 className="mt-6 text-2xl font-extrabold tracking-tight">다시 떠날 준비, 되셨나요?</h1>
-        <p className="mt-1.5 text-sm text-foreground/72">관리자 비밀번호로 내 여행을 열어요.</p>
+        <p className="mt-1.5 text-sm text-foreground/72">관리자는 비밀번호만, 체험 계정은 아이디와 비밀번호로 들어와요.</p>
         <label className="mt-6 block">
+          <span className="sr-only">아이디</span>
+          <div className="relative">
+            <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/55" />
+            <input
+              autoFocus
+              autoComplete="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="아이디 (관리자는 비워 두세요)"
+              className="input pl-10"
+            />
+          </div>
+        </label>
+        <label className="mt-2 block">
           <span className="sr-only">비밀번호</span>
           <div className="relative">
             <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/55" />
             <input
               type="password"
-              autoFocus
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

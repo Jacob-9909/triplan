@@ -30,9 +30,9 @@ export async function fetchKrwRate(
 ): Promise<ExchangeRateResult> {
   const params = new URLSearchParams({ from, to: "KRW" });
   if (date) params.set("date", date);
-  const res = await fetch(`/api/exchange-rate?${params.toString()}`);
-  if (!res.ok) throw new Error("환율 조회에 실패했습니다.");
-  return (await res.json()) as ExchangeRateResult;
+  return apiGet<ExchangeRateResult>(`/api/exchange-rate?${params.toString()}`).catch(() => {
+    throw new Error("환율 조회에 실패했습니다.");
+  });
 }
 
 export function useExpenses(tripId: string) {

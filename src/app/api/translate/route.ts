@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { TOKEN_HEADER, findTripByToken, isAdmin } from "@/lib/auth";
+import { canUseExternalApis as allowed } from "@/lib/auth";
 import { LANG_RE, MAX_NAME_LENGTH, translateNames } from "@/lib/translate";
 
 /**
@@ -8,12 +8,6 @@ import { LANG_RE, MAX_NAME_LENGTH, translateNames } from "@/lib/translate";
  * - GET ?q=&from=   장소 추가 창의 이름 하나
  * - POST {names, from}   지도 라벨 여러 개 (최대 40개)
  */
-
-async function allowed(request: Request) {
-  if (await isAdmin()) return true;
-  const token = request.headers.get(TOKEN_HEADER);
-  return token ? (await findTripByToken(token)) !== null : false;
-}
 
 const unauthorized = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 const invalid = () => NextResponse.json({ error: "Invalid query" }, { status: 400 });

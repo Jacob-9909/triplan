@@ -26,7 +26,9 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (access instanceof Response) return access;
   try {
     const b = await request.json();
-    const allowed = ["title", "continent", "country", "region", "start_date", "end_date", "base_currency"] as const;
+    const allowed = ["title", "continent", "country", "region", "start_date", "end_date", "base_currency"];
+    // 체험 회원 공개 여부는 관리자만 바꾼다
+    if (access === "admin") allowed.push("is_demo");
     const sets: string[] = [];
     const vals: unknown[] = [];
     for (const key of allowed) {

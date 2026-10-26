@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getPool, jsonError } from "@/lib/db";
 
@@ -6,9 +6,11 @@ import { getPool, jsonError } from "@/lib/db";
  * 접근 제어
  * - 관리자: ADMIN_PASSWORD로 로그인하면 HMAC 서명 쿠키를 받는다. 모든 여행·위시리스트 접근.
  * - 공유 링크: 여행마다 edit_token(편집), view_token(보기) 두 개. 요청 헤더 x-trip-token으로 전달.
+ * - 체험 회원: 관리자가 만든 아이디/비밀번호로 로그인. is_demo 여행만 보기 전용, 외부 API(검색·번역·환율)는 못 쓴다.
  */
 
 const COOKIE = "triplan_admin";
+const MEMBER_COOKIE = "triplan_member";
 const SESSION_DAYS = 30;
 export const TOKEN_HEADER = "x-trip-token";
 
@@ -41,10 +43,33 @@ export function checkPassword(input: string) {
   return safeEqual(sign(`pw:${input}`), sign(`pw:${expected}`));
 }
 
-export async function startAdminSession() {
-  const exp = Date.now() + SESSION_DAYS * 86400_000;
-  const value = `${exp}.${sign(`admin:${exp}`)}`;
-  (await cookies()).set(COOKIE, value, {
+/** 회원 비밀번호 저장 형식: salt:hash (hex, scrypt) */
+export function hashPassword(password: string) {
+  const salt = randomBytes(16).toString("hex");
+  return `${salt}:${scryptSync(password, salt, 32).toString("hex")}`;
+}
+
+function verifyPassword(password: string, stored: string) {
+  const [salt, hash] = stored.split(":");
+  if (!salt || !hash) return false;
+  return safeEqual(scryptSync(password, salt, 32).toString("hex"), hash);
+}
+
+/** 아이디/비밀번호가 맞으면 회원 id */
+export async function checkMember(username: string, password: string): Promise<string | null> {
+  const { rows } = await getPool().query<{ id: string; password_hash: string }>(
+    "SELECT id, password_hash FROM triplan.members WHERE username = $1",
+    [username]
+  );
+  const row = rows[0];
+  return row && verifyPassword(password, row.password_hash) ? row.id : null;
+}
+
+async function setSession(name: string, value: string) {
+  const jar = await cookies();
+  // 관리자와 회원 세션은 동시에 갖지 않는다
+  jar.delete(name === COOKIE ? MEMBER_COOKIE : COOKIE);
+  jar.set(name, value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -53,8 +78,38 @@ export async function startAdminSession() {
   });
 }
 
-export async function endAdminSession() {
-  (await cookies()).delete(COOKIE);
+export async function startAdminSession() {
+  const exp = Date.now() + SESSION_DAYS * 86400_000;
+  await setSession(COOKIE, `${exp}.${sign(`admin:${exp}`)}`);
+}
+
+export async function startMemberSession(memberId: string) {
+  const exp = Date.now() + SESSION_DAYS * 86400_000;
+  await setSession(MEMBER_COOKIE, `${memberId}.${exp}.${sign(`member:${memberId}:${exp}`)}`);
+}
+
+export async function endSession() {
+  const jar = await cookies();
+  jar.delete(COOKIE);
+  jar.delete(MEMBER_COOKIE);
+}
+
+/** 로그인한 체험 회원. 관리자가 회원을 지우면 바로 무효가 되도록 DB도 확인한다 */
+export async function currentMember(): Promise<{ id: string; username: string } | null> {
+  const raw = (await cookies()).get(MEMBER_COOKIE)?.value;
+  if (!raw) return null;
+  const [id, exp, sig] = raw.split(".");
+  if (!id || !exp || !sig || Number(exp) < Date.now()) return null;
+  try {
+    if (!safeEqual(sig, sign(`member:${id}:${exp}`))) return null;
+  } catch {
+    return null;
+  }
+  const { rows } = await getPool().query<{ id: string; username: string }>(
+    "SELECT id, username FROM triplan.members WHERE id = $1",
+    [id]
+  );
+  return rows[0] ?? null;
 }
 
 export async function isAdmin() {
@@ -86,16 +141,28 @@ export async function tripAccess(request: Request, tripId: string): Promise<Acce
   if (await isAdmin()) return "admin";
   // <img src>처럼 헤더를 못 붙이는 요청은 ?t= 쿼리로 토큰을 받는다
   const token = request.headers.get(TOKEN_HEADER) ?? new URL(request.url).searchParams.get("t");
-  if (!token) return null;
-  const { rows } = await getPool().query<{ edit_token: string; view_token: string }>(
-    "SELECT edit_token, view_token FROM triplan.trips WHERE id = $1",
+  const { rows } = await getPool().query<{ edit_token: string; view_token: string; is_demo: boolean }>(
+    "SELECT edit_token, view_token, is_demo FROM triplan.trips WHERE id = $1",
     [tripId]
   );
   const row = rows[0];
   if (!row) return null;
-  if (safeEqual(row.edit_token, token)) return "edit";
-  if (safeEqual(row.view_token, token)) return "view";
-  return null;
+  if (token) {
+    if (safeEqual(row.edit_token, token)) return "edit";
+    if (safeEqual(row.view_token, token)) return "view";
+    return null;
+  }
+  return row.is_demo && (await currentMember()) ? "view" : null;
+}
+
+/**
+ * 무료 한도가 있는 외부 API(장소 검색·번역·환율) 사용 허용 여부.
+ * 관리자와 공유 링크 소지자만. 체험 회원과 비로그인 방문자는 막는다.
+ */
+export async function canUseExternalApis(request: Request) {
+  if (await isAdmin()) return true;
+  const token = request.headers.get(TOKEN_HEADER);
+  return token ? (await findTripByToken(token)) !== null : false;
 }
 
 /**

@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { canUseExternalApis } from "@/lib/auth";
+import { jsonError } from "@/lib/db";
 
 /** 프론트가 기대하는 카카오 로컬 API 호환 문서 형태 */
 interface PlaceDoc {
@@ -99,6 +101,7 @@ async function searchPhoton(q: string, x?: string | null, y?: string | null): Pr
 }
 
 export async function GET(req: Request) {
+  if (!(await canUseExternalApis(req))) return jsonError("unauthorized", 401);
   const url = new URL(req.url);
   const q = url.searchParams.get("q")?.trim();
   if (!q) return NextResponse.json({ documents: [] });
