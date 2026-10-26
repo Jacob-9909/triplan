@@ -36,10 +36,14 @@ export async function POST(request: Request) {
         return Response.json({ ok: true, role: "admin" });
       }
     } else {
-      const memberId = await checkMember(username, password);
-      if (memberId) {
+      const member = await checkMember(username, password);
+      if (member) {
         fails.delete(key);
-        await startMemberSession(memberId);
+        if (member.is_admin) {
+          await startAdminSession(member.id);
+          return Response.json({ ok: true, role: "admin" });
+        }
+        await startMemberSession(member.id);
         return Response.json({ ok: true, role: "member" });
       }
     }
