@@ -14,7 +14,7 @@ import { TRIPOI_LAYER_IDS, TRIPOI_LAYER_PREFIX } from "./poiLayers";
  */
 export const OPENFREEMAP_LIBERTY_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 /** Liberty에서 장소 아이콘을 그리는 레이어 (클릭 시 장소 이름 자동 입력에 사용) */
-const LIBERTY_POI_LAYER_IDS = ["poi_r1", "poi_r7", "poi_r20"];
+const LIBERTY_POI_LAYER_IDS = ["poi_r1", "poi_r7", "poi_r20", "poi_transit"];
 
 /** 예비 지도: Carto Voyager (POI가 적어 라벨 레이어를 보강해서 쓴다) */
 export const MAPLIBRE_VOYAGER_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";

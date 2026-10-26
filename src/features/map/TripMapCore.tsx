@@ -187,7 +187,7 @@ export default function TripMapCore({
               <PinMarker
                 category={point.category}
                 color={point.color}
-                label={numbered ? (point.visit_order ?? i + 1) : undefined}
+                label={numbered ? i + 1 : undefined}
                 selected={point.id === selectedPointId}
                 onClick={() => {
                   setPopupId(point.id);
@@ -232,7 +232,7 @@ export default function TripMapCore({
                       className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
                       style={{ backgroundColor: pointColor(popupPoint) }}
                     >
-                      {popupPoint.visit_order ?? "-"}
+                      {sortedPoints.findIndex((p) => p.id === popupPoint.id) + 1}
                     </span>
                   )}
                   <p className="truncate text-sm font-bold leading-snug">{popupPoint.name}</p>

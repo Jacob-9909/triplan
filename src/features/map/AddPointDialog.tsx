@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MapPin, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import StylePicker from "./StylePicker";
+import { hasHangul, translateName, withKorean } from "./translateName";
 
 /** AddPointDialog가 만들어내는 포인트 초안 (id/trip_id/created_at은 상위에서 채움) */
 export interface PointDraft {
@@ -22,6 +23,8 @@ export interface AddPointDialogProps {
   latlng: { lat: number; lng: number } | null;
   /** 지도 POI 클릭 등으로 미리 채울 값 */
   prefill?: { name?: string; category?: MapPoint["category"] };
+  /** 여행 나라 (현지어 장소 이름 번역 힌트) */
+  country?: string | null;
   onCancel: () => void;
   onSave: (draft: PointDraft) => void;
 }
@@ -30,13 +33,32 @@ export interface AddPointDialogProps {
 function PointForm({
   latlng,
   prefill,
+  country,
   onCancel,
   onSave,
-}: Pick<AddPointDialogProps, "latlng" | "prefill" | "onCancel" | "onSave">) {
+}: Pick<AddPointDialogProps, "latlng" | "prefill" | "country" | "onCancel" | "onSave">) {
   const [name, setName] = useState(prefill?.name ?? "");
+  const needsKorean = !!prefill?.name && !hasHangul(prefill.name);
+  const [translating, setTranslating] = useState(needsKorean);
+  const edited = useRef(false);
   const [category, setCategory] = useState<MapPoint["category"]>(prefill?.category ?? "attraction");
   const [color, setColor] = useState<string | null>(null);
   const [memo, setMemo] = useState("");
+
+  // 지도에서 고른 장소 이름이 현지어뿐이면 오른쪽에 한국어를 붙여 준다 (직접 고쳤으면 건드리지 않음)
+  useEffect(() => {
+    if (!needsKorean || !prefill?.name) return;
+    const original = prefill.name;
+    let alive = true;
+    translateName(original, country).then((ko) => {
+      if (!alive) return;
+      setTranslating(false);
+      if (ko && !edited.current) setName(withKorean(original, ko));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [needsKorean, prefill?.name, country]);
 
   const canSave = name.trim().length > 0 && latlng !== null;
 
@@ -88,10 +110,14 @@ function PointForm({
         id="add-point-name"
         autoFocus
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => {
+          edited.current = true;
+          setName(e.target.value);
+        }}
         placeholder="예: 후쿠오카 타워"
-        className="mb-4 w-full rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+        className={`${translating ? "mb-1" : "mb-4"} w-full rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20`}
       />
+      {translating && <p className="mb-4 text-[11px] text-foreground/60">한국어 이름 찾는 중…</p>}
 
       <p className="mb-2 text-xs font-semibold text-foreground/72">분류 · 핀 색</p>
       <div className="mb-4">
@@ -146,7 +172,7 @@ function PointForm({
 /**
  * 지도 클릭으로 위치를 확정한 뒤 포인트 정보를 입력하는 모달.
  */
-export default function AddPointDialog({ open, latlng, prefill, onCancel, onSave }: AddPointDialogProps) {
+export default function AddPointDialog({ open, latlng, prefill, country, onCancel, onSave }: AddPointDialogProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") onCancel();
   };
@@ -166,6 +192,7 @@ export default function AddPointDialog({ open, latlng, prefill, onCancel, onSave
             key={`${prefill?.name ?? ""}:${prefill?.category ?? ""}`}
             latlng={latlng}
             prefill={prefill}
+            country={country}
             onCancel={onCancel}
             onSave={onSave}
           />

@@ -405,6 +405,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           open={pendingLatLng !== null}
           latlng={pendingLatLng}
           prefill={poiPrefill ?? undefined}
+          country={trip.country}
           onCancel={() => {
             setPendingLatLng(null);
             setPoiPrefill(null);
