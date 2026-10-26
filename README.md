@@ -4,7 +4,7 @@
 
 A travel planner that starts from the places you dream about. Save places you want to visit someday on a world map, turn one into a trip when you are ready, plan it day by day on a map with a timetable, budget, and packing list, and share it with one link so companions can edit along with you.
 
-- Demo: https://triplan-beryl.vercel.app
+- Demo: https://triplan.161-33-134-252.sslip.io
 
 ![Trip page: day tabs, route map with numbered pins and direction arrows, and the day's timetable](docs/screenshot.jpg)
 
@@ -47,19 +47,15 @@ The free limit is about 5,000 characters a day, or 50,000 with `MYMEMORY_EMAIL` 
 ## Tech Stack
 
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
-- Supabase Postgres via `pg` (tables in the `triplan` schema)
+- PostgreSQL 17 via `pg` (tables in the `triplan` schema), self-hosted on an Oracle Cloud VM
 - MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
 - MyMemory translation API (free, no key)
 
 ## Getting Started
 
-### 1. Database (Supabase)
+### 1. Database
 
-1. Create a Supabase project.
-2. Apply the files in [`supabase/migrations/`](supabase/migrations) in order, either with `supabase db push` or by pasting them into the SQL editor.
-3. Copy the **Transaction pooler** connection string (port 6543) from Connect in the dashboard. URL-encode special characters in the password (`?` → `%3F`, `@` → `%40`).
-
-The tables live in the `triplan` schema, which the Supabase Data API does not expose, and RLS is enabled as a second guard. Only the Next.js server talks to the database.
+Apply the files in [`supabase/migrations/`](supabase/migrations) in order to any Postgres 13+. The app role must own the `triplan` tables: RLS is enabled with no policies, so only the owner can read them. Only the Next.js server talks to the database.
 
 For local development you can use any Postgres instead:
 
@@ -88,9 +84,18 @@ Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
 | `MYMEMORY_EMAIL` | No | Raises the free translation limit |
 | `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
 
-### 3. Deploy (Vercel)
+### 3. Deploy (Oracle Cloud VM)
 
-Set the required variables in the Vercel project, then deploy with `vercel deploy --prod`. The Supabase direct connection (`db.<ref>.supabase.co:5432`) is IPv6-only and does not work on Vercel, so use the Transaction pooler.
+The app and the database run on the same VM. Postgres is reachable only on `127.0.0.1`, and Caddy terminates TLS in front of the app.
+
+| Piece | Where |
+|---|---|
+| App | `node server.js` (standalone build) as systemd [`triplan.service`](deploy/triplan.service) on `127.0.0.1:8030` |
+| Secrets | `~/triplan/.env` on the VM (same variables as the table above) |
+| Database | Local PostgreSQL 17, `postgres` database, `triplan` schema owned by the `triplan` role |
+| CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml): lint and build on every push and PR. On `main`, SSH into the VM and run [`deploy/deploy.sh`](deploy/deploy.sh), which builds, swaps the release, and rolls back if `/api/health` fails |
+
+GitHub secrets: `VM_HOST`, `VM_SSH_KEY` (a key limited to `deploy.sh` with `command=` in `authorized_keys`), and `VM_KNOWN_HOSTS`.
 
 ## Project Structure
 
