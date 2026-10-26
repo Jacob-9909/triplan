@@ -1,0 +1,18 @@
+# /etc/systemd/system/triplan.service
+# 설치: sudo cp deploy/triplan.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now triplan
+[Unit]
+Description=triplan (Next.js standalone)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/home/ubuntu/triplan/app
+EnvironmentFile=/home/ubuntu/triplan/.env
+Environment=NODE_ENV=production PORT=8030 HOSTNAME=127.0.0.1
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

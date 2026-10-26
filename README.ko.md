@@ -4,7 +4,7 @@
 
 가고 싶은 곳에서 시작하는 여행 플래너입니다. 언젠가 가 보고 싶은 곳을 세계지도에 모아 두고, 마음이 정해지면 여행으로 바꿔 지도 위에서 하루씩 계획하고, 타임테이블·가계부·준비물까지 챙긴 뒤 링크 하나로 동행자와 함께 편집합니다.
 
-- 데모: https://triplan-beryl.vercel.app
+- 데모: https://triplan.161-33-134-252.sslip.io
 
 ![여행 화면: Day 탭, 번호 핀과 방향 화살표가 있는 경로 지도, 하루 타임테이블](docs/screenshot.jpg)
 
@@ -47,19 +47,15 @@
 ## 기술 스택
 
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
-- Supabase Postgres (`pg`로 연결, 테이블은 `triplan` 스키마)
+- PostgreSQL 17 (`pg`로 연결, 테이블은 `triplan` 스키마), Oracle Cloud VM 자체 호스팅
 - MapLibre + OpenFreeMap Liberty 지도 (식당·카페·명소·역 아이콘, 실패 시 Carto, 토큰이 있으면 Mapbox), dnd-kit, date-fns
 - MyMemory 번역 API (무료, 키 불필요)
 
 ## 시작하기
 
-### 1. 데이터베이스 (Supabase)
+### 1. 데이터베이스
 
-1. Supabase 프로젝트를 만듭니다.
-2. [`supabase/migrations/`](supabase/migrations)의 파일을 순서대로 적용합니다. `supabase db push`를 쓰거나 SQL 편집기에 붙여 넣으면 됩니다.
-3. 대시보드 Connect에서 **Transaction pooler** 연결 문자열(포트 6543)을 복사합니다. 비밀번호에 특수문자가 있으면 인코딩합니다(`?` → `%3F`, `@` → `%40`).
-
-테이블은 Supabase Data API에 노출되지 않는 `triplan` 스키마에 있고, 이중 안전장치로 RLS도 켜져 있습니다. DB에는 Next.js 서버만 접근합니다.
+Postgres 13 이상에 [`supabase/migrations/`](supabase/migrations)의 파일을 순서대로 적용합니다. 앱이 접속하는 계정이 `triplan` 테이블의 소유자여야 합니다. RLS가 정책 없이 켜져 있어서 소유자만 읽을 수 있습니다. DB에는 Next.js 서버만 접근합니다.
 
 로컬 개발에는 아무 Postgres나 써도 됩니다.
 
@@ -88,9 +84,18 @@ http://localhost:3000 에서 `ADMIN_PASSWORD`로 로그인합니다.
 | `MYMEMORY_EMAIL` | 아니요 | 무료 번역 한도 늘리기 |
 | `EXCHANGE_RATE_API_KEY` | 아니요 | 환율 (없으면 무료 엔드포인트 사용) |
 
-### 3. 배포 (Vercel)
+### 3. 배포 (Oracle Cloud VM)
 
-Vercel 프로젝트에 필수 변수를 넣고 `vercel deploy --prod`로 배포합니다. Supabase Direct connection(`db.<ref>.supabase.co:5432`)은 IPv6 전용이라 Vercel에서 접속되지 않으니 Transaction pooler를 쓰세요.
+앱과 DB가 같은 VM에서 돕니다. Postgres는 `127.0.0.1`에서만 받고, 앱 앞에서 Caddy가 TLS를 처리합니다.
+
+| 구성 | 위치 |
+|---|---|
+| 앱 | systemd [`triplan.service`](deploy/triplan.service)가 standalone 빌드를 `node server.js`로 실행 (`127.0.0.1:8030`) |
+| 비밀값 | VM의 `~/triplan/.env` (위 표와 같은 변수) |
+| DB | 로컬 PostgreSQL 17, `postgres` DB의 `triplan` 스키마 (소유자 `triplan` 계정) |
+| CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml): 모든 push와 PR에서 lint·build. `main`이면 VM에 SSH로 들어가 [`deploy/deploy.sh`](deploy/deploy.sh) 실행. 빌드 후 릴리스를 바꾸고 `/api/health`가 실패하면 되돌립니다 |
+
+GitHub secrets: `VM_HOST`, `VM_SSH_KEY` (`authorized_keys`의 `command=`로 `deploy.sh`만 실행 가능한 키), `VM_KNOWN_HOSTS`.
 
 ## 프로젝트 구조
 
