@@ -120,16 +120,17 @@ export default function ItineraryList({ points, onReorder, onDelete, deletingIds
   );
 
   function handleDragEnd(event: DragEndEvent) {
-    setLocalOrder(null);
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = points.findIndex((p) => p.id === active.id);
-    const newIndex = points.findIndex((p) => p.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const newOrderedIds = arrayMove(points, oldIndex, newIndex).map((p) => p.id);
-    onReorder(newOrderedIds);
+    // 드래그 중 미리보기(onDragOver)로 이미 옮겨 둔 순서가 최종 순서다.
+    // 놓는 순간에는 active가 자기 자리 위에 있어 over.id === active.id가 되므로 그것만 보면 안 된다.
+    let finalOrder = localOrder ?? points.map((p) => p.id);
+    if (over && active.id !== over.id) {
+      const from = finalOrder.indexOf(String(active.id));
+      const to = finalOrder.indexOf(String(over.id));
+      if (from !== -1 && to !== -1) finalOrder = arrayMove(finalOrder, from, to);
+    }
+    setLocalOrder(null);
+    if (finalOrder.join(",") !== points.map((p) => p.id).join(",")) onReorder(finalOrder);
   }
 
   function handleDragStart() {

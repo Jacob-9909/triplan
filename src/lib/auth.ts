@@ -84,7 +84,8 @@ export async function findTripByToken(token: string): Promise<{ tripId: string; 
 /** 요청자가 해당 여행에 갖는 권한. 없으면 null */
 export async function tripAccess(request: Request, tripId: string): Promise<Access | null> {
   if (await isAdmin()) return "admin";
-  const token = request.headers.get(TOKEN_HEADER);
+  // <img src>처럼 헤더를 못 붙이는 요청은 ?t= 쿼리로 토큰을 받는다
+  const token = request.headers.get(TOKEN_HEADER) ?? new URL(request.url).searchParams.get("t");
   if (!token) return null;
   const { rows } = await getPool().query<{ edit_token: string; view_token: string }>(
     "SELECT edit_token, view_token FROM triplan.trips WHERE id = $1",
@@ -118,7 +119,7 @@ export async function requireAdmin(): Promise<Response | null> {
 
 /** [id] 라우트용: 하위 테이블 행의 trip_id 조회 */
 export async function tripIdOf(
-  table: "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs",
+  table: "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos",
   id: string
 ): Promise<string | null> {
   const { rows } = await getPool().query<{ trip_id: string }>(

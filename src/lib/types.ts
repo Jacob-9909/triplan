@@ -66,6 +66,16 @@ export interface MapPoint {
   lng: number;
   day_number: number | null; // 어느 Day에 속하는지
   visit_order: number | null; // 그 Day 안에서의 방문 순서
+  /** 예약·후기·공식 사이트 등 참고 링크 */
+  link_url?: string | null;
+  created_at: string;
+}
+
+/** 장소 사진 (본문은 /api/point-photos/[id]) */
+export interface PointPhoto {
+  id: string;
+  width: number | null;
+  height: number | null;
   created_at: string;
 }
 

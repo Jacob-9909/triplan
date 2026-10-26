@@ -1,7 +1,7 @@
 import {
   Bike,
+  Binoculars,
   Bus,
-  Camera,
   CarFront,
   CircleHelp,
   Footprints,
@@ -31,7 +31,7 @@ interface CategoryMeta {
 }
 
 export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
-  attraction: { icon: Camera, label: "관광", color: "text-primary-strong", bg: "bg-primary-soft" },
+  attraction: { icon: Binoculars, label: "관광", color: "text-primary-strong", bg: "bg-primary-soft" },
   food: { icon: Utensils, label: "식당", color: "text-accent", bg: "bg-accent-soft" },
   stay: { icon: Hotel, label: "숙소", color: "text-violet", bg: "bg-violet/15" },
   transport: { icon: TrainFront, label: "교통", color: "text-mint", bg: "bg-mint/15" },

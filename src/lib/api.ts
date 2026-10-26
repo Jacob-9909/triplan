@@ -57,3 +57,14 @@ export function apiPatch<T = { ok: true }>(url: string, body: unknown): Promise<
 export function apiDelete<T = { ok: true }>(url: string): Promise<T> {
   return apiSend<T>(url, "DELETE");
 }
+
+/** multipart 업로드 (Content-Type은 브라우저가 boundary와 함께 정한다) */
+export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
+  const res = await fetch(url, { method: "POST", headers: headers(false), body: form });
+  return parse<T>(res, `POST ${url}`);
+}
+
+/** <img src>용 사진 주소. 공유 링크면 토큰을 쿼리로 붙인다 */
+export function photoUrl(id: string) {
+  return `/api/point-photos/${id}${tripToken ? `?t=${encodeURIComponent(tripToken)}` : ""}`;
+}

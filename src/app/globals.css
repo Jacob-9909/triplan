@@ -212,3 +212,12 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* ===== 지도 팝업 (maplibre/mapbox 기본 스타일 덮어쓰기) ===== */
+.maplibregl-popup .maplibregl-popup-content,
+.mapboxgl-popup .mapboxgl-popup-content {
+  border-radius: 1rem;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-lift);
+  font-family: inherit;
+}

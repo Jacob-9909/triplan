@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { PencilLine } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import { getCategoryMeta, METHOD_META } from "./meta";
 
@@ -10,6 +11,10 @@ export interface RouteTimelineProps {
   points: MapPoint[];
   /** 해당 Day에 속한 이동 구간 목록 */
   legs: RouteLeg[];
+  /** 구간을 눌렀을 때 (이동수단·시간·비용 편집). 없으면 읽기 전용 */
+  onLegClick?: (leg: RouteLeg) => void;
+  /** 장소 카드를 눌렀을 때 (사진·링크·메모 상세) */
+  onPointClick?: (point: MapPoint) => void;
 }
 
 function formatDuration(min: number): string {
@@ -19,7 +24,7 @@ function formatDuration(min: number): string {
   return m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
 }
 
-export default function RouteTimeline({ points, legs }: RouteTimelineProps) {
+export default function RouteTimeline({ points, legs, onLegClick, onPointClick }: RouteTimelineProps) {
   // 인접 포인트 사이 구간 매칭: from_point_id === 이전 포인트 && to_point_id === 다음 포인트
   const legBetween = useMemo(() => {
     const map = new Map<string, RouteLeg>();
@@ -59,13 +64,18 @@ export default function RouteTimeline({ points, legs }: RouteTimelineProps) {
               >
                 <Icon size={17} className={meta.color} />
               </span>
-              <div className="card flex min-w-0 flex-1 items-center gap-2 px-3.5 py-2.5 md:px-4">
+              <button
+                type="button"
+                onClick={() => onPointClick?.(point)}
+                disabled={!onPointClick}
+                className="card flex min-w-0 flex-1 items-center gap-2 px-3.5 py-2.5 text-left transition enabled:hover:border-primary md:px-4"
+              >
                 <span className="shrink-0 rounded-md bg-primary-soft px-1.5 py-0.5 text-[11px] font-bold text-primary-strong">
                   {i + 1}
                 </span>
                 <p className="truncate text-sm font-semibold">{point.name}</p>
                 <span className="ml-auto shrink-0 text-[11px] text-foreground/40">{meta.label}</span>
-              </div>
+              </button>
             </motion.div>
 
             {/* 이동 구간 */}
@@ -84,7 +94,12 @@ export default function RouteTimeline({ points, legs }: RouteTimelineProps) {
                     const mMeta = METHOD_META[leg.method];
                     const MIcon = mMeta.icon;
                     return (
-                      <span className="ml-4 inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-foreground/70">
+                      <button
+                        type="button"
+                        onClick={() => onLegClick?.(leg)}
+                        disabled={!onLegClick}
+                        className="ml-4 inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-2.5 py-1 text-[11px] font-medium text-foreground/70 transition enabled:hover:bg-primary-soft enabled:hover:text-primary-strong"
+                      >
                         <MIcon size={12} className="text-primary-strong" />
                         {mMeta.label}
                         {leg.duration_min != null && (
@@ -93,11 +108,10 @@ export default function RouteTimeline({ points, legs }: RouteTimelineProps) {
                           </span>
                         )}
                         {leg.cost != null && leg.cost > 0 && (
-                          <span className="text-[10px] text-foreground/40">
-                            · {leg.cost.toLocaleString()}
-                          </span>
+                          <span className="text-[10px] text-foreground/50">· {leg.cost.toLocaleString()}원</span>
                         )}
-                      </span>
+                        {onLegClick && <PencilLine size={11} className="text-foreground/35" />}
+                      </button>
                     );
                   })()}
                 </motion.div>

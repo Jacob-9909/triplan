@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
 import PinMarker from "./PinMarker";
@@ -24,6 +25,8 @@ export interface TripMapCoreProps {
     poi?: { name: string; category: MapPoint["category"] }
   ) => void;
   onPointClick?: (id: string) => void;
+  /** 팝업의 자세히 버튼: 장소 상세(사진·링크·메모) 열기 */
+  onPointOpen?: (id: string) => void;
   /** true면 지도 클릭으로 포인트 추가 플로우 시작 */
   editable?: boolean;
   /** 엔진별 지도 컴포넌트 세트 */
@@ -54,6 +57,7 @@ export default function TripMapCore({
   focusPointId = null,
   onMapClick,
   onPointClick,
+  onPointOpen,
   editable = false,
   kit,
   mapStyle,
@@ -213,41 +217,66 @@ export default function TripMapCore({
             latitude={popupPoint.lat}
             longitude={popupPoint.lng}
             anchor="bottom"
-            offset={[0, -38]}
+            offset={[0, -54]}
             closeButton={false}
             closeOnClick={false}
-            maxWidth="240px"
+            maxWidth="280px"
           >
-            <div className="w-60 p-1" role="button" tabIndex={0} onClick={() => setPopupId(null)}>
+            <div className="w-[248px]">
               <div className="flex items-start justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                    style={{ backgroundColor: getCategoryColor(popupPoint.category) }}
-                  >
-                    {popupPoint.visit_order ?? "-"}
-                  </span>
-                  <p className="text-sm font-bold leading-snug">{popupPoint.name}</p>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  {numbered && (
+                    <span
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                      style={{ backgroundColor: getCategoryColor(popupPoint.category) }}
+                    >
+                      {popupPoint.visit_order ?? "-"}
+                    </span>
+                  )}
+                  <p className="truncate text-sm font-bold leading-snug">{popupPoint.name}</p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setPopupId(null)}
+                  aria-label="닫기"
+                  className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1 text-foreground/40 hover:bg-surface-muted hover:text-foreground"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+
                 <span
                   className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
                   style={{ borderColor: getCategoryColor(popupPoint.category), color: getCategoryColor(popupPoint.category) }}
                 >
                   {getCategoryLabel(popupPoint.category)}
                 </span>
-              </div>
-              {popupPoint.memo && (
-                <p className="mt-1.5 text-xs leading-relaxed text-foreground/55">{popupPoint.memo}</p>
-              )}
-              <div className="mt-2 flex items-center gap-2 text-[11px] font-semibold text-foreground/70">
                 {popupPoint.day_number != null && (
-                  <span className="rounded-md bg-primary/10 px-1.5 py-0.5 text-primary-strong">Day {popupPoint.day_number}</span>
+                  <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary-strong">
+                    Day {popupPoint.day_number}
+                  </span>
                 )}
                 {popupExpenseTotal > 0 && (
-                  <span>지출 {popupExpenseTotal.toLocaleString()}원</span>
+                  <span className="text-[11px] font-semibold text-foreground/60">지출 {popupExpenseTotal.toLocaleString()}원</span>
                 )}
               </div>
-              <div className="mt-2 flex items-center gap-3 border-t pt-1.5 text-[11px] font-semibold text-primary-strong">
+              {popupPoint.memo && (
+                <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-foreground/60">{popupPoint.memo}</p>
+              )}
+              {onPointOpen && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPopupId(null);
+                    onPointOpen(popupPoint.id);
+                  }}
+                  className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-full bg-primary-soft py-1.5 text-xs font-bold text-primary-strong transition hover:bg-primary hover:text-white"
+                >
+                  사진·링크·메모 보기
+                </button>
+              )}
+              <div className="mt-2.5 flex items-center gap-3 border-t border-border-subtle pt-2 text-[11px] font-semibold text-primary-strong">
                 <a
                   href={`https://map.naver.com/p/search/${encodeURIComponent(popupPoint.name)}`}
                   target="_blank"

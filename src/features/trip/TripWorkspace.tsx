@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -15,9 +15,9 @@ import {
   Plane,
   Share2,
 } from "lucide-react";
-import type { Access, MapPoint } from "@/lib/types";
-import { setTripToken } from "@/lib/api";
-import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint } from "./useTripData";
+import type { Access, MapPoint, RouteLeg } from "@/lib/types";
+import { apiPatch, setTripToken } from "@/lib/api";
+import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getCountryCenter } from "@/data/countryCenters";
@@ -25,6 +25,10 @@ import DayTabs from "@/features/route/DayTabs";
 import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
 import DaySummary from "@/features/route/DaySummary";
+import LegEditor from "@/features/route/LegEditor";
+import { fetchDirections } from "@/features/route/directions";
+import Sheet from "@/features/ui/Sheet";
+import PlaceDetail from "./PlaceDetail";
 import ExpenseForm from "@/features/expenses/ExpenseForm";
 import ExpenseList from "@/features/expenses/ExpenseList";
 import ExpenseSummary from "@/features/expenses/ExpenseSummary";
@@ -65,10 +69,68 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         .sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99)),
     [points, day]
   );
+  // 지금 순서에서 바로 이웃한 장소 사이의 구간만 쓴다 (순서를 바꾸면 예전 구간은 합계에서 빠진다)
   const dayLegs = useMemo(() => {
-    const ids = new Set(dayPoints.map((p) => p.id));
-    return legs.filter((l) => ids.has(l.from_point_id) && ids.has(l.to_point_id));
+    const out: RouteLeg[] = [];
+    for (let i = 0; i < dayPoints.length - 1; i++) {
+      const leg = legs.find((l) => l.from_point_id === dayPoints[i].id && l.to_point_id === dayPoints[i + 1].id);
+      if (leg) out.push(leg);
+    }
+    return out;
   }, [legs, dayPoints]);
+
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [legEditId, setLegEditId] = useState<string | null>(null);
+  const detailPoint = points.find((p) => p.id === detailId) ?? null;
+  const editingLeg = legs.find((l) => l.id === legEditId) ?? null;
+
+  // 시간이 비어 있는 구간은 거리 기반 추정치를 자동으로 채운다
+  const estimated = useRef(new Set<string>());
+  useEffect(() => {
+    if (!canEdit) return;
+    for (const leg of dayLegs) {
+      if (leg.duration_min != null || estimated.current.has(leg.id)) continue;
+      const from = points.find((p) => p.id === leg.from_point_id);
+      const to = points.find((p) => p.id === leg.to_point_id);
+      if (!from || !to) continue;
+      estimated.current.add(leg.id);
+      void fetchDirections(from, to, leg.method).then((r) => {
+        const patch = { duration_min: r.durationMin, distance_km: r.distanceKm };
+        setLegs((prev) => prev.map((l) => (l.id === leg.id ? { ...l, ...patch } : l)));
+        void updateLeg(leg.id, patch);
+      });
+    }
+  }, [dayLegs, points, canEdit, setLegs]);
+
+  // 구간 수정: 화면은 바로 바꾸고, 저장은 입력이 멈춘 뒤 한 번만
+  const legSaveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const legPending = useRef(new Map<string, Partial<RouteLeg>>());
+  function changeLeg(id: string, patch: Partial<RouteLeg>) {
+    setLegs((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+    // 이동수단·시간·비용을 연달아 바꿔도 모두 저장되게 합쳐 둔다
+    legPending.current.set(id, { ...legPending.current.get(id), ...patch });
+    const timer = legSaveTimers.current.get(id);
+    if (timer) clearTimeout(timer);
+    legSaveTimers.current.set(
+      id,
+      setTimeout(() => {
+        const merged = legPending.current.get(id);
+        legPending.current.delete(id);
+        legSaveTimers.current.delete(id);
+        if (merged) void updateLeg(id, merged);
+      }, 500)
+    );
+  }
+
+  async function savePoint(id: string, patch: Partial<Pick<MapPoint, "memo" | "link_url">>) {
+    try {
+      await apiPatch(`/api/map-points/${id}`, patch);
+      setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "저장하지 못했어요.";
+    }
+  }
 
   async function handleReorder(orderedIds: string[]) {
     setPoints((prev) =>
@@ -104,9 +166,17 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   }
 
   async function handlePointDelete(id: string) {
+    const idx = dayPoints.findIndex((p) => p.id === id);
     if (!(await deletePoint(id))) return;
     setPoints((prev) => prev.filter((p) => p.id !== id));
     setLegs((prev) => prev.filter((l) => l.from_point_id !== id && l.to_point_id !== id));
+    // 가운데 장소를 지웠으면 앞뒤 장소를 새 구간으로 잇는다
+    const before = dayPoints[idx - 1];
+    const after = dayPoints[idx + 1];
+    if (before && after) {
+      const leg = await ensureLeg(tripId, before.id, after.id);
+      if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+    }
   }
 
   if (notConfigured) {
@@ -279,6 +349,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                             : undefined
                         }
                         onPointClick={(id: string) => setSelectedPointId(id)}
+                        onPointOpen={(id: string) => setDetailId(id)}
                         editable={canEdit}
                       />
                     </div>
@@ -293,7 +364,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         </p>
                       </>
                     )}
-                    <RouteTimeline points={dayPoints} legs={dayLegs} />
+                    {canEdit && dayLegs.length > 0 && (
+                      <p className="px-1 text-xs text-foreground/45">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
+                    )}
+                    <RouteTimeline
+                      points={dayPoints}
+                      legs={dayLegs}
+                      onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}
+                      onPointClick={(p) => setDetailId(p.id)}
+                    />
                   </aside>
                 </div>
               </div>
@@ -327,6 +406,19 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       )}
 
       {mode === "admin" && <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} />}
+
+      <PlaceDetail point={detailPoint} canEdit={canEdit} onClose={() => setDetailId(null)} onSave={savePoint} />
+
+      <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title="이동 구간">
+        {editingLeg && (
+          <LegSheetBody
+            leg={editingLeg}
+            points={points}
+            onChange={changeLeg}
+            onDone={() => setLegEditId(null)}
+          />
+        )}
+      </Sheet>
     </div>
   );
 }
@@ -374,6 +466,48 @@ function ExpensesTab({
           }}
         />
       </div>
+    </div>
+  );
+}
+
+function LegSheetBody({
+  leg,
+  points,
+  onChange,
+  onDone,
+}: {
+  leg: RouteLeg;
+  points: MapPoint[];
+  onChange: (id: string, patch: Partial<RouteLeg>) => void;
+  onDone: () => void;
+}) {
+  const from = points.find((p) => p.id === leg.from_point_id);
+  const to = points.find((p) => p.id === leg.to_point_id);
+  if (!from || !to) return null;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm font-semibold">
+        {from.name} <span className="text-foreground/35">→</span> {to.name}
+      </p>
+      <LegEditor
+        from={from}
+        to={to}
+        method={leg.method}
+        cost={leg.cost}
+        onMethodChange={(method) => onChange(leg.id, { method })}
+        onCalculated={(r) => {
+          if (r.durationMin !== leg.duration_min || r.distanceKm !== leg.distance_km) {
+            onChange(leg.id, { duration_min: r.durationMin, distance_km: r.distanceKm });
+          }
+        }}
+        onCostChange={(cost) => onChange(leg.id, { cost })}
+      />
+      <p className="text-xs leading-relaxed text-foreground/50">
+        시간·거리는 직선거리와 이동수단별 평균 속도로 낸 추정치예요. 비용은 원화로 적으면 그날 합계에 더해져요.
+      </p>
+      <button onClick={onDone} className="btn btn-primary w-full py-3 text-sm">
+        완료
+      </button>
     </div>
   );
 }

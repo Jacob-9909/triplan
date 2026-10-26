@@ -11,7 +11,8 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Feature | Description |
 |---|---|
 | Wishlist | Save countries and cities you want to visit with a priority, memo, and tags. Pins on a world map. Turn any of them into a trip in one tap |
-| Day-by-day plan | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map to drop pins, drag to reorder, and see the route and travel time per day |
+| Day-by-day plan | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins, drag to reorder, and set the travel mode and cost for each leg to get daily totals |
+| Place details | Attach photos (resized in the browser), a link, and a memo to each stop |
 | Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries |
 | Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |

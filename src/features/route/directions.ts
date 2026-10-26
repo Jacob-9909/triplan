@@ -37,44 +37,17 @@ function haversineKm(a: LatLng, b: LatLng): number {
 }
 
 /**
- * 서버 API로 예상 시간/거리 조회.
- * - POST /api/route/directions { from:{lat,lng}, to:{lat,lng}, method }
- * - 응답 { durationMin, distanceKm }
- * 실패 시 직선거리(haversine) × 우회계수 ÷ 평균속도로 추정 fallback.
+ * 예상 시간/거리 추정: 직선거리(haversine) × 우회계수(1.3) ÷ 이동수단별 평균속도.
+ * (경로 API가 없으므로 추정값이며, 화면에 "(추정)"으로 표시된다.)
  */
 export async function fetchDirections(
   from: LatLng,
   to: LatLng,
   method: LegMethod
 ): Promise<DirectionsResult> {
-  try {
-    const res = await fetch("/api/route/directions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ from: { lat: from.lat, lng: from.lng }, to: { lat: to.lat, lng: to.lng }, method }),
-    });
-    if (!res.ok) throw new Error(`directions api ${res.status}`);
-    const data: unknown = await res.json();
-    if (
-      data &&
-      typeof data === "object" &&
-      typeof (data as { durationMin?: unknown }).durationMin === "number" &&
-      typeof (data as { distanceKm?: unknown }).distanceKm === "number"
-    ) {
-      const { durationMin, distanceKm } = data as { durationMin: number; distanceKm: number };
-      return {
-        durationMin: Math.max(0, Math.round(durationMin)),
-        distanceKm: Math.max(0, Math.round(distanceKm * 100) / 100),
-        source: "api",
-      };
-    }
-    throw new Error("invalid directions response");
-  } catch {
-    // fallback: 직선거리 * 우회계수(1.3) / 평균속도
-    const straightKm = haversineKm(from, to);
-    const distanceKm = Math.round(straightKm * 1.3 * 100) / 100;
-    const speed = AVG_SPEED_KMH[method] ?? 20;
-    const durationMin = Math.max(1, Math.round((distanceKm / speed) * 60));
-    return { durationMin, distanceKm, source: "estimate" };
-  }
+  const straightKm = haversineKm(from, to);
+  const distanceKm = Math.round(straightKm * 1.3 * 100) / 100;
+  const speed = AVG_SPEED_KMH[method] ?? 20;
+  const durationMin = Math.max(1, Math.round((distanceKm / speed) * 60));
+  return { durationMin, distanceKm, source: "estimate" };
 }

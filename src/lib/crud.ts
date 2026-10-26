@@ -2,7 +2,14 @@ import { getPool, jsonError, UUID_RE, type Row } from "@/lib/db";
 import { requireTrip, tripIdOf, type Access } from "@/lib/auth";
 
 /** 여행 하위 테이블 (trip_id를 가진 테이블) */
-export type ChildTable = "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs";
+export type ChildTable = "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos";
+
+/** 링크 값은 http(s)만 허용 (빈 값은 링크 삭제) */
+export function cleanUrl(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === "") return null;
+  return typeof value === "string" && /^https?:\/\//i.test(value.trim()) ? value.trim() : undefined;
+}
 
 /** GET ?trip_id= 목록 조회 (보기 권한 이상) */
 export async function listChildren(
@@ -55,6 +62,11 @@ export async function patchChild(
   if (denied) return denied;
   try {
     const b = await request.json();
+    if (b && "link_url" in b) {
+      const url = cleanUrl(b.link_url);
+      if (url === undefined) return jsonError("link_url must start with http:// or https://", 400);
+      b.link_url = url;
+    }
     const sets: string[] = [];
     const vals: unknown[] = [];
     for (const key of allowed) {

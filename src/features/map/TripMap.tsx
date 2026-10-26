@@ -19,6 +19,8 @@ export interface TripMapProps {
     poi?: { name: string; category: MapPoint["category"] }
   ) => void;
   onPointClick?: (id: string) => void;
+  /** 팝업의 자세히 버튼: 장소 상세(사진·링크·메모) 열기 */
+  onPointOpen?: (id: string) => void;
   /** true면 지도 클릭으로 포인트 추가 플로우 시작 */
   editable?: boolean;
   /** AddPointDialog에서 저장 시 호출 (editable일 때만 동작) */
