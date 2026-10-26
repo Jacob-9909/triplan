@@ -2,19 +2,23 @@
 
 **English** | [한국어](README.ko.md)
 
-A travel planner that starts from the places you dream about. Save places you want to visit someday on a world map, turn one into a trip when you are ready, plan it day by day on a map with a budget and packing list, and share it with one link so companions can edit along with you.
+A travel planner that starts from the places you dream about. Save places you want to visit someday on a world map, turn one into a trip when you are ready, plan it day by day on a map with a timetable, budget, and packing list, and share it with one link so companions can edit along with you.
 
 - Demo: https://triplan-beryl.vercel.app
+
+![Trip page: day tabs, route map with numbered pins and direction arrows, and the day's timetable](docs/screenshot.jpg)
 
 ## Features
 
 | Feature | Description |
 |---|---|
 | Wishlist | Save countries and cities you want to visit with a priority, memo, and tags. Pins on a world map. Turn any of them into a trip in one tap |
-| Day-by-day plan | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins, drag to reorder, and set the travel mode and cost for each leg to get daily totals |
+| Day-by-day map | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins. The map opens at the city you picked, and the route is drawn as a line with direction arrows |
+| Visit order | Stops appear as chips joined by arrows (① → ② → ③). Drag a chip to reorder, tap it to open details |
 | Place details | Pick an icon (sight, restaurant, cafe, shopping, heritage, nature, stay, transport) and pin color, and attach photos, a link, and a memo to each stop |
 | Timetable | Set arrival time and stay length per stop and travel mode and minutes per leg; the day becomes a timetable with arrival and departure times |
-| Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries |
+| Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
+| Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
 | Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
 | Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA |
@@ -31,11 +35,21 @@ There are no user accounts. One admin password protects everything, and each tri
 
 Links can be regenerated at any time, which immediately disables the old one. Every API route checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
 
+## How Korean Labels Work
+
+1. When the map stops moving, the app collects the visible labels that have no `name:ko`.
+2. It sends them in batches to `/api/translate`, guessing the source language from kana or the trip's country.
+3. The server answers from a shared cache table (`triplan.name_translations`) and asks the free [MyMemory](https://mymemory.translated.net/) API only for names it has not seen.
+4. The answers are swapped into the map's label expression, so an area you have seen once shows in Korean right away.
+
+The free limit is about 5,000 characters a day, or 50,000 with `MYMEMORY_EMAIL` set. When it runs out, labels stay in the local language. Translations are machine-made, so names can be off; place names are editable.
+
 ## Tech Stack
 
 - Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
 - Supabase Postgres via `pg` (tables in the `triplan` schema)
-- MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Korean labels where OSM has them; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
+- MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
+- MyMemory translation API (free, no key)
 
 ## Getting Started
 
@@ -43,7 +57,7 @@ Links can be regenerated at any time, which immediately disables the old one. Ev
 
 1. Create a Supabase project.
 2. Apply the files in [`supabase/migrations/`](supabase/migrations) in order, either with `supabase db push` or by pasting them into the SQL editor.
-3. Copy the **Transaction pooler** connection string (port 6543) from Connect in the dashboard.
+3. Copy the **Transaction pooler** connection string (port 6543) from Connect in the dashboard. URL-encode special characters in the password (`?` → `%3F`, `@` → `%40`).
 
 The tables live in the `triplan` schema, which the Supabase Data API does not expose, and RLS is enabled as a second guard. Only the Next.js server talks to the database.
 
@@ -58,15 +72,25 @@ for f in supabase/migrations/*.sql; do docker exec -i triplan-pg psql -U postgre
 
 ```bash
 npm install
-cp .env.example .env.local   # DATABASE_URL, ADMIN_PASSWORD, SESSION_SECRET
+cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000 and log in with `ADMIN_PASSWORD`. See [`.env.example`](.env.example) for optional keys (Mapbox, Kakao, exchange rate).
+Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `ADMIN_PASSWORD` | Yes | Admin login |
+| `SESSION_SECRET` | Yes | Signs the login cookie (32+ random characters) |
+| `KAKAO_REST_KEY` | No | Place search in Korea |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
+| `MYMEMORY_EMAIL` | No | Raises the free translation limit |
+| `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
 
 ### 3. Deploy (Vercel)
 
-Set `DATABASE_URL`, `ADMIN_PASSWORD`, and `SESSION_SECRET` in the Vercel project, then deploy.
+Set the required variables in the Vercel project, then deploy with `vercel deploy --prod`. The Supabase direct connection (`db.<ref>.supabase.co:5432`) is IPv6-only and does not work on Vercel, so use the Transaction pooler.
 
 ## Project Structure
 
@@ -81,18 +105,18 @@ src/
 ├── features/
 │   ├── home/            Landing and dashboard
 │   ├── wishlist/        Wishlist map, cards, form
-│   ├── trip/            Trip workspace, share panel, trip card
-│   ├── map/             Map engine wrapper, pins, place search
-│   ├── route/           Day tabs, itinerary, timeline
+│   ├── trip/            Trip workspace, place details, share panel
+│   ├── map/             Map engine wrapper, pins, route arrows, Korean labels
+│   ├── route/           Day tabs, visit order chips, timetable
 │   ├── expenses/        Budget
 │   ├── prep/            Checklist and booking records
 │   ├── shell/           App shell (top bar, bottom tab bar)
-│   └── ui/              Cover photo, bottom sheet, count-up, date helpers
-├── lib/                 DB pool, auth, API client, types
-└── data/                Countries, cities, background photo map
+│   └── ui/              Cover photo, bottom sheet, money input, date helpers
+├── lib/                 DB pool, auth, translation, API client, types
+└── data/                Countries, cities, map centers, background photos
 supabase/migrations/     Database schema
 ```
 
 ## Credits
 
-Country photos are from Wikimedia Commons. See [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md).
+Country photos are from Wikimedia Commons. See [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md). Map data © OpenStreetMap contributors, tiles by OpenFreeMap.
