@@ -25,13 +25,14 @@ A travel planner that starts from the places you dream about. Save places you wa
 
 ## Access Model
 
-There are no user accounts. One admin password protects everything, and each trip carries two random tokens.
+There is no sign-up. One admin password protects everything, each trip carries two random tokens, and the admin can create demo accounts.
 
 | Who | How | Can do |
 |---|---|---|
 | Admin | Logs in with `ADMIN_PASSWORD` (HMAC-signed cookie) | Everything: trips, wishlist, share links, delete |
 | Edit link `/t/<token>` | Opens the link | Edit that one trip's pins, plan, budget, checklist, bookings |
 | View link `/v/<token>` | Opens the link | Read that one trip. Booking codes and links are removed by the API |
+| Demo account | Logs in with an ID and password the admin created on the Members page | Read trips the admin marked "Show to demo accounts" in the share sheet. No place search, translation, or exchange rates |
 
 Links can be regenerated at any time, which immediately disables the old one. Every API route checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
 

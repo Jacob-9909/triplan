@@ -8,7 +8,7 @@ import CoverPhoto from "@/features/ui/CoverPhoto";
 import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
 
 /** 사진 위에 정보가 올라가는 여행 카드 */
-export default function TripCard({ trip, index = 0 }: { trip: Trip; index?: number }) {
+export default function TripCard({ trip, index = 0, href = `/trips/${trip.id}` }: { trip: Trip; index?: number; href?: string }) {
   const { phase } = tripPhase(trip);
   const stay = stayLabel(trip);
   return (
@@ -18,7 +18,7 @@ export default function TripCard({ trip, index = 0 }: { trip: Trip; index?: numb
       transition={{ delay: index * 0.05, duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
     >
       <Link
-        href={`/trips/${trip.id}`}
+        href={href}
         className="card-lift group relative block aspect-[4/5] overflow-hidden rounded-[var(--radius-card)] bg-slate-200 shadow-card sm:aspect-[4/4.6]"
       >
         <CoverPhoto country={trip.country} continent={trip.continent} zoomOnHover />

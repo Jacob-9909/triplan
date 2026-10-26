@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, Search, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
+import { apiGet } from "@/lib/api";
 
 /** 카카오 로컬 API 응답 문서 */
 interface KakaoPlace {
@@ -88,14 +89,8 @@ export default function PlaceSearch({
           params.set("x", String(center.lng));
           params.set("y", String(center.lat));
         }
-        const res = await fetch(`/api/places/search?${params.toString()}`);
-        const data = await res.json();
-        if (!res.ok) {
-          setError(data.error ?? "장소 검색에 실패했어요");
-          setResults([]);
-        } else {
-          setResults((data.documents ?? []).slice(0, 8));
-        }
+        const data = await apiGet<{ documents?: KakaoPlace[] }>(`/api/places/search?${params.toString()}`);
+        setResults((data.documents ?? []).slice(0, 8));
       } catch {
         setError("장소 검색에 실패했어요");
         setResults([]);

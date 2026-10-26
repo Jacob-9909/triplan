@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Heart, Home, LogOut, Plus } from "lucide-react";
+import { Heart, Home, LogOut, Plus, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
 const NAV = [
   { href: "/", label: "홈", icon: Home },
   { href: "/wishlist", label: "가고 싶은 곳", icon: Heart },
+  { href: "/members", label: "회원", icon: Users },
 ] as const;
 
 function isActive(pathname: string, href: string) {
@@ -25,8 +26,8 @@ export function Logo({ className = "" }: { className?: string }) {
   );
 }
 
-/** 관리자 화면 공통 틀: 데스크톱 상단 바 + 모바일 하단 탭바 */
-export default function AppShell({ children }: { children: ReactNode }) {
+/** 관리자 화면 공통 틀: 데스크톱 상단 바 + 모바일 하단 탭바. member면 메뉴 없이 로고와 로그아웃만 */
+export default function AppShell({ children, member = false }: { children: ReactNode; member?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -44,7 +45,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <Link href="/" aria-label="Triplan 홈">
             <Logo />
           </Link>
-          <nav className="flex gap-1">
+          {!member && <nav className="flex gap-1">
             {NAV.map(({ href, label }) => {
               const active = isActive(pathname, href);
               return (
@@ -66,11 +67,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 </Link>
               );
             })}
-          </nav>
+          </nav>}
           <div className="ml-auto flex items-center gap-2">
-            <Link href="/trips/new" className="btn btn-primary px-4 py-2 text-sm">
-              <Plus size={16} /> 새 여행
-            </Link>
+            {member ? (
+              <span className="text-sm font-semibold text-foreground/60">체험 계정</span>
+            ) : (
+              <Link href="/trips/new" className="btn btn-primary px-4 py-2 text-sm">
+                <Plus size={16} /> 새 여행
+              </Link>
+            )}
             <button
               onClick={logout}
               aria-label="로그아웃"
@@ -102,11 +107,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       {/* 모바일 하단 탭바 */}
-      <nav
+      {!member && <nav
         aria-label="주요 메뉴"
         className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-3 items-center">
+        <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-4 items-center">
           {NAV.slice(0, 1).map((item) => (
             <TabItem key={item.href} {...item} active={isActive(pathname, item.href)} />
           ))}
@@ -123,7 +128,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <TabItem key={item.href} {...item} active={isActive(pathname, item.href)} />
           ))}
         </div>
-      </nav>
+      </nav>}
     </div>
   );
 }

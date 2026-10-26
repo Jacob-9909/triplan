@@ -19,6 +19,8 @@ export interface Trip {
   base_currency: string; // 현지 화폐 코드 (예: JPY)
   cover_image_url: string | null;
   created_at: string;
+  /** 체험 회원에게 보기 전용으로 공개 */
+  is_demo?: boolean;
   /** 공유 토큰: 관리자 응답에만 포함 */
   edit_token?: string;
   view_token?: string;

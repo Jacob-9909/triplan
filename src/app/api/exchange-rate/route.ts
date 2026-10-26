@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { canUseExternalApis } from "@/lib/auth";
+import { jsonError } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +66,7 @@ async function fetchErApiLatest(from: string, to: string) {
 }
 
 export async function GET(request: NextRequest) {
+  if (!(await canUseExternalApis(request))) return jsonError("unauthorized", 401);
   const sp = request.nextUrl.searchParams;
   const from = (sp.get("from") ?? "USD").toUpperCase();
   const to = (sp.get("to") ?? "KRW").toUpperCase();
