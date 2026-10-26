@@ -23,6 +23,12 @@ export interface TripMapProps {
   editable?: boolean;
   /** AddPointDialog에서 저장 시 호출 (editable일 때만 동작) */
   onPointCreate?: (draft: PointDraft) => void;
+  /** false면 핀 사이 경로선을 그리지 않는다 (위시리스트 지도) */
+  showRoute?: boolean;
+  /** false면 핀 위 순번을 숨긴다 */
+  numbered?: boolean;
+  /** 지도 높이 클래스 덮어쓰기 */
+  heightClass?: string;
   /** 포인트가 없을 때 사용할 기본 중심 좌표 (여행 국가) */
   defaultCenter?: { lat: number; lng: number; zoom?: number } | null;
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, Check, ChevronRight, MapPin, Search, X } from "lucide-react";
 import type { City } from "@/data/world";
+import CoverPhoto from "@/features/ui/CoverPhoto";
 import {
   searchDestinations,
   WORLD,
@@ -96,7 +97,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
         <div className="mb-4 flex items-center gap-2 text-sm text-slate-500">
           <button
             onClick={back}
-            className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 border border-[color:var(--border)] shadow-sm hover:bg-[color:var(--surface-muted)]"
+            className="flex items-center gap-1 rounded-full bg-surface px-3 py-1.5 border border-[color:var(--border)] shadow-sm hover:bg-[color:var(--surface-muted)]"
           >
             <ArrowLeft size={14} />
             이전
@@ -182,6 +183,8 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
                     subtitle={`${c.currency} · ${c.cities.length}개 도시`}
                     onClick={() => pickCountry(c)}
                     accent="accent"
+                    photoCountry={c.name}
+                    continentName={continent.name}
                   />
                 ))}
 
@@ -232,6 +235,8 @@ function CardButton({
   footer,
   onClick,
   accent,
+  photoCountry,
+  continentName,
 }: {
   emoji: string;
   title: string;
@@ -239,7 +244,27 @@ function CardButton({
   footer?: React.ReactNode;
   onClick: () => void;
   accent: "primary" | "accent" | "mint";
+  /** 지정하면 나라 대표 사진 카드로 렌더링 */
+  photoCountry?: string;
+  continentName?: string;
 }) {
+  if (photoCountry) {
+    return (
+      <motion.button
+        whileHover={{ y: -3 }}
+        whileTap={{ scale: 0.97 }}
+        onClick={onClick}
+        className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-[var(--radius-card)] bg-slate-200 p-3.5 text-left text-white shadow-card md:p-4"
+      >
+        <CoverPhoto country={photoCountry} continent={continentName} zoomOnHover />
+        <span className="relative text-2xl leading-none drop-shadow" role="img" aria-hidden>
+          {emoji}
+        </span>
+        <span className="relative mt-1.5 font-bold">{title}</span>
+        <span className="relative text-[11px] text-white/75">{subtitle}</span>
+      </motion.button>
+    );
+  }
   const accentClass =
     accent === "primary"
       ? "group-hover:border-[color:var(--color-primary)] group-hover:bg-[color:var(--color-primary-soft)]"

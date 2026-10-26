@@ -23,7 +23,32 @@ const VOYAGER_TEXT_FONT = [
  * Voyager 스타일에는 식당·명소 POI가 빠져 있으므로(경기장/공원뿐),
  * 같은 carto 벡터 타일의 poi 소스 레이어를 재사용해 라벨 레이어를 추가한다.
  */
+interface PoiSchema {
+  /** 벡터 타일 소스 id */
+  source: string;
+  /** POI가 들어 있는 소스 레이어 */
+  sourceLayer: string;
+  /** 장소 종류가 담긴 속성 이름 */
+  kindProp: string;
+  font: unknown;
+}
+
+/**
+ * Carto는 Voyager 타일을 OpenMapTiles(source "carto", poi.class)에서
+ * Protomaps(source "protomaps", pois.kind)로 바꿨다. 스타일을 보고 맞는 스키마를 고른다.
+ */
+function detectPoiSchema(style: Record<string, unknown>): PoiSchema | null {
+  const sources = Object.keys((style.sources as Record<string, unknown>) ?? {});
+  const layers = (style.layers as Array<Record<string, unknown>>) ?? [];
+  const poiLayer = layers.find((l) => l["source-layer"] === "pois" || l["source-layer"] === "poi");
+  const font = (poiLayer?.layout as Record<string, unknown> | undefined)?.["text-font"] ?? VOYAGER_TEXT_FONT;
+  if (sources.includes("protomaps")) return { source: "protomaps", sourceLayer: "pois", kindProp: "kind", font };
+  if (sources.includes("carto")) return { source: "carto", sourceLayer: "poi", kindProp: "class", font };
+  return null;
+}
+
 function poiLabelLayer(
+  schema: PoiSchema,
   id: string,
   classes: string[],
   color: string,
@@ -32,13 +57,13 @@ function poiLabelLayer(
   return {
     id,
     type: "symbol",
-    source: "carto",
-    "source-layer": "poi",
+    source: schema.source,
+    "source-layer": schema.sourceLayer,
     minzoom,
-    filter: ["all", ["has", "name"], ["match", ["get", "class"], classes, true, false]],
+    filter: ["all", ["has", "name"], ["match", ["get", schema.kindProp], classes, true, false]],
     layout: {
       "text-field": "{name}",
-      "text-font": VOYAGER_TEXT_FONT,
+      "text-font": schema.font,
       "text-size": { stops: [[13, 9], [16, 11], [18, 12]] },
       "text-anchor": "top",
       "text-offset": [0, 0.6],
@@ -59,14 +84,19 @@ function getEnrichedStyle(): Promise<Record<string, unknown>> {
     enrichedStylePromise = fetch(MAPLIBRE_VOYAGER_STYLE)
       .then((res) => res.json())
       .then((style: Record<string, unknown>) => {
+        const schema = detectPoiSchema(style);
+        // 모르는 스키마면 보강 없이 원본 스타일을 쓴다 (지도 자체는 정상 표시)
+        if (!schema) return style;
         const layers = [
           poiLabelLayer(
+            schema,
             `${TRIPOI_LAYER_PREFIX}attraction`,
             ["attraction", "museum", "theatre", "monument", "zoo", "aquarium", "theme_park", "viewpoint", "gallery"],
             "#8b5cf6",
             13
           ),
           poiLabelLayer(
+            schema,
             `${TRIPOI_LAYER_PREFIX}food`,
             ["restaurant", "cafe", "fast_food", "bar", "pub", "ice_cream", "bakery"],
             "#fb7185",

@@ -66,9 +66,17 @@ function CircularProgress({ value, total }: { value: number; total: number }) {
   );
 }
 
-export default function ChecklistPanel({ tripId }: { tripId: string }) {
-  const { items, loading, addItem, addItems, toggleItem, removeItem } =
+export default function ChecklistPanel({
+  tripId,
+  readOnly = false,
+}: {
+  tripId: string;
+  /** 보기 전용 링크: 추가·체크·삭제 UI를 숨긴다 */
+  readOnly?: boolean;
+}) {
+  const { items, loading, addItem, addItems, toggleItem: toggle, removeItem } =
     useChecklist(tripId);
+  const toggleItem = (id: string) => (readOnly ? Promise.resolve() : toggle(id));
   const [newLabel, setNewLabel] = useState("");
   const [newCategory, setNewCategory] = useState<ChecklistCategory>("etc");
   const [showTemplates, setShowTemplates] = useState(false);
@@ -137,6 +145,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
         </div>
       </div>
 
+      {!readOnly && (<>
       <div className="mt-5 space-y-2">
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(CHECKLIST_CATEGORY_LABEL) as ChecklistCategory[]).map(
@@ -265,6 +274,7 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
           </motion.div>
         )}
       </AnimatePresence>
+      </>)}
 
       {loading ? (
         <p className="mt-6 text-center text-sm text-slate-400">
@@ -348,13 +358,15 @@ export default function ChecklistPanel({ tripId }: { tripId: string }) {
                   />
                 </span>
 
-                <button
-                  onClick={() => void removeItem(item.id)}
-                  aria-label={`${item.label} 삭제`}
-                  className="opacity-0 transition group-hover:opacity-100 text-slate-300 hover:text-[var(--color-accent)]"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {!readOnly && (
+                  <button
+                    onClick={() => void removeItem(item.id)}
+                    aria-label={`${item.label} 삭제`}
+                    className="text-slate-300 transition hover:text-[var(--color-accent)] md:opacity-0 md:group-hover:opacity-100"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </motion.li>
                     ))}
                   </AnimatePresence>

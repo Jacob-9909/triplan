@@ -2,11 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, CalendarDays, Loader2, MapPin, Plane } from "lucide-react";
+import { ArrowLeft, CalendarDays, Loader2, Plane } from "lucide-react";
 import type { Trip } from "@/lib/types";
 import { apiPost } from "@/lib/api";
 import type { DestinationSelection } from "@/data/world";
-import CountryBackdrop from "@/features/ui/CountryBackdrop";
+import CoverPhoto from "@/features/ui/CoverPhoto";
 
 interface TripCreateFormProps {
   selection: DestinationSelection;
@@ -21,13 +21,12 @@ function diffNights(start: string, end: string): number | null {
   const s = new Date(start);
   const e = new Date(end);
   if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
-  const d = Math.round((e.getTime() - s.getTime()) / 86_400_000);
-  return d >= 0 ? d : null;
+  return Math.round((e.getTime() - s.getTime()) / 86_400_000);
 }
 
 export default function TripCreateForm({ selection, onSuccess, onCancel }: TripCreateFormProps) {
   const { continent, country, city } = selection;
-  const [title, setTitle] = useState(`${city.name} ${country.name} 여행`);
+  const [title, setTitle] = useState(`${city.name} 여행`);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,8 +39,8 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) return setError("여행 제목을 입력해주세요.");
-    if (!startDate || !endDate) return setError("시작일과 종료일을 모두 선택해주세요.");
+    if (!title.trim()) return setError("여행 제목을 입력해 주세요.");
+    if (!startDate || !endDate) return setError("시작일과 종료일을 모두 골라 주세요.");
     if (invalidRange) return setError("종료일이 시작일보다 빠를 수 없어요.");
 
     setLoading(true);
@@ -55,10 +54,9 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
         end_date: endDate,
         base_currency: country.currency,
       });
-      onSuccess?.(data as Trip);
+      onSuccess?.(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "여행 생성에 실패했어요. 다시 시도해주세요.");
-    } finally {
+      setError(err instanceof Error ? err.message : "여행을 만들지 못했어요. 다시 시도해 주세요.");
       setLoading(false);
     }
   }
@@ -67,114 +65,105 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
     <motion.form
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: [0.2, 0.8, 0.2, 1] }}
       onSubmit={handleSubmit}
-      className="card relative isolate mx-auto w-full max-w-xl overflow-hidden p-6 sm:p-8 lg:max-w-2xl lg:p-10"
+      className="card mx-auto w-full max-w-xl overflow-hidden"
     >
-      <CountryBackdrop country={country.name} continent={continent.id} />
-      {/* 선택 요약 */}
-      <div className="flex items-center gap-4 rounded-2xl bg-[color:var(--surface-muted)] p-4">
-        <span className="text-4xl drop-shadow-sm">{city.emoji}</span>
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1 font-semibold">
-            <MapPin size={14} className="text-[color:var(--color-accent)]" />
-            {city.name} · {country.flag} {country.name}
-          </p>
-          <p className="text-xs text-slate-400 truncate">
-            {continent.emoji} {continent.name} · 현지 화폐{" "}
-            <span className="font-mono font-semibold text-[color:var(--color-primary-strong)]">
-              {country.currency}
-            </span>{" "}
-            · {city.description}
-          </p>
-        </div>
+      {/* 목적지 사진 헤더 */}
+      <div className="relative h-48 bg-slate-200 text-white md:h-56">
+        <CoverPhoto country={country.name} continent={continent.name} />
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            aria-label="목적지 다시 선택"
-            className="shrink-0 rounded-full border border-[color:var(--border)] bg-white p-2 text-slate-500 hover:text-[color:var(--color-primary-strong)]"
+            aria-label="목적지 다시 고르기"
+            className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-md transition hover:bg-black/45"
           >
-            <ArrowLeft size={16} />
+            <ArrowLeft size={17} />
           </button>
         )}
-      </div>
-
-      {/* 제목 */}
-      <label className="mt-6 block text-sm font-semibold" htmlFor="trip-title">
-        ✈️ 여행 제목
-      </label>
-      <input
-        id="trip-title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="예: 도쿄 맛집 투어 3박 4일"
-        className="card mt-1.5 w-full rounded-xl px-4 py-3 text-sm outline-none placeholder:text-slate-300 focus:border-[color:var(--color-primary)]"
-      />
-
-      {/* 날짜 */}
-      <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <label htmlFor="trip-start" className="block text-sm font-semibold">
-            🗓️ 시작일
-          </label>
-          <input
-            id="trip-start"
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="card mt-1.5 w-full rounded-xl px-4 py-3 text-sm outline-none focus:border-[color:var(--color-primary)]"
-          />
-        </div>
-        <div>
-          <label htmlFor="trip-end" className="block text-sm font-semibold">
-            🗓️ 종료일
-          </label>
-          <input
-            id="trip-end"
-            type="date"
-            value={endDate}
-            min={startDate || undefined}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="card mt-1.5 w-full rounded-xl px-4 py-3 text-sm outline-none focus:border-[color:var(--color-primary)]"
-          />
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          <p className="text-sm font-semibold text-white/80">
+            {country.flag} {country.name} · {continent.name}
+          </p>
+          <p className="mt-0.5 text-3xl font-extrabold tracking-tight">
+            {city.emoji} {city.name}
+          </p>
+          <p className="mt-1 text-xs text-white/70">
+            {city.description} · 현지 화폐 <span className="font-mono font-semibold">{country.currency}</span>
+          </p>
         </div>
       </div>
 
-      {nights !== null && !invalidRange && (
-        <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
-          <CalendarDays size={13} className="text-[color:var(--color-mint)]" />
-          총 {nights}박 {nights + 1}일 일정이에요
-        </p>
-      )}
+      <div className="p-5 md:p-7">
+        <label className="block text-sm font-semibold" htmlFor="trip-title">
+          여행 이름
+        </label>
+        <input
+          id="trip-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="예: 도쿄 맛집 투어"
+          className="input mt-1.5"
+        />
 
-      {/* 에러 */}
-      {(error || invalidRange) && (
-        <p
-          role="alert"
-          className="mt-4 rounded-xl bg-[color:var(--color-accent-soft)] px-4 py-2.5 text-sm text-[#be123c]"
-        >
-          {error ?? "종료일이 시작일보다 빠를 수 없어요."}
-        </p>
-      )}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor="trip-start" className="block text-sm font-semibold">
+              가는 날
+            </label>
+            <input
+              id="trip-start"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="input mt-1.5"
+            />
+          </div>
+          <div>
+            <label htmlFor="trip-end" className="block text-sm font-semibold">
+              오는 날
+            </label>
+            <input
+              id="trip-end"
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="input mt-1.5"
+            />
+          </div>
+        </div>
 
-      {/* 제출 */}
-      <button
-        type="submit"
-        disabled={loading}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-[color:var(--color-primary)] py-3.5 font-semibold text-white shadow-md shadow-sky-200 transition hover:bg-[color:var(--color-primary-strong)] disabled:opacity-60"
-      >
-        {loading ? (
-          <>
-            <Loader2 size={18} className="animate-spin" />
-            만들고 있어요...
-          </>
-        ) : (
-          <>
-            <Plane size={18} />
-            이 여행 시작하기
-          </>
+        {nights !== null && !invalidRange && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-3 flex items-center gap-1.5 text-sm font-medium text-primary-strong"
+          >
+            <CalendarDays size={14} />
+            {nights === 0 ? "당일치기 여행이에요" : `${nights}박 ${nights + 1}일 여행이에요`}
+          </motion.p>
         )}
-      </button>
+
+        {(error || invalidRange) && (
+          <p role="alert" className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-sm text-[#c2410c]">
+            {error ?? "종료일이 시작일보다 빠를 수 없어요."}
+          </p>
+        )}
+
+        <button type="submit" disabled={loading} className="btn btn-primary mt-6 w-full py-3.5 disabled:opacity-60">
+          {loading ? (
+            <>
+              <Loader2 size={18} className="animate-spin" /> 만드는 중…
+            </>
+          ) : (
+            <>
+              <Plane size={18} /> 여행 시작하기
+            </>
+          )}
+        </button>
+      </div>
     </motion.form>
   );
 }

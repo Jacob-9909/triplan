@@ -9,6 +9,11 @@ import type { CSSProperties, ComponentType, ReactNode, Ref } from "react";
 export interface MapCameraRef {
   flyTo(options: { center: [number, number]; zoom?: number; duration?: number }): void;
   getZoom(): number;
+  /** 핀 전체가 보이도록 화면 맞춤 */
+  fitBounds?(
+    bounds: [[number, number], [number, number]],
+    options?: { padding?: number; maxZoom?: number; duration?: number }
+  ): void;
   /** 클릭 좌표의 렌더링된 피처 조회 (POI 클릭 감지용) */
   queryRenderedFeatures?(
     point: [number, number],

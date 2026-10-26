@@ -1,32 +1,27 @@
-import { getPool, jsonError } from "@/lib/db";
-
-type Row = Record<string, unknown>;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { getPool, jsonError, type Row } from "@/lib/db";
+import { listChildren, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
-  const tripId = new URL(request.url).searchParams.get("trip_id") ?? "";
-  if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
-  try {
-    const { rows } = await getPool().query<Row>(
-      "SELECT * FROM triplan.checklist_items WHERE trip_id = $1 ORDER BY sort_order ASC",
-      [tripId]
-    );
-    return Response.json(rows);
-  } catch (err) {
-    console.error("GET /api/checklist-items failed:", err);
-    return jsonError("체크리스트를 불러오지 못했어요.");
-  }
+  return listChildren(request, "checklist_items", "sort_order ASC", "체크리스트");
 }
 
 export async function POST(request: Request) {
   try {
     const b = await request.json();
     const items = Array.isArray(b) ? b : [b];
+    if (!items.length) return jsonError("no items", 400);
     for (const it of items) {
-      if (!it?.trip_id || typeof it?.label !== "string" || !it.label.trim()) {
+      if (typeof it?.label !== "string" || !it.label.trim()) {
         return jsonError("trip_id and label are required", 400);
       }
     }
+    // 한 요청의 항목은 모두 같은 여행이어야 한다
+    const tripId = items[0].trip_id;
+    if (items.some((it: Record<string, unknown>) => it.trip_id !== tripId)) {
+      return jsonError("all items must share trip_id", 400);
+    }
+    const denied = await requireEditBody(request, tripId);
+    if (denied) return denied;
     const vals: unknown[] = [];
     const tuples = items.map((it: Record<string, unknown>, i: number) => {
       vals.push(it.trip_id, it.label, it.category ?? "etc", it.is_checked ?? false, it.sort_order ?? 0);

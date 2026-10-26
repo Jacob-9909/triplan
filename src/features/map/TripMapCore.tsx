@@ -32,6 +32,12 @@ export interface TripMapCoreProps {
   mapStyle: string | Record<string, unknown>;
   /** 포인트가 없을 때 사용할 기본 중심 좌표 (여행 국가) */
   defaultCenter?: { lat: number; lng: number; zoom?: number } | null;
+  /** false면 핀 사이 경로선을 그리지 않는다 (위시리스트 지도) */
+  showRoute?: boolean;
+  /** false면 핀 위 순번을 숨긴다 */
+  numbered?: boolean;
+  /** 지도 높이 클래스 덮어쓰기 */
+  heightClass?: string;
   /** mapbox 클라우드 모드에서만 사용하는 액세스 토큰 */
   accessToken?: string;
 }
@@ -51,6 +57,9 @@ export default function TripMapCore({
   mapStyle,
   accessToken,
   defaultCenter = null,
+  showRoute = true,
+  numbered = true,
+  heightClass = "h-[380px] sm:h-[440px] lg:h-[520px]",
 }: TripMapCoreProps) {
   const { Map, Marker, Popup, NavigationControl } = kit;
   const mapRef = useRef<MapCameraRef>(null);
@@ -77,6 +86,28 @@ export default function TripMapCore({
     mapRef.current.flyTo({ center: [target.lng, target.lat], zoom: Math.max(mapRef.current.getZoom(), 14), duration: 900 });
   }, [focusPointId, points]);
 
+  // 핀 구성이 바뀌면(Day 전환 등) 전체 핀이 보이게 화면을 맞춘다
+  const pointsKey = sortedPoints.map((p) => p.id).join(",");
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || sortedPoints.length === 0) return;
+    if (sortedPoints.length === 1) {
+      const p = sortedPoints[0];
+      map.flyTo({ center: [p.lng, p.lat], zoom: showRoute ? 13 : 3, duration: 600 });
+      return;
+    }
+    const lngs = sortedPoints.map((p) => p.lng);
+    const lats = sortedPoints.map((p) => p.lat);
+    map.fitBounds?.(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: showRoute ? 70 : 60, maxZoom: showRoute ? 15 : 4, duration: 600 }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 핀 id 구성이 바뀔 때만 맞춤
+  }, [mapReady, pointsKey, showRoute]);
+
   // 개발 환경 CDP 검증용
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
@@ -102,7 +133,7 @@ export default function TripMapCore({
         ?.find((f) => typeof f.properties?.name === "string" && (f.properties!.name as string).length > 0);
       if (poi) {
         const [lng, lat] = poi.geometry?.coordinates ?? [latlng.lng, latlng.lat];
-        onMapClick?.({ lat, lng }, { name: poi.properties!.name as string, category: poiCategoryGuess(poi.properties!.class) });
+        onMapClick?.({ lat, lng }, { name: poi.properties!.name as string, category: poiCategoryGuess(poi.properties!.class ?? poi.properties!.kind) });
         return;
       }
 
@@ -112,14 +143,16 @@ export default function TripMapCore({
   );
 
   return (
-    <div className="relative h-[380px] w-full overflow-hidden rounded-2xl shadow-card sm:h-[440px] lg:h-[520px]">
+    <div className={`relative w-full overflow-hidden rounded-[var(--radius-card)] ${heightClass}`}>
       <Map
         ref={mapRef}
         mapStyle={mapStyle}
         mapboxAccessToken={accessToken}
         initialViewState={{
           ...DEFAULT_VIEW,
-          ...(sortedPoints.length > 0
+          ...(!showRoute
+            ? { latitude: 25, longitude: 110, zoom: 1.4 }
+            : sortedPoints.length > 0
             ? { latitude: sortedPoints[0].lat, longitude: sortedPoints[0].lng }
             : defaultCenter
               ? { latitude: defaultCenter.lat, longitude: defaultCenter.lng, zoom: defaultCenter.zoom ?? DEFAULT_VIEW.zoom }
@@ -135,14 +168,14 @@ export default function TripMapCore({
       >
         <NavigationControl position="top-right" showCompass={false} />
 
-        <RouteLine points={sortedPoints} kit={kit} />
+        {showRoute && <RouteLine points={sortedPoints} kit={kit} />}
 
         {sortedPoints.map((point, i) => (
           <Marker key={point.id} latitude={point.lat} longitude={point.lng} anchor="bottom" offset={[0, 6]}>
-            <div className="flex cursor-pointer flex-col items-center gap-1">
+            <div className="pin-drop flex cursor-pointer flex-col items-center gap-1" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
               <PinMarker
                 category={point.category}
-                label={point.visit_order ?? i + 1}
+                label={numbered ? (point.visit_order ?? i + 1) : undefined}
                 selected={point.id === selectedPointId}
                 onClick={() => {
                   setPopupId(point.id);

@@ -929,3 +929,23 @@ export function searchDestinations(query: string): DestinationSelection[] {
   }
   return results;
 }
+
+/** 저장된 나라·지역 이름으로 선택값 복원 (위시리스트 → 여행 전환용) */
+export function findSelection(country?: string | null, region?: string | null): DestinationSelection | null {
+  for (const continent of WORLD) {
+    const c = continent.countries.find((x) => x.name === country);
+    if (!c) continue;
+    const city = c.cities.find((x) => x.name === region) ?? c.cities[0];
+    return city ? { continent, country: c, city } : null;
+  }
+  return null;
+}
+
+/** 나라 이름 → 국기 이모지 */
+export function flagOf(country?: string | null): string {
+  for (const continent of WORLD) {
+    const c = continent.countries.find((x) => x.name === country);
+    if (c) return c.flag;
+  }
+  return "📍";
+}

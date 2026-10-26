@@ -19,6 +19,32 @@ export interface Trip {
   base_currency: string; // 현지 화폐 코드 (예: JPY)
   cover_image_url: string | null;
   created_at: string;
+  /** 공유 토큰: 관리자 응답에만 포함 */
+  edit_token?: string;
+  view_token?: string;
+  /** GET /api/trips/[id] 응답에 붙는 요청자 권한 */
+  access?: Access;
+}
+
+/** admin: 비밀번호 로그인, edit: 편집 링크, view: 보기 링크 */
+export type Access = "admin" | "edit" | "view";
+
+/** 언젠가 가고 싶은 곳 (날짜 없음) */
+export interface WishlistPlace {
+  id: string;
+  name: string;
+  continent: string | null;
+  country: string | null;
+  region: string | null;
+  lat: number | null;
+  lng: number | null;
+  memo: string | null;
+  tags: string[];
+  /** 1 언젠가 · 2 가고 싶어 · 3 꼭 갈 거야 */
+  priority: number;
+  /** 여행으로 전환된 경우 연결된 여행 */
+  trip_id: string | null;
+  created_at: string;
 }
 
 /** 지도에 찍는 포인트 (관광지, 식당, 숙소 등) */

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { MapPoint, RouteLeg, Trip } from "@/lib/types";
 
 export function useTripData(tripId: string) {
@@ -114,6 +114,16 @@ export async function ensureLeg(
     });
   } catch {
     return null;
+  }
+}
+
+/** 포인트 삭제 (연결된 구간은 DB에서 함께 지워진다) */
+export async function deletePoint(id: string) {
+  try {
+    await apiDelete(`/api/map-points/${id}`);
+    return true;
+  } catch {
+    return false;
   }
 }
 

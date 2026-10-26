@@ -2,62 +2,68 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   Banknote,
-  CalendarRange,
+  CalendarDays,
+  Eye,
   Luggage,
   MapPin,
+  MousePointerClick,
+  PencilLine,
   Plane,
-  Route as RouteIcon,
+  Share2,
 } from "lucide-react";
-import type { MapPoint, Trip } from "@/lib/types";
-import { useTripData, persistOrder, addPoint, ensureLeg, updateLeg } from "./useTripData";
+import type { Access, MapPoint } from "@/lib/types";
+import { setTripToken } from "@/lib/api";
+import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getCountryCenter } from "@/data/countryCenters";
-import PointListMini from "@/features/map/PointListMini";
 import DayTabs from "@/features/route/DayTabs";
 import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
 import DaySummary from "@/features/route/DaySummary";
-import LegEditor from "@/features/route/LegEditor";
-import SearchTabs from "@/features/search/SearchTabs";
 import ExpenseForm from "@/features/expenses/ExpenseForm";
 import ExpenseList from "@/features/expenses/ExpenseList";
 import ExpenseSummary from "@/features/expenses/ExpenseSummary";
 import { useExpenses } from "@/features/expenses/useExpenses";
 import ChecklistPanel from "@/features/prep/ChecklistPanel";
 import DocsPanel from "@/features/prep/DocsPanel";
-import CountryBackdrop from "@/features/ui/CountryBackdrop";
+import CoverPhoto from "@/features/ui/CoverPhoto";
+import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
+import SharePanel from "./SharePanel";
 
-type Tab = "plan" | "search" | "expenses" | "prep";
+type Tab = "plan" | "expenses" | "prep";
 
 const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
-  { id: "plan", label: "지도·일정", icon: MapPin },
-  { id: "search", label: "항공·숙소", icon: Plane },
+  { id: "plan", label: "일정", icon: MapPin },
   { id: "expenses", label: "가계부", icon: Banknote },
-  { id: "prep", label: "준비물", icon: Luggage },
+  { id: "prep", label: "준비", icon: Luggage },
 ];
 
-export default function TripWorkspace({ tripId }: { tripId: string }) {
-  const { trip, points, legs, loading, notConfigured, setPoints, setLegs } =
-    useTripData(tripId);
+export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: Access }) {
+  // 관리자 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
+  if (mode === "admin") setTripToken(null);
+  const canEdit = mode !== "view";
+
+  const { trip, points, legs, loading, notConfigured, setPoints, setLegs } = useTripData(tripId);
   const { expenses } = useExpenses(tripId);
   const [tab, setTab] = useState<Tab>("plan");
   const [day, setDay] = useState(1);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
-  /** 지도 POI 라벨 클릭 시 자동 완성되는 장소 정보 */
+  /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   const dayPoints = useMemo(
     () =>
       points
         .filter((p) => p.day_number === day)
         .sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99)),
-    [points, day],
+    [points, day]
   );
   const dayLegs = useMemo(() => {
     const ids = new Set(dayPoints.map((p) => p.id));
@@ -69,7 +75,7 @@ export default function TripWorkspace({ tripId }: { tripId: string }) {
       prev.map((p) => {
         const idx = orderedIds.indexOf(p.id);
         return idx >= 0 ? { ...p, visit_order: idx + 1 } : p;
-      }),
+      })
     );
     await persistOrder(tripId, orderedIds);
     // 순서가 바뀐 인접 구간의 leg 확보
@@ -84,12 +90,7 @@ export default function TripWorkspace({ tripId }: { tripId: string }) {
   async function handlePointCreate(draft: PointDraft) {
     if (!pendingLatLng) return;
     const maxOrder = Math.max(0, ...dayPoints.map((p) => p.visit_order ?? 0));
-    const created = await addPoint(
-      tripId,
-      { ...draft, lat: pendingLatLng.lat, lng: pendingLatLng.lng },
-      day,
-      maxOrder + 1,
-    );
+    const created = await addPoint(tripId, { ...draft, lat: pendingLatLng.lat, lng: pendingLatLng.lng }, day, maxOrder + 1);
     if (created) {
       setPoints((prev) => [...prev, created]);
       const prevPoint = dayPoints[dayPoints.length - 1];
@@ -102,225 +103,256 @@ export default function TripWorkspace({ tripId }: { tripId: string }) {
     setPoiPrefill(null);
   }
 
-  function handleLegChange(legId: string, patch: Partial<MapPoint> | Record<string, unknown>) {
-    setLegs((prev) => prev.map((l) => (l.id === legId ? { ...l, ...patch } : l)));
-    updateLeg(legId, patch as never);
+  async function handlePointDelete(id: string) {
+    if (!(await deletePoint(id))) return;
+    setPoints((prev) => prev.filter((p) => p.id !== id));
+    setLegs((prev) => prev.filter((l) => l.from_point_id !== id && l.to_point_id !== id));
   }
 
   if (notConfigured) {
     return (
-      <div className="card mx-auto mt-20 max-w-md p-8 text-center">
-        <CalendarRange className="mx-auto text-primary" size={40} />
-        <h2 className="mt-4 text-lg font-bold">Supabase 연결 필요</h2>
-        <p className="mt-2 text-sm text-foreground/60">
-          .env.local에 Supabase 키를 설정하고 마이그레이션을 실행하세요.
-          <br />
-          <code className="mt-2 block rounded bg-surface-muted p-2 text-xs">
-            supabase/migrations/0001_init.sql
-          </code>
+      <div className="mx-auto mt-24 max-w-sm px-6 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+          <MapPin size={26} />
+        </div>
+        <h2 className="mt-4 text-lg font-bold">여행을 열 수 없어요</h2>
+        <p className="mt-2 text-sm text-foreground/55">
+          삭제되었거나 링크가 바뀌었을 수 있어요. {mode === "admin" ? "" : "링크를 보낸 사람에게 새 링크를 받아 주세요."}
         </p>
-        <Link href="/" className="mt-4 inline-block text-sm font-medium text-primary-strong">
-          ← 홈으로
-        </Link>
+        {mode === "admin" && (
+          <Link href="/" className="btn btn-ghost mt-5 px-5 py-2.5 text-sm">
+            내 여행으로
+          </Link>
+        )}
       </div>
     );
   }
 
   if (loading || !trip) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-[70dvh] items-center justify-center">
         <motion.div
-          animate={{ y: [-6, 6, -6] }}
-          transition={{ repeat: Infinity, duration: 1.6, ease: "easeInOut" }}
+          animate={{ x: [-30, 30], y: [6, -6], rotate: [8, -8] }}
+          transition={{ repeat: Infinity, repeatType: "mirror", duration: 1.2, ease: "easeInOut" }}
           className="text-primary"
         >
-          <Plane size={44} />
+          <Plane size={40} />
         </motion.div>
       </div>
     );
   }
 
+  const phase = tripPhase(trip);
+  const stay = stayLabel(trip);
+  const mapCenter =
+    dayPoints.length > 0
+      ? {
+          lat: dayPoints.reduce((s, p) => s + p.lat, 0) / dayPoints.length,
+          lng: dayPoints.reduce((s, p) => s + p.lng, 0) / dayPoints.length,
+        }
+      : getCountryCenter(trip.country);
+
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 pb-16 md:px-6 xl:max-w-[96rem]">
-      {/* 헤더 */}
-      <header className="relative isolate flex items-center justify-between overflow-hidden rounded-2xl px-4 py-5 shadow-card md:px-6 md:py-7">
-        <CountryBackdrop country={trip.country} continent={trip.continent ?? undefined} />
-        <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-sm text-foreground/50 hover:text-primary-strong"
-          >
-            <ArrowLeft size={15} /> 내 여행
-          </Link>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-3xl xl:text-4xl">
-            {trip.title}
-          </h1>
-          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-sm text-foreground/60">
-            <MapPin size={14} className="text-accent" />
-            {[trip.continent, trip.country, trip.region].filter(Boolean).join(" · ")}
-            <span className="ml-2 inline-flex items-center gap-1">
-              <CalendarRange size={14} className="text-mint" />
-              {trip.start_date} ~ {trip.end_date}
+    <div className={mode === "admin" ? "" : "min-h-dvh pb-16"}>
+      {/* 사진 헤더 */}
+      <header className="relative isolate overflow-hidden bg-slate-300 text-white md:mx-auto md:mt-6 md:max-w-6xl md:rounded-[1.75rem]">
+        <motion.div
+          initial={{ scale: 1.08 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.4, ease: [0.2, 0.8, 0.2, 1] }}
+          className="absolute inset-0 -z-10"
+        >
+          <CoverPhoto country={trip.country} continent={trip.continent} />
+        </motion.div>
+        <div className="flex min-h-56 flex-col justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] md:min-h-72 md:p-8">
+          <div className="flex items-center justify-between gap-2">
+            {mode === "admin" ? (
+              <Link
+                href="/"
+                aria-label="내 여행으로"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/25 backdrop-blur-md transition hover:bg-black/40"
+              >
+                <ArrowLeft size={18} />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
+                {mode === "edit" ? <PencilLine size={13} /> : <Eye size={13} />}
+                {mode === "edit" ? "공유받은 여행 · 함께 편집 중" : "공유받은 여행 · 보기 전용"}
+              </span>
+            )}
+            {mode === "admin" && (
+              <button
+                onClick={() => setShareOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-lift transition active:scale-95"
+              >
+                <Share2 size={15} /> 공유
+              </button>
+            )}
+          </div>
+          <div>
+            <span
+              className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                phase.phase === "ongoing" ? "bg-mint text-white" : "bg-white/90 text-foreground"
+              }`}
+            >
+              {ddayLabel(trip)}
             </span>
-          </p>
+            <h1 className="mt-2 text-3xl font-extrabold tracking-tight md:text-5xl">{trip.title}</h1>
+            <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/80">
+              <span>
+                <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <CalendarDays size={14} />
+                {formatRange(trip)}
+                {stay && ` · ${stay}`}
+              </span>
+            </p>
+          </div>
         </div>
       </header>
 
       {/* 탭 */}
-      <nav className="mb-6 flex gap-1 rounded-full border border-border-subtle bg-surface p-1 shadow-sm sm:w-fit">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`relative flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium transition-colors md:px-5 md:py-2.5 ${
-              tab === id ? "text-white" : "text-foreground/60 hover:text-primary-strong"
-            }`}
-          >
-            {tab === id && (
-              <motion.span
-                layoutId="tab-pill"
-                className="absolute inset-0 rounded-full bg-primary"
-                transition={{ type: "spring", bounce: 0.25, duration: 0.45 }}
-              />
-            )}
-            <Icon size={15} className="relative z-10" />
-            <span className="relative z-10">{label}</span>
-          </button>
-        ))}
-      </nav>
-
-      {/* 지도·일정 — 모바일에선 Day 선택이 최상단, 데스크톱에선 지도 3 : 사이드 2 */}
-      {tab === "plan" && (
-        <div className="fade-up grid gap-5 lg:grid-cols-5 xl:gap-7">
-          {/* 모바일용 Day 탭 (데스크톱에선 aside의 것 사용) */}
-          <div className="lg:hidden">
-            <DayTabs trip={trip} value={day} onChange={setDay} />
-          </div>
-
-          <div className="space-y-4 lg:col-span-3 xl:space-y-5">
-            <div className="relative card overflow-hidden p-0">
-              {/* 지도 위 장소 검색 (카카오 로컬) */}
-              <div className="absolute left-3 top-3 z-10">
-                <PlaceSearch
-                  center={
-                    dayPoints.length > 0
-                      ? {
-                          lat: dayPoints.reduce((s, p) => s + p.lat, 0) / dayPoints.length,
-                          lng: dayPoints.reduce((s, p) => s + p.lng, 0) / dayPoints.length,
-                        }
-                      : getCountryCenter(trip.country)
-                  }
-                  onPick={(place: PickedPlace) => {
-                    setPendingLatLng({ lat: place.lat, lng: place.lng });
-                    setPoiPrefill({ name: place.name, category: place.category });
-                  }}
+      <div className="glass sticky top-0 z-30 border-b border-border-subtle md:top-16 md:border-none md:bg-transparent md:backdrop-blur-none">
+        <nav className="mx-auto flex max-w-6xl gap-1 px-4 py-2 md:px-0 md:py-4">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setTab(id)}
+              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors md:flex-none md:px-5 ${
+                tab === id ? "text-white" : "text-foreground/55 hover:text-foreground"
+              }`}
+            >
+              {tab === id && (
+                <motion.span
+                  layoutId="trip-tab"
+                  className="absolute inset-0 rounded-full bg-foreground"
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                 />
+              )}
+              <Icon size={15} className="relative" />
+              <span className="relative">{label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <div className="mx-auto max-w-6xl px-4 pt-3 md:px-0">
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={tab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22 }}
+          >
+            {tab === "plan" && (
+              <div className="space-y-4">
+                <DayTabs trip={trip} value={day} onChange={setDay} />
+                <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
+                  <div className="space-y-4 lg:col-span-3">
+                    <div className="relative overflow-hidden rounded-[var(--radius-card)] shadow-card">
+                      {canEdit && (
+                        <div className="absolute left-3 right-14 top-3 z-10 sm:right-auto">
+                          <PlaceSearch
+                            center={mapCenter}
+                            onPick={(place: PickedPlace) => {
+                              setPendingLatLng({ lat: place.lat, lng: place.lng });
+                              setPoiPrefill({ name: place.name, category: place.category });
+                            }}
+                          />
+                        </div>
+                      )}
+                      <TripMap
+                        points={dayPoints}
+                        legs={dayLegs}
+                        expenses={expenses}
+                        defaultCenter={getCountryCenter(trip.country)}
+                        selectedPointId={selectedPointId}
+                        focusPointId={selectedPointId}
+                        onMapClick={
+                          canEdit
+                            ? (latlng: { lat: number; lng: number }, poi) => {
+                                setPendingLatLng(latlng);
+                                setPoiPrefill(poi ?? null);
+                              }
+                            : undefined
+                        }
+                        onPointClick={(id: string) => setSelectedPointId(id)}
+                        editable={canEdit}
+                      />
+                    </div>
+                    <DaySummary points={dayPoints} legs={dayLegs} />
+                  </div>
+                  <aside className="space-y-4 lg:col-span-2">
+                    {canEdit && (
+                      <>
+                        <ItineraryList points={dayPoints} onReorder={handleReorder} onDelete={handlePointDelete} />
+                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/45">
+                          <MousePointerClick size={13} /> 지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.
+                        </p>
+                      </>
+                    )}
+                    <RouteTimeline points={dayPoints} legs={dayLegs} />
+                  </aside>
+                </div>
               </div>
-              <TripMap
-                points={points.filter((p) => p.day_number === day)}
-                legs={dayLegs}
-                expenses={expenses}
-                defaultCenter={getCountryCenter(trip.country)}
-                selectedPointId={selectedPointId}
-                onMapClick={(latlng: { lat: number; lng: number }, poi) => {
-                  setPendingLatLng(latlng);
-                  setPoiPrefill(poi ?? null);
-                }}
-                onPointClick={(id: string) => setSelectedPointId(id)}
-                editable
-              />
-            </div>
-            <DaySummary points={dayPoints} legs={dayLegs} />
-            <RouteTimeline points={dayPoints} legs={dayLegs} />
-          </div>
+            )}
 
-          <aside className="hidden space-y-4 lg:col-span-2 lg:block xl:space-y-5">
-            <DayTabs trip={trip} value={day} onChange={setDay} />
-            <ItineraryList
-              points={dayPoints}
-              onReorder={handleReorder}
-              onDelete={(id) => {
-                setPoints((prev) => prev.filter((p) => p.id !== id));
-              }}
-            />
-            <p className="flex items-center gap-1.5 text-xs text-foreground/40">
-              <RouteIcon size={13} /> 지도를 클릭해 새 포인트를 추가하고, 드래그로 방문 순서를
-              바꿔보세요.
-            </p>
-          </aside>
+            {tab === "expenses" && (
+              <ExpensesTab tripId={tripId} day={day} canEdit={canEdit} startDate={trip.start_date} endDate={trip.end_date} />
+            )}
 
-          {/* 모바일용 일정 리스트 */}
-          <div className="space-y-4 lg:hidden">
-            <ItineraryList
-              points={dayPoints}
-              onReorder={handleReorder}
-              onDelete={(id) => {
-                setPoints((prev) => prev.filter((p) => p.id !== id));
-              }}
-            />
-          </div>
-        </div>
+            {tab === "prep" && (
+              <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+                <ChecklistPanel tripId={tripId} readOnly={!canEdit} />
+                <DocsPanel tripId={tripId} readOnly={!canEdit} />
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+
+      {canEdit && (
+        <AddPointDialog
+          open={pendingLatLng !== null}
+          latlng={pendingLatLng}
+          prefill={poiPrefill ?? undefined}
+          onCancel={() => {
+            setPendingLatLng(null);
+            setPoiPrefill(null);
+          }}
+          onSave={handlePointCreate}
+        />
       )}
 
-      {/* 항공·숙소 검색 — 다른 탭과 동일한 grid 프레임(간격·페이드) 사용 */}
-      {tab === "search" && (
-        <div className="fade-up grid gap-5 lg:grid-cols-5 xl:gap-7">
-          <div className="space-y-4 lg:col-span-5 xl:space-y-5">
-            <SearchTabs
-              flightDefaults={{
-                origin: "ICN",
-                destination: undefined,
-                date: trip.start_date ?? undefined,
-              }}
-              hotelDefaults={{
-                checkIn: trip.start_date ?? undefined,
-                checkOut: trip.end_date ?? undefined,
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* 가계부 */}
-      {tab === "expenses" && <ExpensesTab tripId={tripId} dayPoints={dayPoints} day={day} />}
-
-      {/* 준비물 */}
-      {tab === "prep" && (
-        <div className="fade-up grid gap-5 lg:grid-cols-2 xl:gap-7">
-          <ChecklistPanel tripId={tripId} />
-          <DocsPanel tripId={tripId} />
-        </div>
-      )}
-
-      <AddPointDialog
-        open={pendingLatLng !== null}
-        latlng={pendingLatLng}
-        prefill={poiPrefill ?? undefined}
-        onCancel={() => {
-          setPendingLatLng(null);
-          setPoiPrefill(null);
-        }}
-        onSave={handlePointCreate}
-      />
+      {mode === "admin" && <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} />}
     </div>
   );
 }
 
 function ExpensesTab({
   tripId,
-  dayPoints,
   day,
+  canEdit,
+  startDate,
+  endDate,
 }: {
   tripId: string;
-  dayPoints: MapPoint[];
   day: number;
+  canEdit: boolean;
+  startDate: string | null;
+  endDate: string | null;
 }) {
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(tripId);
-  const pointOptions = dayPoints.map((p) => ({ id: p.id, name: p.name }));
+
+  if (!canEdit) {
+    return <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />;
+  }
 
   return (
-    <div className="fade-up grid gap-5 lg:grid-cols-5 xl:gap-7">
-      <div className="space-y-4 lg:col-span-2 xl:space-y-5">
+    <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
+      <div className="space-y-4 lg:col-span-2">
         <ExpenseForm
           baseCurrency="KRW"
           onSubmit={async (input) => {
@@ -328,14 +360,10 @@ function ExpensesTab({
             return saved !== null;
           }}
         />
-        {pointOptions.length > 0 && (
-          <p className="text-xs text-foreground/40">
-            오늘(Day {day}) 방문지에 지출을 연결할 수 있어요.
-          </p>
-        )}
+        <p className="px-1 text-xs text-foreground/45">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
       </div>
-      <div className="space-y-4 lg:col-span-3 xl:space-y-5">
-        <ExpenseSummary expenses={expenses} />
+      <div className="space-y-4 lg:col-span-3">
+        <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />
         <ExpenseList
           expenses={expenses}
           onDelete={async (e) => {
