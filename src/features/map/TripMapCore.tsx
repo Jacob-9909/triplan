@@ -57,7 +57,6 @@ const DEFAULT_VIEW = { latitude: 20, longitude: 0, zoom: 2 };
 
 export default function TripMapCore({
   points,
-  legs = [],
   expenses = [],
   selectedPointId = null,
   focusPointId = null,

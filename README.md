@@ -4,7 +4,7 @@
 
 A travel planner that starts from the places you dream about. Save places you want to visit someday on a world map, turn one into a trip when you are ready, plan it day by day on a map with a timetable, budget, and packing list, and share it with one link so companions can edit along with you.
 
-- Demo: https://triplan.161-33-134-252.sslip.io
+- Demo: https://triplan-beryl.vercel.app
 
 ![Trip page: day tabs, route map with numbered pins and direction arrows, and the day's timetable](docs/screenshot.jpg)
 
@@ -97,6 +97,8 @@ The app and the database run on the same VM. Postgres is reachable only on `127.
 | CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml): lint and build on every push and PR. On `main`, SSH into the VM and run [`deploy/deploy.sh`](deploy/deploy.sh), which builds, swaps the release, and rolls back if `/api/health` fails |
 
 GitHub secrets: `VM_HOST`, `VM_SSH_KEY` (a key limited to `deploy.sh` with `command=` in `authorized_keys`), and `VM_KNOWN_HOSTS`.
+
+`triplan-beryl.vercel.app` is only a proxy: [`deploy/vercel/vercel.json`](deploy/vercel/vercel.json) rewrites every path to the VM. Redeploy it from that folder (`cd deploy/vercel && vercel link --project triplan && vercel deploy --prod`). Running `vercel deploy` at the repository root would replace the proxy with a standalone Vercel build that has no database.
 
 ## Project Structure
 

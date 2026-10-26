@@ -1,0 +1,10 @@
+{
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/", "destination": "https://triplan.161-33-134-252.sslip.io/" },
+    { "source": "/:path*", "destination": "https://triplan.161-33-134-252.sslip.io/:path*" }
+  ]
+}
