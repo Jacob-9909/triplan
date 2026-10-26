@@ -175,5 +175,5 @@ export default function TripMapLibre(props: Omit<TripMapCoreProps, "kit" | "mapS
 
   if (!loaded) return null; // 로딩 중 오버레이는 TripMapCore 상위에서 표시됨
 
-  return <TripMapCore {...props} kit={kit} mapStyle={loaded.style} poiLayerIds={loaded.poiLayerIds} />;
+  return <TripMapCore {...props} kit={kit} mapStyle={loaded.style} poiLayerIds={loaded.poiLayerIds} translateLabels />;
 }

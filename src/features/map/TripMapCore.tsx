@@ -9,6 +9,7 @@ import { getCategoryLabel } from "./categories";
 import { pointColor } from "./pointStyle";
 import { sortPointsByOrder } from "./sort";
 import { poiCategoryGuess, TRIPOI_LAYER_IDS } from "./poiLayers";
+import { useKoreanLabels } from "./useKoreanLabels";
 import type { MapCameraRef, MapClickEvent, MapKit } from "./mapKit";
 
 export interface TripMapCoreProps {
@@ -46,6 +47,10 @@ export interface TripMapCoreProps {
   poiLayerIds?: string[];
   /** mapbox 클라우드 모드에서만 사용하는 액세스 토큰 */
   accessToken?: string;
+  /** true면 한국어 이름이 없는 지도 라벨을 번역해 보여 준다 (OpenMapTiles 스키마 지도) */
+  translateLabels?: boolean;
+  /** 여행 나라 (라벨 번역의 원문 언어 힌트) */
+  labelCountry?: string | null;
 }
 
 const DEFAULT_VIEW = { latitude: 20, longitude: 0, zoom: 2 };
@@ -68,12 +73,16 @@ export default function TripMapCore({
   numbered = true,
   heightClass = "h-[380px] sm:h-[440px] lg:h-[520px]",
   poiLayerIds = TRIPOI_LAYER_IDS,
+  translateLabels = false,
+  labelCountry = null,
 }: TripMapCoreProps) {
   const { Map, Marker, Popup, NavigationControl } = kit;
   const mapRef = useRef<MapCameraRef>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+
+  useKoreanLabels(mapRef, mapReady, translateLabels, labelCountry);
 
   const sortedPoints = useMemo(() => sortPointsByOrder(points), [points]);
   const popupPoint = useMemo(() => points.find((p) => p.id === popupId) ?? null, [points, popupId]);

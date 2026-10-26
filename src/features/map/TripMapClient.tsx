@@ -33,6 +33,8 @@ export interface TripMapProps {
   heightClass?: string;
   /** 포인트가 없을 때 사용할 기본 중심 좌표 (여행 국가) */
   defaultCenter?: { lat: number; lng: number; zoom?: number } | null;
+  /** 여행 나라 (지도 라벨 한국어 번역의 원문 언어 힌트) */
+  labelCountry?: string | null;
 }
 
 const loading = () => (

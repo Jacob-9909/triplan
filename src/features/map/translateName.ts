@@ -42,7 +42,7 @@ const COUNTRY_LANG: Record<string, string> = {
 export const hasHangul = (s: string) => /[가-힣]/.test(s);
 
 /** 원문 언어 추정: 가나가 있으면 일본어, 아니면 여행 나라 기준 */
-function sourceLang(name: string, country?: string | null) {
+export function sourceLang(name: string, country?: string | null) {
   if (/[぀-ヿ]/.test(name)) return "ja";
   return (country && COUNTRY_LANG[country]) || "autodetect";
 }

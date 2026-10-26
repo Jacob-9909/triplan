@@ -341,6 +341,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         legs={dayLegs}
                         expenses={expenses}
                         defaultCenter={getTripCenter(trip.country, trip.region)}
+                        labelCountry={trip.country}
                         selectedPointId={selectedPointId}
                         focusPointId={selectedPointId}
                         onMapClick={
