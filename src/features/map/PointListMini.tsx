@@ -23,7 +23,7 @@ export default function PointListMini({ points, selectedPointId = null, onSelect
           <MapPin size={18} className="text-primary-strong" />
         </span>
         <p className="text-sm font-semibold text-foreground/70">아직 포인트가 없어요</p>
-        <p className="text-xs text-foreground/60">지도를 클릭해 첫 장소를 추가해보세요</p>
+        <p className="text-xs text-foreground/68">지도를 클릭해 첫 장소를 추가해보세요</p>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export default function PointListMini({ points, selectedPointId = null, onSelect
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{point.name}</span>
-                <span className="block truncate text-xs text-foreground/60">
+                <span className="block truncate text-xs text-foreground/68">
                   {point.memo ?? `${point.day_number ? `Day ${point.day_number} · ` : ""}${getCategoryLabel(point.category)}`}
                 </span>
               </span>

@@ -111,7 +111,7 @@ export default function PlaceSearch({
   return (
     <div ref={boxRef} className="relative w-72 max-w-[80%]">
       <div className="relative">
-        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/55" />
+        <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground/68" />
         <input
           value={query}
           onChange={(e) => handleChange(e.target.value)}
@@ -128,7 +128,7 @@ export default function PlaceSearch({
               setResults([]);
               setError(null);
             }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-foreground/55 hover:text-foreground/70"
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-foreground/68 hover:text-foreground/70"
           >
             <X size={13} />
           </button>
@@ -138,7 +138,7 @@ export default function PlaceSearch({
       {(open || loading) && (query.trim() || error) && (
         <div className="mt-1.5 w-full overflow-hidden rounded-xl border border-border-subtle bg-white/98 shadow-card">
           {loading && (
-            <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/62">
+            <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/68">
               <Loader2 size={14} className="animate-spin" /> 검색 중…
             </div>
           )}
@@ -146,7 +146,7 @@ export default function PlaceSearch({
             <div className="px-3 py-2.5 text-xs text-accent">{error}</div>
           )}
           {!loading && !error && results.length === 0 && (
-            <div className="px-3 py-2.5 text-xs text-foreground/60">검색 결과가 없어요</div>
+            <div className="px-3 py-2.5 text-xs text-foreground/68">검색 결과가 없어요</div>
           )}
           {!loading &&
             results.map((r) => (
@@ -168,7 +168,7 @@ export default function PlaceSearch({
                 <MapPin size={14} className="mt-0.5 shrink-0 text-primary-strong" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">{r.place_name}</span>
-                  <span className="block truncate text-[11px] text-foreground/60">
+                  <span className="block truncate text-[11px] text-foreground/68">
                     {r.road_address_name || r.address_name}
                   </span>
                 </span>

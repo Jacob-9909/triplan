@@ -162,11 +162,11 @@ function Body({
                 className="input max-w-36 py-2"
               />
               {point.start_time ? (
-                <button onClick={() => void save({ start_time: null }, "time")} className="text-xs text-foreground/60 underline">
+                <button onClick={() => void save({ start_time: null }, "time")} className="text-xs text-foreground/68 underline">
                   자동으로
                 </button>
               ) : (
-                <span className="text-xs text-foreground/60">비우면 앞 일정에 이어서 자동 계산</span>
+                <span className="text-xs text-foreground/68">비우면 앞 일정에 이어서 자동 계산</span>
               )}
             </label>
             <div className="flex items-start gap-3">
@@ -236,7 +236,7 @@ function Body({
       {/* 사진 */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-bold">사진 {photos && photos.length > 0 && <span className="text-foreground/55">{photos.length}</span>}</h3>
+          <h3 className="text-sm font-bold">사진 {photos && photos.length > 0 && <span className="text-foreground/68">{photos.length}</span>}</h3>
           {canEdit && (
             <button onClick={() => fileRef.current?.click()} className="btn btn-ghost px-3 py-1.5 text-xs">
               <ImagePlus size={14} /> 사진 추가
@@ -257,13 +257,13 @@ function Body({
           canEdit ? (
             <button
               onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border-subtle py-7 text-sm text-foreground/62 transition hover:border-primary hover:text-primary-strong"
+              className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border-subtle py-7 text-sm text-foreground/68 transition hover:border-primary hover:text-primary-strong"
             >
               <ImagePlus size={22} />
               눌러서 사진을 올려 보세요 (앨범·카메라)
             </button>
           ) : (
-            <p className="rounded-2xl bg-surface-muted py-6 text-center text-sm text-foreground/60">아직 사진이 없어요</p>
+            <p className="rounded-2xl bg-surface-muted py-6 text-center text-sm text-foreground/68">아직 사진이 없어요</p>
           )
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -294,7 +294,7 @@ function Body({
         {canEdit ? (
           <div className="flex gap-2">
             <div className="relative flex-1">
-              <Link2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/55" />
+              <Link2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/68" />
               <input
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
@@ -323,7 +323,7 @@ function Body({
             <ExternalLink size={15} /> {hostOf(point.link_url)}
           </a>
         )}
-        {!canEdit && !point.link_url && <p className="text-sm text-foreground/60">등록된 링크가 없어요</p>}
+        {!canEdit && !point.link_url && <p className="text-sm text-foreground/68">등록된 링크가 없어요</p>}
       </section>
 
       {/* 메모 */}
@@ -345,7 +345,7 @@ function Body({
         )}
       </section>
 
-      {error && <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-sm text-[#c2410c]">{error}</p>}
+      {error && <p className="rounded-xl bg-accent-soft px-3.5 py-2.5 text-sm text-accent">{error}</p>}
 
       {/* 사진 크게 보기: 시트는 transform이 걸려 fixed가 갇히므로 body로 포털 */}
       {createPortal(

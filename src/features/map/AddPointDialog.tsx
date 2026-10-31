@@ -97,7 +97,7 @@ function PointForm({
           type="button"
           onClick={onCancel}
           aria-label="닫기"
-          className="rounded-lg p-1.5 text-foreground/62 transition hover:bg-primary-soft hover:text-primary-strong"
+          className="rounded-lg p-1.5 text-foreground/68 transition hover:bg-primary-soft hover:text-primary-strong"
         >
           <X size={18} />
         </button>
@@ -117,7 +117,7 @@ function PointForm({
         placeholder="예: 후쿠오카 타워"
         className={`${translating ? "mb-1" : "mb-4"} w-full rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20`}
       />
-      {translating && <p className="mb-4 text-[11px] text-foreground/60">한국어 이름 찾는 중…</p>}
+      {translating && <p className="mb-4 text-[11px] text-foreground/68">한국어 이름 찾는 중…</p>}
 
       <p className="mb-2 text-xs font-semibold text-foreground/72">분류 · 핀 색</p>
       <div className="mb-4">
@@ -143,7 +143,7 @@ function PointForm({
         className="mb-1 w-full resize-none rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
       />
       {latlng && (
-        <p className="mb-4 text-[11px] tabular-nums text-foreground/55">
+        <p className="mb-4 text-[11px] tabular-nums text-foreground/68">
           위치 확정: {latlng.lat.toFixed(5)}, {latlng.lng.toFixed(5)}
         </p>
       )}
@@ -160,7 +160,7 @@ function PointForm({
           type="button"
           disabled={!canSave}
           onClick={handleSave}
-          className="flex-1 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-40"
+          className="btn btn-primary flex-1 px-4 text-sm font-bold"
         >
           추가하기
         </button>

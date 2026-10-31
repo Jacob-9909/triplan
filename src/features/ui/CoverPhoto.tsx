@@ -1,20 +1,35 @@
 import { getCountryBackground } from "@/data/countryBackgrounds";
+import { findCityBackground, getCityBackground } from "@/data/cityBackgrounds";
 
 /** 사진이 없는 나라용 대륙별 그라디언트 */
 const CONTINENT_GRADIENTS: Record<string, string> = {
-  아시아: "linear-gradient(135deg, #ff9a8b 0%, #ff6a88 55%, #ff99ac 100%)",
-  유럽: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  북미: "linear-gradient(135deg, #43cea2 0%, #185a9d 100%)",
-  남미: "linear-gradient(135deg, #f7971e 0%, #ffd200 100%)",
-  아프리카: "linear-gradient(135deg, #f12711 0%, #f5af19 100%)",
-  오세아니아: "linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)",
-  중동: "linear-gradient(135deg, #c79081 0%, #dfa579 100%)",
+  아시아: "linear-gradient(160deg, #e8553d 0%, #8c2f1f 100%)",
+  유럽: "linear-gradient(160deg, #2f5d8a 0%, #14233b 100%)",
+  북미: "linear-gradient(160deg, #0d6b63 0%, #14233b 100%)",
+  남미: "linear-gradient(160deg, #e9a23b 0%, #a8331c 100%)",
+  아프리카: "linear-gradient(160deg, #c26a2c 0%, #5a2a14 100%)",
+  오세아니아: "linear-gradient(160deg, #1f8a85 0%, #0e3b54 100%)",
+  중동: "linear-gradient(160deg, #b7791f 0%, #5c3b14 100%)",
 };
-const DEFAULT_GRADIENT = "linear-gradient(135deg, #2aa3f5 0%, #0563b0 100%)";
+/** trips.continent 는 영어 id 로 저장된다 */
+const CONTINENT_IDS: Record<string, string> = {
+  asia: "아시아",
+  europe: "유럽",
+  "north-america": "북미",
+  "south-america": "남미",
+  africa: "아프리카",
+  oceania: "오세아니아",
+  "middle-east": "중동",
+};
+const DEFAULT_GRADIENT = "linear-gradient(160deg, #24365a 0%, #14233b 100%)";
 
 interface CoverPhotoProps {
   country?: string | null;
   continent?: string | null;
+  /** 도시·지역 이름. 도시 사진이 있으면 나라 사진보다 먼저 쓴다 */
+  city?: string | null;
+  /** 제목(예: "교토 단풍"). 도시 이름이 들어 있으면 그 도시 사진을 쓴다 */
+  title?: string | null;
   /** 사진 아래쪽을 어둡게 깔아 흰 글씨를 올릴 수 있게 */
   scrim?: boolean;
   className?: string;
@@ -28,17 +43,19 @@ interface CoverPhotoProps {
 export default function CoverPhoto({
   country,
   continent,
+  city,
+  title,
   scrim = true,
   className = "",
   zoomOnHover = false,
 }: CoverPhotoProps) {
-  const bg = getCountryBackground(country);
+  const image = getCityBackground(city) ?? findCityBackground(title) ?? getCountryBackground(country)?.image ?? null;
   return (
     <div aria-hidden className={`pointer-events-none absolute inset-0 select-none ${className}`}>
-      {bg ? (
+      {image ? (
         // eslint-disable-next-line @next/next/no-img-element -- 로컬 정적 자산
         <img
-          src={bg.image}
+          src={image}
           alt=""
           loading="lazy"
           draggable={false}
@@ -49,7 +66,10 @@ export default function CoverPhoto({
       ) : (
         <div
           className="h-full w-full"
-          style={{ background: CONTINENT_GRADIENTS[continent ?? ""] ?? DEFAULT_GRADIENT }}
+          style={{
+            background:
+              CONTINENT_GRADIENTS[CONTINENT_IDS[continent ?? ""] ?? continent ?? ""] ?? DEFAULT_GRADIENT,
+          }}
         />
       )}
       {scrim && <div className="photo-scrim absolute inset-0" />}

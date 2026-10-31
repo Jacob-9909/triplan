@@ -88,7 +88,8 @@ export function computeLegArrows(points: MapPoint[], legs: RouteLeg[]): LegArrow
   return arrows;
 }
 
-const ROUTE_COLOR = "#0d1b2a";
+/** 경로선: 청록 (지도 위 도로·물 색과 겹치지 않게) */
+const ROUTE_COLOR = "#0d6b63";
 
 /** 지도 위에서 묻히지 않게 얇은 흰 테두리 */
 const lineCasingLayer: KitLayerProps = {

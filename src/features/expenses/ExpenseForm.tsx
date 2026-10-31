@@ -87,7 +87,7 @@ export default function ExpenseForm({
       <div className="grid grid-cols-2 gap-3">
         {/* 항목명 */}
         <label className="col-span-2 flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-[var(--foreground)]/60">항목명</span>
+          <span className="text-xs font-semibold text-foreground/68">항목명</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -99,7 +99,7 @@ export default function ExpenseForm({
 
         {/* 카테고리 */}
         <div className="col-span-2">
-          <span className="mb-1.5 block text-xs font-semibold text-[var(--foreground)]/60">
+          <span className="mb-1.5 block text-xs font-semibold text-foreground/68">
             카테고리
           </span>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
@@ -123,7 +123,7 @@ export default function ExpenseForm({
 
         {/* 금액 + 통화 */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-[var(--foreground)]/60">금액</span>
+          <span className="text-xs font-semibold text-foreground/68">금액</span>
           <div className="flex gap-1.5">
             <input
               type="number"
@@ -155,7 +155,7 @@ export default function ExpenseForm({
 
         {/* 날짜 */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-[var(--foreground)]/60">날짜</span>
+          <span className="text-xs font-semibold text-foreground/68">날짜</span>
           <input
             type="date"
             value={spentAt}
@@ -174,7 +174,7 @@ export default function ExpenseForm({
           <button
             type="button"
             onClick={onCancelEdit}
-            className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--foreground)]/60 hover:text-[var(--foreground)]"
+            className="rounded-xl px-3 py-2 text-sm font-medium text-foreground/68 hover:text-[var(--foreground)]"
           >
             취소
           </button>
@@ -182,7 +182,7 @@ export default function ExpenseForm({
         <button
           type="submit"
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-xl bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[var(--color-primary-strong)] disabled:opacity-50"
+          className="btn btn-primary px-4 text-sm"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
           {editing ? "수정하기" : "추가하기"}

@@ -30,7 +30,7 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
 
   if (points.length === 0) {
     return (
-      <div className="card px-4 py-8 text-center text-sm text-foreground/62">
+      <div className="card px-4 py-8 text-center text-sm text-foreground/68">
         타임테이블이 비어 있어요. 지도에서 장소를 추가해 보세요.
       </div>
     );
@@ -45,7 +45,7 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
         <h3 className="flex items-center gap-1.5 text-sm font-bold">
           <Clock size={15} className="text-primary-strong" /> 타임테이블
         </h3>
-        <span className="text-xs font-semibold text-foreground/62">
+        <span className="text-xs font-semibold text-foreground/68">
           {formatTime(first.arrive)} 시작 · {formatTime(last.leave)} 마무리
         </span>
       </div>
@@ -68,7 +68,7 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
               {/* 시각 */}
               <div className="w-12 shrink-0 pt-2.5 text-right tabular-nums">
                 <p className={`text-sm font-bold ${t.fixed ? "text-primary-strong" : ""}`}>{formatTime(t.arrive)}</p>
-                <p className="text-[11px] text-foreground/55">{formatTime(t.leave)}</p>
+                <p className="text-[11px] text-foreground/68">{formatTime(t.leave)}</p>
               </div>
               {/* 색 막대 */}
               <span className="w-1 shrink-0 rounded-full" style={{ backgroundColor: color }} aria-hidden />
@@ -82,10 +82,10 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
                 <PointBadge point={point} size={34} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold">
-                    <span className="mr-1 text-xs text-foreground/55">{i + 1}</span>
+                    <span className="mr-1 text-xs text-foreground/68">{i + 1}</span>
                     {point.name}
                   </p>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-foreground/62">
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-foreground/68">
                     <span style={{ color }}>{categoryStyle(point.category).label}</span>
                     <span className="inline-flex items-center gap-0.5">
                       <Hourglass size={10} /> {formatDuration(stay)} 머묾
@@ -94,7 +94,7 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
                     {t.late > 0 && <span className="text-accent">지정 시각보다 {formatDuration(t.late)} 늦음</span>}
                   </p>
                 </div>
-                {onPointClick && <PencilLine size={13} className="shrink-0 text-foreground/50" />}
+                {onPointClick && <PencilLine size={13} className="shrink-0 text-foreground/68" />}
               </button>
             </motion.div>
 
@@ -129,9 +129,9 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
                           {leg.duration_min != null ? formatDuration(leg.duration_min) : "시간 정하기"}
                         </span>
                         {leg.cost != null && leg.cost > 0 && (
-                          <span className="text-[11px] text-foreground/62">· {leg.cost.toLocaleString()}원</span>
+                          <span className="text-[11px] text-foreground/68">· {leg.cost.toLocaleString()}원</span>
                         )}
-                        {onLegClick && <PencilLine size={11} className="text-foreground/55" />}
+                        {onLegClick && <PencilLine size={11} className="text-foreground/68" />}
                       </button>
                     );
                   })()}

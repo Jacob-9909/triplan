@@ -12,12 +12,14 @@ export interface PinMarkerProps {
   label?: string | number;
   selected?: boolean;
   onClick?: () => void;
+  /** 장소 이름 (스크린리더용) */
+  name?: string;
 }
 
 /**
  * 분류 아이콘이 들어간 티어드롭 핀. 색은 장소마다 지정할 수 있다.
  */
-export default function PinMarker({ category, color, label, selected = false, onClick }: PinMarkerProps) {
+export default function PinMarker({ category, color, label, selected = false, onClick, name }: PinMarkerProps) {
   const style = categoryStyle(category);
   const fill = color || style.color;
   const Icon = style.icon;
@@ -25,7 +27,8 @@ export default function PinMarker({ category, color, label, selected = false, on
   return (
     <motion.button
       type="button"
-      aria-label={`${style.label} 핀`}
+      aria-label={[label != null ? `${label}번` : null, name, style.label].filter(Boolean).join(" · ")}
+      aria-pressed={selected}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
@@ -57,7 +60,7 @@ export default function PinMarker({ category, color, label, selected = false, on
       {label !== undefined && (
         <span
           className="absolute -right-1 -top-1.5 min-w-[18px] rounded-full border-2 border-white px-1 text-center text-[10px] font-bold leading-[14px] text-white"
-          style={{ backgroundColor: "#0d1b2a" }}
+          style={{ backgroundColor: "#14233b" }}
         >
           {label}
         </span>

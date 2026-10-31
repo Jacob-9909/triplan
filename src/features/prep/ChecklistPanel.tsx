@@ -156,7 +156,7 @@ export default function ChecklistPanel({
                 <button
                   key={cat}
                   onClick={() => setNewCategory(cat)}
-                  className={`flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  className={`flex min-h-9 items-center gap-1 rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
                     isActive
                       ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
                       : "border-[var(--border-subtle)] bg-white text-slate-600 hover:border-[var(--color-primary)]/50"
@@ -174,6 +174,7 @@ export default function ChecklistPanel({
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void handleAdd()}
+            aria-label="새 준비물"
             placeholder={`준비물 추가 (${CHECKLIST_CATEGORY_LABEL[newCategory]})`}
             className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-primary)]"
           />
@@ -188,7 +189,7 @@ export default function ChecklistPanel({
 
       <button
         onClick={() => setShowTemplates((v) => !v)}
-        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--color-mint)]/15 px-3.5 py-1.5 text-xs font-semibold text-emerald-600 transition hover:bg-[var(--color-mint)]/25"
+        className="mt-3 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-teal-soft px-4 py-2 text-xs font-semibold text-mint transition hover:bg-mint/20"
       >
         <Sparkles size={14} />
         {showTemplates

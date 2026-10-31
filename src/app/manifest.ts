@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "가고 싶은 곳을 모으고 함께 여행을 계획하는 플래너",
     start_url: "/",
     display: "standalone",
-    background_color: "#f4f6f9",
-    theme_color: "#0b84e0",
+    background_color: "#fbf7f1",
+    theme_color: "#cc4126",
     lang: "ko",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },

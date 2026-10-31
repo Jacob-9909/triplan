@@ -284,7 +284,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           transition={{ duration: 1.4, ease: [0.2, 0.8, 0.2, 1] }}
           className="absolute inset-0 -z-10"
         >
-          <CoverPhoto country={trip.country} continent={trip.continent} />
+          <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} />
         </motion.div>
         <div className="flex min-h-56 flex-col justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] md:min-h-72 md:p-8">
           <div className="flex items-center justify-between gap-2">
@@ -449,13 +449,13 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                           onDelete={handlePointDelete}
                           onOpen={(p) => setDetailId(p.id)}
                         />
-                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/60">
+                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/68">
                           <MousePointerClick size={13} /> 지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.
                         </p>
                       </>
                     )}
                     {canEdit && dayLegs.length > 0 && (
-                      <p className="px-1 text-xs text-foreground/60">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
+                      <p className="px-1 text-xs text-foreground/68">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
                     )}
                     <RouteTimeline
                       points={dayPoints}
@@ -545,7 +545,7 @@ function ExpensesTab({
             return saved !== null;
           }}
         />
-        <p className="px-1 text-xs text-foreground/60">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
+        <p className="px-1 text-xs text-foreground/68">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
       </div>
       <div className="space-y-4 lg:col-span-3">
         <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />
@@ -589,7 +589,7 @@ function LegSheetBody({
     <div className="space-y-5">
       <p className="flex items-center gap-2 text-sm font-semibold">
         <PointBadge point={from} size={26} /> <span className="truncate">{from.name}</span>
-        <span className="text-foreground/55">→</span>
+        <span className="text-foreground/68">→</span>
         <PointBadge point={to} size={26} /> <span className="truncate">{to.name}</span>
       </p>
 
@@ -625,7 +625,7 @@ function LegSheetBody({
       <section>
         <h4 className="mb-2 flex items-center justify-between text-xs font-bold text-foreground/65">
           소요 시간
-          <span className="font-medium text-foreground/55">거리 약 {est.distanceKm}km</span>
+          <span className="font-medium text-foreground/68">거리 약 {est.distanceKm}km</span>
         </h4>
         <div className="flex items-center justify-center gap-4">
           <button
@@ -638,7 +638,7 @@ function LegSheetBody({
           </button>
           <div className="min-w-32 text-center">
             <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes)}</p>
-            <p className="text-[11px] text-foreground/60">
+            <p className="text-[11px] text-foreground/68">
               {leg.duration_min == null || leg.duration_min === est.durationMin ? "추정치" : `추정 ${formatDuration(est.durationMin)}`}
             </p>
           </div>
@@ -681,7 +681,7 @@ function LegSheetBody({
         <MoneyInput value={leg.cost} onChange={(cost) => onChange(leg.id, { cost })} />
       </section>
 
-      <p className="text-xs leading-relaxed text-foreground/60">
+      <p className="text-xs leading-relaxed text-foreground/68">
         추정 시간은 직선거리와 이동수단별 평균 속도로 계산해요. 실제와 다르면 직접 맞춰 주세요. 타임테이블과 하루 합계에 바로 반영돼요.
       </p>
       <button onClick={onDone} className="btn btn-primary w-full py-3 text-sm">

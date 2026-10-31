@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Lock, User } from "lucide-react";
@@ -35,55 +36,80 @@ export default function LoginForm() {
   }
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden px-5">
-      <CoverPhoto country="스위스" className="opacity-90" />
-      <div className="absolute inset-0 bg-gradient-to-b from-slate-950/10 via-slate-950/20 to-slate-950/60" />
-      <motion.form
-        onSubmit={submit}
-        initial={{ opacity: 0, y: 24, scale: 0.98 }}
-        animate={error ? { x: [0, -10, 10, -6, 6, 0], opacity: 1, y: 0, scale: 1 } : { opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.45 }}
-        className="glass relative w-full max-w-sm rounded-[1.75rem] border border-white/40 p-7 shadow-lift"
-      >
-        <Logo />
-        <h1 className="mt-6 text-2xl font-extrabold tracking-tight">다시 떠날 준비, 되셨나요?</h1>
-        <p className="mt-1.5 text-sm text-foreground/72">관리자는 비밀번호만, 회원은 아이디와 비밀번호로 들어와요.</p>
-        <label className="mt-6 block">
-          <span className="sr-only">아이디</span>
+    <main className="grid min-h-dvh md:grid-cols-[1.1fr_1fr]">
+      {/* 사진 */}
+      <div className="relative h-56 overflow-hidden md:h-auto">
+        <CoverPhoto country="스위스" city="인터라켄" />
+        <div className="absolute inset-x-0 top-0 p-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:p-10">
+          <Link href="/" aria-label="Triplan 소개로" className="inline-block rounded-xl">
+            <Logo tone="light" />
+          </Link>
+        </div>
+        <p className="absolute bottom-5 left-5 hidden max-w-sm text-3xl font-extrabold leading-tight tracking-tight text-white md:bottom-10 md:left-10 md:block">
+          다음 여행도
+          <br />
+          지도 위에서 같이 짜요.
+        </p>
+      </div>
+
+      {/* 폼 */}
+      <div className="topo relative -mt-6 flex items-start justify-center rounded-t-[1.75rem] bg-background px-5 pb-10 pt-8 md:mt-0 md:items-center md:rounded-none md:px-10">
+        <motion.form
+          onSubmit={submit}
+          initial={{ opacity: 0, y: 16 }}
+          animate={error ? { x: [0, -8, 8, -5, 5, 0], opacity: 1, y: 0 } : { opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-sm"
+        >
+          <p className="eyebrow">로그인</p>
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight md:text-3xl">다시 떠날 준비, 되셨나요?</h1>
+          <p className="mt-2 text-sm text-foreground/68">관리자는 비밀번호만, 회원은 아이디와 비밀번호를 넣어요.</p>
+
+          <label htmlFor="login-username" className="field-label mt-6">
+            아이디 <span className="font-normal text-foreground/68">(관리자는 비워 두세요)</span>
+          </label>
           <div className="relative">
-            <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/55" />
+            <User size={16} aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/68" />
             <input
+              id="login-username"
               autoFocus
               autoComplete="username"
+              autoCapitalize="none"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="아이디 (관리자는 비워 두세요)"
               className="input pl-10"
             />
           </div>
-        </label>
-        <label className="mt-2 block">
-          <span className="sr-only">비밀번호</span>
+
+          <label htmlFor="login-password" className="field-label mt-4">
+            비밀번호
+          </label>
           <div className="relative">
-            <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/55" />
+            <Lock size={16} aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/68" />
             <input
+              id="login-password"
               type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="비밀번호"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "login-error" : undefined}
               className="input pl-10"
             />
           </div>
-        </label>
-        {error && <p className="mt-2 text-xs font-medium text-accent">{error}</p>}
-        <button type="submit" disabled={!password || loading} className="btn btn-primary mt-5 w-full py-3 text-sm disabled:opacity-50">
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <>들어가기 <ArrowRight size={16} /></>}
-        </button>
-        <p className="mt-5 text-center text-xs text-foreground/60">
-          공유 링크를 받으셨다면 그 링크로 바로 들어가면 돼요.
-        </p>
-      </motion.form>
+          {error && (
+            <p id="login-error" role="alert" className="mt-2 text-sm font-medium text-accent">
+              {error}
+            </p>
+          )}
+          <button type="submit" disabled={!password || loading} className="btn btn-primary mt-6 w-full py-3 text-sm disabled:opacity-50">
+            {loading ? <Loader2 size={16} className="animate-spin" aria-label="로그인 중" /> : <>들어가기 <ArrowRight size={16} aria-hidden /></>}
+          </button>
+          <p className="mt-6 rounded-2xl bg-surface-muted px-4 py-3 text-xs leading-relaxed text-foreground/70">
+            공유 링크를 받으셨다면 로그인 없이 그 링크로 바로 들어가면 돼요.
+          </p>
+        </motion.form>
+      </div>
     </main>
   );
 }

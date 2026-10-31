@@ -45,11 +45,27 @@ export default function Dashboard() {
       <motion.p
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mt-3 text-sm font-medium text-foreground/62 md:mt-8"
+        className="mt-3 text-sm font-medium text-foreground/68 md:mt-8"
       >
         {greeting()}
       </motion.p>
-      <h1 className="mt-1 text-2xl font-extrabold tracking-tight md:text-3xl">내 여행</h1>
+      <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">내 여행</h1>
+        {trips !== null && trips.length > 0 && (
+          <dl className="flex gap-4 text-sm md:gap-6">
+            {[
+              ["계획 중", next ? upcoming.length + 1 : upcoming.length],
+              ["다녀옴", past.length],
+              ["가고 싶은 곳", wishes.length],
+            ].map(([label, n]) => (
+              <div key={label} className="flex items-baseline gap-1.5">
+                <dt className="text-foreground/68">{label}</dt>
+                <dd className="font-mono text-base font-bold tabular-nums">{n}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </div>
 
       {/* 다음 여행 */}
       <section className="mt-5">
@@ -62,10 +78,12 @@ export default function Dashboard() {
         )}
       </section>
 
+      {/* 넓은 화면: 왼쪽 계획 중인 여행, 오른쪽 가고 싶은 곳 */}
+      <div className={upcoming.length > 0 ? "lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-10" : ""}>
       {/* 다가오는 여행 */}
       {upcoming.length > 0 && (
         <Section title="계획 중인 여행" count={upcoming.length}>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
             {upcoming.map((t, i) => (
               <TripCard key={t.id} trip={t} index={i} />
             ))}
@@ -78,7 +96,7 @@ export default function Dashboard() {
         title="언젠가 가고 싶은 곳"
         count={wishes.length}
         action={
-          <Link href="/wishlist" className="flex items-center gap-0.5 text-sm font-semibold text-primary-strong">
+          <Link href="/wishlist" className="-my-2 flex items-center gap-0.5 py-2 text-sm font-semibold text-primary-strong">
             전체 보기 <ChevronRight size={16} />
           </Link>
         }
@@ -88,15 +106,19 @@ export default function Dashboard() {
             href="/wishlist"
             className="card card-lift flex items-center gap-4 p-5 text-sm text-foreground/72"
           >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary-strong">
               <Heart size={20} />
             </span>
             아직 저장한 곳이 없어요. 언젠가 가 보고 싶은 곳을 하나 담아 보세요.
             <ArrowRight size={16} className="ml-auto shrink-0" />
           </Link>
         ) : (
-          <div className="no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
-            {wishes.slice(0, 10).map((w, i) => (
+          <div
+            className={`no-scrollbar -mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0 ${
+              upcoming.length > 0 ? "lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0" : ""
+            }`}
+          >
+            {wishes.slice(0, upcoming.length > 0 ? 6 : 10).map((w, i) => (
               <motion.div
                 key={w.id}
                 initial={{ opacity: 0, x: 16 }}
@@ -106,15 +128,17 @@ export default function Dashboard() {
               >
                 <Link
                   href="/wishlist"
-                  className="card-lift group relative block h-40 w-36 overflow-hidden rounded-2xl bg-slate-200 shadow-card"
+                  className={`card-lift group relative block h-40 w-36 overflow-hidden rounded-2xl bg-surface-muted shadow-card ${
+                    upcoming.length > 0 ? "lg:h-44 lg:w-auto" : ""
+                  }`}
                 >
-                  <CoverPhoto country={w.country} continent={w.continent} zoomOnHover />
+                  <CoverPhoto country={w.country} continent={w.continent} city={w.region} title={w.name} zoomOnHover />
                   <div className="absolute inset-x-0 bottom-0 p-3 text-white">
                                         <p className="mt-1 truncate text-sm font-bold">{w.name}</p>
                     <p className="truncate text-[11px] text-white/82">{w.country}</p>
                   </div>
                   {w.trip_id && (
-                    <span className="absolute right-2 top-2 rounded-full bg-mint px-2 py-0.5 text-[10px] font-bold text-white">
+                    <span className="absolute right-2 top-2 rounded-full bg-mint px-2 py-0.5 text-[11px] font-bold text-white">
                       계획 중
                     </span>
                   )}
@@ -124,6 +148,8 @@ export default function Dashboard() {
           </div>
         )}
       </Section>
+
+      </div>
 
       {/* 다녀온 여행 */}
       {past.length > 0 && (
@@ -156,7 +182,7 @@ function Section({
         <h2 className="text-lg font-bold tracking-tight">
           {title}
           {count !== undefined && count > 0 && (
-            <span className="ml-1.5 text-sm font-semibold text-foreground/55">{count}</span>
+            <span className="ml-1.5 text-sm font-semibold text-foreground/68">{count}</span>
           )}
         </h2>
         {action}
@@ -179,8 +205,8 @@ function NextTripHero({ trip }: { trip: Trip }) {
         href={`/trips/${trip.id}`}
         className="group relative block h-72 overflow-hidden rounded-[1.75rem] bg-slate-300 shadow-lift md:h-96"
       >
-        <CoverPhoto country={trip.country} continent={trip.continent} zoomOnHover />
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/40 to-transparent" />
+        <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} zoomOnHover />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 via-slate-950/15 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-between p-6 text-white md:p-9">
           <div className="flex items-center gap-2 text-sm font-semibold text-white/85">
             <Plane size={16} />
@@ -217,20 +243,21 @@ function NextTripHero({ trip }: { trip: Trip }) {
 
 function EmptyHero() {
   return (
-    <div className="relative flex h-72 flex-col items-start justify-end overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-primary via-[#2b9af0] to-violet p-6 text-white shadow-lift md:h-80 md:p-9">
+    <div className="relative flex h-72 flex-col items-start justify-end overflow-hidden rounded-[1.75rem] bg-foreground p-6 text-white shadow-lift md:h-80 md:p-9">
+      <div aria-hidden className="topo absolute inset-0 opacity-60 invert" />
       <motion.div
         aria-hidden
-        className="absolute -right-6 top-6 text-white/20"
+        className="absolute -right-6 top-6 text-white/15"
         animate={{ x: [0, 18, 0], y: [0, -10, 0], rotate: [0, 6, 0] }}
         transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
       >
         <Plane size={180} strokeWidth={1.2} />
       </motion.div>
-      <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">첫 여행을 계획해 볼까요?</h2>
-      <p className="mt-2 max-w-sm text-sm text-white/88">
+      <h2 className="relative text-2xl font-extrabold tracking-tight md:text-3xl">첫 여행을 계획해 볼까요?</h2>
+      <p className="relative mt-2 max-w-sm text-sm text-white/80">
         목적지와 날짜만 정하면 지도·일정·가계부·준비물이 준비돼요.
       </p>
-      <Link href="/trips/new" className="btn mt-5 bg-white px-5 py-3 text-sm text-primary-strong shadow-lift">
+      <Link href="/trips/new" className="btn btn-primary relative mt-5 px-5 py-3 text-sm">
         <Plus size={16} /> 새 여행 만들기
       </Link>
     </div>

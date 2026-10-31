@@ -24,19 +24,20 @@ export interface CategoryStyle {
 
 /** 장소 분류: 아이콘과 기본 색. 지도 핀·일정 목록·타임라인이 모두 이 표를 쓴다 */
 export const CATEGORIES: CategoryStyle[] = [
-  { id: "attraction", label: "관광지", icon: Binoculars, color: "#0b84e0" },
-  { id: "food", label: "음식점", icon: Utensils, color: "#ff6b5e" },
-  { id: "cafe", label: "카페", icon: Coffee, color: "#b45309" },
-  { id: "shopping", label: "쇼핑", icon: ShoppingBag, color: "#f59e0b" },
-  { id: "culture", label: "문화재", icon: Landmark, color: "#8b5cf6" },
-  { id: "nature", label: "자연", icon: Trees, color: "#16a34a" },
-  { id: "stay", label: "숙소", icon: BedDouble, color: "#ec4899" },
-  { id: "transport", label: "교통", icon: TrainFront, color: "#0891b2" },
-  { id: "etc", label: "기타", icon: MapPin, color: "#64748b" },
+  { id: "attraction", label: "관광지", icon: Binoculars, color: "#0d6b63" },
+  { id: "food", label: "음식점", icon: Utensils, color: "#cc4126" },
+  { id: "cafe", label: "카페", icon: Coffee, color: "#8a5a35" },
+  { id: "shopping", label: "쇼핑", icon: ShoppingBag, color: "#c2417a" },
+  { id: "culture", label: "문화재", icon: Landmark, color: "#a16207" },
+  { id: "nature", label: "자연", icon: Trees, color: "#2f7d3f" },
+  { id: "stay", label: "숙소", icon: BedDouble, color: "#6d5bd0" },
+  { id: "transport", label: "교통", icon: TrainFront, color: "#2f5d8a" },
+  { id: "etc", label: "기타", icon: MapPin, color: "#6b665f" },
 ];
 
 /** 핀 색상 선택지 */
-export const PALETTE = ["#0b84e0", "#ff6b5e", "#f59e0b", "#16a34a", "#8b5cf6", "#ec4899", "#0891b2", "#b45309", "#334155"];
+/** 모두 흰 글씨·아이콘과 대비 4.5:1 이상 (지도 핀 위 흰 아이콘) */
+export const PALETTE = ["#cc4126", "#0d6b63", "#2f5d8a", "#6d5bd0", "#c2417a", "#a16207", "#2f7d3f", "#8a5a35", "#14233b"];
 
 const BY_ID = new Map(CATEGORIES.map((c) => [c.id, c]));
 

@@ -23,7 +23,7 @@ const META: Record<Kind, { title: string; body: string; icon: typeof Eye; path: 
     body: "가족·친구가 일정만 볼 수 있어요. 예약번호와 예약 링크는 보이지 않아요.",
     icon: Eye,
     path: "v",
-    tone: "bg-mint/15 text-emerald-600",
+    tone: "bg-teal-soft text-mint",
   },
 };
 
@@ -139,14 +139,14 @@ export default function SharePanel({
                     <button onClick={() => void regenerate(k)} className="font-bold text-accent">
                       바꾸기
                     </button>
-                    <button onClick={() => setConfirming(null)} className="text-foreground/60">
+                    <button onClick={() => setConfirming(null)} className="text-foreground/68">
                       취소
                     </button>
                   </span>
                 ) : (
                   <button
                     onClick={() => setConfirming(k)}
-                    className="inline-flex items-center gap-1 text-xs text-foreground/60 hover:text-foreground"
+                    className="inline-flex items-center gap-1 text-xs text-foreground/68 hover:text-foreground"
                   >
                     <RefreshCw size={12} /> 새 링크로 바꾸기
                   </button>
@@ -170,7 +170,7 @@ export default function SharePanel({
       <div className="mt-6 border-t border-border-subtle pt-4">
         {confirming === "delete" ? (
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-accent-soft p-3 text-sm">
-            <span className="text-[#c2410c]">지도·일정·가계부까지 모두 지워져요.</span>
+            <span className="text-accent">지도·일정·가계부까지 모두 지워져요.</span>
             <span className="flex shrink-0 gap-2">
               <button onClick={() => setConfirming(null)} className="btn btn-ghost px-3 py-1.5 text-xs">
                 취소
@@ -183,7 +183,7 @@ export default function SharePanel({
         ) : (
           <button
             onClick={() => setConfirming("delete")}
-            className="inline-flex items-center gap-1.5 text-sm text-foreground/60 transition hover:text-accent"
+            className="inline-flex items-center gap-1.5 text-sm text-foreground/68 transition hover:text-accent"
           >
             <Trash2 size={14} /> 이 여행 삭제
           </button>
@@ -267,12 +267,12 @@ function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
             >
               {p.username}
               {p.kind === "owner" ? (
-                <span className="px-1 text-foreground/55">주인</span>
+                <span className="px-1 text-foreground/68">주인</span>
               ) : (
                 <button
                   onClick={() => void uninvite(p)}
                   aria-label={`${p.username} 초대 취소`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full text-foreground/55 hover:bg-accent-soft hover:text-accent"
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-foreground/68 hover:bg-accent-soft hover:text-accent"
                 >
                   <X size={12} />
                 </button>

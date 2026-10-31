@@ -1,35 +1,54 @@
 @import "tailwindcss";
 
-/* ===== Triplan 디자인 토큰 — 사진이 주인공인 여행 앱 테마 ===== */
+/* ===== Triplan 디자인 토큰 — 따뜻한 지도(warm cartography) 테마 =====
+ * 종이 크림 배경, 잉크 남색 글씨, 석양 코랄 행동색, 청록 경로색.
+ * 대비: primary(#cc4126)·흰 글씨 4.8:1, teal(#0f766e)·흰 글씨 5.5:1, 본문 잉크·배경 14.7:1
+ */
 :root {
-  --background: #f4f6f9;
-  --foreground: #0d1b2a;
+  --background: #fbf7f1;
+  --foreground: #14233b;
   --surface: #ffffff;
-  --surface-muted: #eef2f7;
+  --surface-muted: #f4eee5;
 
-  /* Primary: 깊은 바다 블루 */
-  --color-primary: #0b84e0;
-  --color-primary-soft: #e2f1fd;
-  --color-primary-strong: #0563b0;
+  /* Primary: 석양 코랄 (버튼·활성 상태) */
+  --color-primary: #cc4126;
+  --color-primary-soft: #fce9e3;
+  --color-primary-strong: #a8331c;
 
-  /* Accent: 석양 코랄 */
-  --color-accent: #ff6b5e;
-  --color-accent-soft: #ffe9e6;
+  /* Accent: 위험·오류·하트 (코랄보다 깊은 빨강) */
+  --color-accent: #b42318;
+  --color-accent-soft: #fde8e5;
 
-  /* 서브 컬러 */
-  --color-mint: #22c79a;
-  --color-sand: #ffc24b;
-  --color-violet: #8b7cf6;
+  /* 서브 컬러: mint 는 청록(경로·진행 중), sand 는 모래빛, violet 은 저녁 하늘 */
+  --color-mint: #0d6b63;
+  --color-teal-soft: #e3f1ee;
+  --color-sand: #e9a23b;
+  --color-violet: #6d5bd0;
 
-  --border: #d5dde8;
-  /* 일부 컴포넌트가 쓰는 별칭 */
+  --border: #e8dfd2;
   --border-subtle: var(--border);
 
-  --shadow-card: 0 1px 2px rgba(13, 27, 42, 0.04), 0 8px 24px -8px rgba(13, 27, 42, 0.1);
-  --shadow-lift: 0 2px 4px rgba(13, 27, 42, 0.05), 0 20px 40px -12px rgba(13, 27, 42, 0.22);
+  /* 잉크색 그림자 (차가운 회색 대신 따뜻한 남색) */
+  --shadow-card: 0 1px 2px rgba(20, 35, 59, 0.05), 0 10px 28px -12px rgba(20, 35, 59, 0.16);
+  --shadow-lift: 0 2px 6px rgba(20, 35, 59, 0.06), 0 24px 48px -16px rgba(20, 35, 59, 0.3);
 
   --radius-card: 1.25rem;
   --nav-height: 4.25rem;
+}
+
+@theme {
+  /* slate 를 종이·잉크 계열로 바꿔 기존 slate 유틸리티도 같은 톤이 되게 한다 */
+  --color-slate-50: #faf7f2;
+  --color-slate-100: #f3eee6;
+  --color-slate-200: #e8e0d4;
+  --color-slate-300: #d5cbbc;
+  --color-slate-400: #9d968c;
+  --color-slate-500: #6b665f;
+  --color-slate-600: #56514b;
+  --color-slate-700: #3f3b36;
+  --color-slate-800: #2a2724;
+  --color-slate-900: #1b2333;
+  --color-slate-950: #0e1828;
 }
 
 @theme inline {
@@ -43,6 +62,7 @@
   --color-accent: var(--color-accent);
   --color-accent-soft: var(--color-accent-soft);
   --color-mint: var(--color-mint);
+  --color-teal-soft: var(--color-teal-soft);
   --color-sand: var(--color-sand);
   --color-violet: var(--color-violet);
   --color-border-subtle: var(--border);
@@ -57,6 +77,28 @@
 html {
   scrollbar-gutter: stable;
   -webkit-tap-highlight-color: transparent;
+}
+
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+}
+
+/* 키보드 포커스는 항상 보이게 (마우스 클릭에는 안 보임) */
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.input:focus-visible {
+  outline: none;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 body {
@@ -86,7 +128,7 @@ body {
 }
 
 .glass {
-  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  background: color-mix(in srgb, var(--background) 82%, transparent);
   backdrop-filter: saturate(1.6) blur(18px);
   -webkit-backdrop-filter: saturate(1.6) blur(18px);
 }
@@ -96,22 +138,37 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
+  min-height: 2.5rem;
   border-radius: 9999px;
   font-weight: 600;
+  cursor: pointer;
   transition:
     background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
     transform 0.15s ease,
     box-shadow 0.2s ease;
 }
 .btn:active {
   transform: scale(0.97);
 }
+.btn:disabled {
+  cursor: not-allowed;
+}
+/* 비활성 버튼은 흐린 코랄 대신 무채색으로: 누를 수 없다는 게 바로 보이게 */
+.btn-primary:disabled,
+.btn-ink:disabled {
+  background: var(--border);
+  color: color-mix(in srgb, var(--foreground) 50%, transparent);
+  box-shadow: none;
+  opacity: 1 !important;
+}
 .btn-primary {
   background: var(--color-primary);
   color: #fff;
-  box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--color-primary) 70%, transparent);
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--color-primary) 75%, transparent);
 }
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
   background: var(--color-primary-strong);
 }
 .btn-ghost {
@@ -119,33 +176,83 @@ body {
   border: 1px solid var(--border);
   color: var(--foreground);
 }
-.btn-ghost:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary-strong);
+.btn-ghost:hover:not(:disabled) {
+  border-color: var(--foreground);
+}
+/* 잉크색 버튼: 사진·코랄 위에서 두 번째 행동 */
+.btn-ink {
+  background: var(--foreground);
+  color: #fff;
+}
+.btn-ink:hover:not(:disabled) {
+  background: #24365a;
 }
 
 .input {
   width: 100%;
+  min-height: 2.75rem;
   border-radius: 0.875rem;
   border: 1px solid var(--border);
-  background: var(--surface-muted);
+  background: var(--surface);
   padding: 0.7rem 1rem;
-  font-size: 0.9rem;
+  font-size: 1rem;
   outline: none;
   transition:
     border-color 0.2s ease,
-    background-color 0.2s ease,
     box-shadow 0.2s ease;
+}
+.input::placeholder {
+  color: color-mix(in srgb, var(--foreground) 45%, transparent);
+}
+.input:hover {
+  border-color: color-mix(in srgb, var(--foreground) 25%, var(--border));
 }
 .input:focus {
   border-color: var(--color-primary);
-  background: var(--surface);
-  box-shadow: 0 0 0 4px var(--color-primary-soft);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-primary) 16%, transparent);
+}
+@media (min-width: 768px) {
+  .input {
+    font-size: 0.9375rem;
+  }
+}
+
+/* 입력 위 라벨 */
+.field-label {
+  display: block;
+  margin-bottom: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--foreground) 78%, transparent);
+}
+
+/* 작은 대문자 머리말 (섹션 이름) */
+.eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-primary-strong);
+}
+
+/* 지도 등고선 무늬: 빈 화면·로그인·머리말 뒤에 아주 옅게 */
+.topo {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240' fill='none' stroke='%2314233b' stroke-opacity='0.07' stroke-width='1.2'%3E%3Cpath d='M-20 60c40-30 80 10 120-10s80-40 160 0'/%3E%3Cpath d='M-20 90c50-30 90 15 130-5s70-35 150 5'/%3E%3Cpath d='M-20 130c40-20 70 20 120 0s90-30 160 10'/%3E%3Cpath d='M-20 170c60-25 90 20 140 0s60-25 140 5'/%3E%3Cpath d='M-20 210c40-15 80 15 120-5s90-30 160 5'/%3E%3Cellipse cx='170' cy='40' rx='30' ry='14'/%3E%3Cellipse cx='170' cy='40' rx='16' ry='7'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+}
+
+/* 점선 경로 (비행기 길) */
+.route-dash {
+  background-image: linear-gradient(90deg, var(--color-mint) 50%, transparent 50%);
+  background-size: 10px 2px;
+  background-repeat: repeat-x;
+  background-position: left center;
+  height: 2px;
 }
 
 /* 사진 위 텍스트 가독성용 그라디언트 */
 .photo-scrim {
-  background: linear-gradient(180deg, rgba(5, 15, 30, 0.12) 0%, rgba(5, 15, 30, 0) 28%, rgba(5, 15, 30, 0.25) 55%, rgba(5, 15, 30, 0.82) 100%);
+  background: linear-gradient(180deg, rgba(14, 24, 40, 0.18) 0%, rgba(14, 24, 40, 0) 30%, rgba(14, 24, 40, 0.28) 58%, rgba(14, 24, 40, 0.86) 100%);
 }
 
 .no-scrollbar {
@@ -174,7 +281,7 @@ body {
 }
 
 .skeleton {
-  background: linear-gradient(90deg, var(--surface-muted) 25%, #f8fafc 50%, var(--surface-muted) 75%);
+  background: linear-gradient(90deg, var(--surface-muted) 25%, #fbf8f3 50%, var(--surface-muted) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.4s ease-in-out infinite;
 }
@@ -220,4 +327,27 @@ body {
   padding: 12px 14px;
   box-shadow: var(--shadow-lift);
   font-family: inherit;
+}
+
+/* 지도 출처 표기: 접힌 (i) 버튼으로 작게 (OSM·OpenFreeMap 표기는 펼치면 보인다) */
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border-radius: 9999px;
+  min-height: 24px;
+  font-size: 11px;
+}
+.maplibregl-ctrl-attrib.maplibregl-compact-show {
+  border-radius: 12px;
+}
+.maplibregl-ctrl-group {
+  border-radius: 12px !important;
+  box-shadow: var(--shadow-card) !important;
+  overflow: hidden;
+}
+
+/* 지도 확대·축소 버튼: 손가락으로 누르기 쉽게 36px */
+.maplibregl-ctrl-group button,
+.mapboxgl-ctrl-group button {
+  width: 36px !important;
+  height: 36px !important;
 }

@@ -80,7 +80,7 @@ export default function WishForm({
             <span key={t} className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold shadow-sm">
               #{t}
               <button type="button" aria-label={`${t} 태그 삭제`} onClick={() => setTags(tags.filter((x) => x !== t))}>
-                <X size={12} className="text-foreground/55" />
+                <X size={12} className="text-foreground/68" />
               </button>
             </span>
           ))}
