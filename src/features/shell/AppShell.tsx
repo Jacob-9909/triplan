@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Heart, Home, LogOut, Plus, UserRound, Users } from "lucide-react";
+import { Heart, Home, LogOut, NotebookPen, Plus, UserRound, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ShellRole } from "@/lib/types";
 
 const ALL_NAV = [
   { href: "/", label: "홈", icon: Home },
   { href: "/wishlist", label: "가고 싶은 곳", icon: Heart },
+  { href: "/archive", label: "기록", icon: NotebookPen },
   { href: "/members", label: "회원", icon: Users },
   { href: "/account", label: "내 계정", icon: UserRound },
 ] as const;
@@ -145,8 +146,8 @@ export default function AppShell({ children, role }: { children: ReactNode; role
           aria-label="주요 메뉴"
           className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle pb-[env(safe-area-inset-bottom)] md:hidden"
         >
-          <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-4 items-center">
-            {NAV.slice(0, 1).map((item) => (
+          <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-5 items-center">
+            {NAV.slice(0, 2).map((item) => (
               <TabItem key={item.href} {...item} active={isActive(pathname, item.href)} />
             ))}
             <div className="flex justify-center">
@@ -158,7 +159,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
                 <Plus size={26} aria-hidden />
               </Link>
             </div>
-            {NAV.slice(1).map((item) => (
+            {NAV.slice(2).map((item) => (
               <TabItem key={item.href} {...item} active={isActive(pathname, item.href)} />
             ))}
           </div>

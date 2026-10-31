@@ -41,6 +41,16 @@ export function formatDuration(min: number): string {
   return m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
 }
 
+/** 하루 장소(방문 순서대로)에서 바로 이웃한 장소 사이의 구간만. 순서를 바꾸면 예전 구간은 빠진다 */
+export function adjacentLegs(dayPoints: MapPoint[], legs: RouteLeg[]): RouteLeg[] {
+  const out: RouteLeg[] = [];
+  for (let i = 0; i < dayPoints.length - 1; i++) {
+    const leg = legs.find((l) => l.from_point_id === dayPoints[i].id && l.to_point_id === dayPoints[i + 1].id);
+    if (leg) out.push(leg);
+  }
+  return out;
+}
+
 /**
  * 하루 일정의 도착·출발 시각 계산.
  * - 첫 장소: 지정 시각 또는 09:00

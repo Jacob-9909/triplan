@@ -11,7 +11,9 @@ import { categoryStyle, PointBadge } from "@/features/map/pointStyle";
 import StylePicker from "@/features/map/StylePicker";
 import { DEFAULT_STAY, formatDuration } from "@/features/route/schedule";
 
-export type PointPatch = Partial<Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min">>;
+export type PointPatch = Partial<
+  Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min" | "rating" | "review">
+>;
 
 const STAY_PRESETS = [30, 60, 90, 120, 180, 240];
 import Sheet from "@/features/ui/Sheet";

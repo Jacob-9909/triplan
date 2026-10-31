@@ -84,7 +84,24 @@ export interface MapPoint {
   start_time?: string | null;
   /** 머무는 시간(분). 없으면 60분 */
   stay_min?: number | null;
+  /** 다녀온 뒤 평점 1~5 */
+  rating?: number | null;
+  /** 다녀온 뒤 한줄평 */
+  review?: string | null;
   created_at: string;
+}
+
+export type Weather = "sunny" | "cloudy" | "rain" | "snow" | "wind";
+export type Mood = "great" | "good" | "okay" | "tired" | "bad";
+
+/** 하루 기록: 날씨·기분·일기 */
+export interface TripDay {
+  id: string;
+  trip_id: string;
+  day_number: number;
+  weather: Weather | null;
+  mood: Mood | null;
+  note: string | null;
 }
 
 /** 장소 사진 (본문은 /api/point-photos/[id]) */
