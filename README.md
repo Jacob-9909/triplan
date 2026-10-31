@@ -128,4 +128,4 @@ supabase/migrations/     Database schema
 
 ## Credits
 
-Country photos are from Wikimedia Commons. See [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md). Map data © OpenStreetMap contributors, tiles by OpenFreeMap.
+Country and city photos are from Wikimedia Commons (city photos via `scripts/fetch-city-photos.mjs`). See [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md). Map data © OpenStreetMap contributors, tiles by OpenFreeMap.

@@ -46,9 +46,9 @@ export default function MoneyInput({
           }}
           className="min-w-0 flex-1 bg-transparent text-2xl font-bold tabular-nums outline-none placeholder:text-foreground/25"
         />
-        <span className="text-lg font-bold text-foreground/62">원</span>
+        <span className="text-lg font-bold text-foreground/68">원</span>
       </div>
-      <p className="mt-1 h-4 text-xs text-foreground/60">{value ? readKrw(value) : "비용이 없으면 비워 두세요"}</p>
+      <p className="mt-1 h-4 text-xs text-foreground/68">{value ? readKrw(value) : "비용이 없으면 비워 두세요"}</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {QUICK.map((q) => (
           <motion.button
@@ -65,7 +65,7 @@ export default function MoneyInput({
           <button
             type="button"
             onClick={() => onChange(null)}
-            className="rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/60 hover:text-accent"
+            className="rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/68 hover:text-accent"
           >
             지우기
           </button>

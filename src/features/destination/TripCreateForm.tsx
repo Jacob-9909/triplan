@@ -70,24 +70,24 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
       className="card mx-auto w-full max-w-xl overflow-hidden"
     >
       {/* 목적지 사진 헤더 */}
-      <div className="relative h-48 bg-slate-200 text-white md:h-56">
-        <CoverPhoto country={country.name} continent={continent.name} />
+      <div className="relative h-52 bg-surface-muted text-white md:h-64">
+        <CoverPhoto country={country.name} continent={continent.name} city={city.name} />
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
             aria-label="목적지 다시 고르기"
-            className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-black/30 backdrop-blur-md transition hover:bg-black/45"
+            className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-black/30 backdrop-blur-md transition hover:bg-black/45"
           >
             <ArrowLeft size={17} />
           </button>
         )}
         <div className="absolute inset-x-0 bottom-0 p-5">
           <p className="text-sm font-semibold text-white/88">
-            {country.flag} {country.name} · {continent.name}
+            {country.name} · {continent.name}
           </p>
           <p className="mt-0.5 text-3xl font-extrabold tracking-tight">
-            {city.emoji} {city.name}
+            {city.name}
           </p>
           <p className="mt-1 text-xs text-white/82">
             {city.description} · 현지 화폐 <span className="font-mono font-semibold">{country.currency}</span>
@@ -96,7 +96,7 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
       </div>
 
       <div className="p-5 md:p-7">
-        <label className="block text-sm font-semibold" htmlFor="trip-title">
+        <label className="field-label" htmlFor="trip-title">
           여행 이름
         </label>
         <input
@@ -104,12 +104,12 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="예: 도쿄 맛집 투어"
-          className="input mt-1.5"
+          className="input"
         />
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="trip-start" className="block text-sm font-semibold">
+            <label htmlFor="trip-start" className="field-label">
               가는 날
             </label>
             <input
@@ -117,11 +117,11 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="input mt-1.5"
+              className="input"
             />
           </div>
           <div>
-            <label htmlFor="trip-end" className="block text-sm font-semibold">
+            <label htmlFor="trip-end" className="field-label">
               오는 날
             </label>
             <input
@@ -130,7 +130,7 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
               value={endDate}
               min={startDate || undefined}
               onChange={(e) => setEndDate(e.target.value)}
-              className="input mt-1.5"
+              className="input"
             />
           </div>
         </div>
@@ -147,7 +147,7 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
         )}
 
         {(error || invalidRange) && (
-          <p role="alert" className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-sm text-[#c2410c]">
+          <p role="alert" className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-sm text-accent">
             {error ?? "종료일이 시작일보다 빠를 수 없어요."}
           </p>
         )}

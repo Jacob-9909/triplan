@@ -24,7 +24,7 @@ export default function CurrencyBadge({
         {currencySymbol(currencyCode)} {formatMoney(amountLocal, currencyCode)}
       </span>
       {!isKrw && amountKrw != null && (
-        <span className="text-[11px] font-normal text-[var(--foreground)]/60">
+        <span className="text-[11px] font-normal text-foreground/68">
           (≈ ₩{formatMoney(amountKrw, "KRW")})
         </span>
       )}

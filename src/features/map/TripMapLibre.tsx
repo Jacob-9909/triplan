@@ -135,14 +135,14 @@ function getEnrichedVoyager(): Promise<Record<string, unknown>> {
             schema,
             `${TRIPOI_LAYER_PREFIX}attraction`,
             ["attraction", "museum", "theatre", "monument", "zoo", "aquarium", "theme_park", "viewpoint", "gallery"],
-            "#8b5cf6",
+            "#0d6b63",
             13
           ),
           poiLabelLayer(
             schema,
             `${TRIPOI_LAYER_PREFIX}food`,
             ["restaurant", "cafe", "fast_food", "bar", "pub", "ice_cream", "bakery"],
-            "#fb7185",
+            "#cc4126",
             14
           ),
         ];

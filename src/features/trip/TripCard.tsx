@@ -21,7 +21,7 @@ export default function TripCard({ trip, index = 0, href = `/trips/${trip.id}` }
         href={href}
         className="card-lift group relative block aspect-[4/5] overflow-hidden rounded-[var(--radius-card)] bg-slate-200 shadow-card sm:aspect-[4/4.6]"
       >
-        <CoverPhoto country={trip.country} continent={trip.continent} zoomOnHover />
+        <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} zoomOnHover />
         <div className="absolute left-3 top-3 flex gap-1.5">
           <span
             className={`rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-md ${

@@ -66,10 +66,10 @@ export default function DayTabs({ trip, value = null, onChange }: DayTabsProps) 
                 : "border-border-subtle bg-surface text-foreground hover:border-primary hover:bg-primary-soft"
             }`}
           >
-            <span className={`text-xs font-semibold ${isActive ? "text-white/90" : "text-primary-strong"}`}>
+            <span className={`text-xs font-semibold ${isActive ? "text-white" : "text-primary-strong"}`}>
               Day {dayNumber}
             </span>
-            <span className={`mt-0.5 text-[11px] ${isActive ? "text-white/88" : "text-foreground/62"}`}>
+            <span className={`mt-0.5 text-[11px] ${isActive ? "text-white" : "text-foreground/68"}`}>
               {format(date, "M/d(E)", { locale: ko })}
             </span>
           </button>

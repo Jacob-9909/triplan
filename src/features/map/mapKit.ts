@@ -41,6 +41,8 @@ export interface KitMapProps {
   };
   style?: CSSProperties;
   cursor?: string;
+  /** 출처 표기. { compact: true } 면 (i) 버튼으로 접힌다 */
+  attributionControl?: boolean | { compact?: boolean };
   onClick?: (e: MapClickEvent) => void;
   onLoad?: () => void;
   onError?: (e: { error?: { message?: string } }) => void;

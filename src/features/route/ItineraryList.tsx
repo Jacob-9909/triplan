@@ -94,7 +94,7 @@ function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
               setConfirming(true);
               setTimeout(() => setConfirming(false), 2500);
             }}
-            className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-foreground/55 transition hover:bg-accent-soft hover:text-accent"
+            className="-my-1 mr-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-foreground/68 transition hover:bg-accent-soft hover:text-accent"
           >
             <X size={13} strokeWidth={2.5} />
           </button>
@@ -161,7 +161,7 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
           <MapPin size={20} />
         </span>
         <p className="text-sm font-medium">이 Day에 추가된 장소가 없어요</p>
-        <p className="text-xs text-foreground/62">지도를 누르거나 장소를 검색해 일정을 만들어 보세요</p>
+        <p className="text-xs text-foreground/68">지도를 누르거나 장소를 검색해 일정을 만들어 보세요</p>
       </div>
     );
   }
@@ -170,7 +170,7 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
     <div className="card p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-bold">방문 순서</h3>
-        <span className="flex items-center gap-1 text-[11px] text-foreground/60">
+        <span className="flex items-center gap-1 text-[11px] text-foreground/68">
           <Move size={12} /> 끌어서 순서 바꾸기
         </span>
       </div>

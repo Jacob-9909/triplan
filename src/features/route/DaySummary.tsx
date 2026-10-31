@@ -38,7 +38,7 @@ export default function DaySummary({ points, legs }: DaySummaryProps) {
           <Clock3 size={18} className="text-primary-strong" />
         </span>
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/62">총 이동시간</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/68">총 이동시간</p>
           <p className="text-lg font-bold leading-tight">{formatDuration(summary.totalMin)}</p>
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function DaySummary({ points, legs }: DaySummaryProps) {
           <Coins size={18} className="text-sand" />
         </span>
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/62">총 이동비용</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-foreground/68">총 이동비용</p>
           <p className="truncate text-lg font-bold leading-tight">
             {summary.totalCost > 0 ? `${summary.totalCost.toLocaleString()}원` : "-"}
           </p>
@@ -56,7 +56,7 @@ export default function DaySummary({ points, legs }: DaySummaryProps) {
       </div>
 
       <div className="hidden items-center gap-2 px-4 sm:flex">
-        <span className="rounded-full bg-mint/15 px-2.5 py-1 text-xs font-semibold text-mint">
+        <span className="rounded-full bg-teal-soft px-2.5 py-1 text-xs font-semibold text-mint">
           {points.length}곳 방문
         </span>
       </div>

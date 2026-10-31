@@ -76,6 +76,14 @@ export default function TripMapCore({
   labelCountry = null,
 }: TripMapCoreProps) {
   const { Map, Marker, Popup, NavigationControl } = kit;
+  const wrapRef = useRef<HTMLDivElement>(null);
+  // MapLibre 는 마커 감싸개 div 에 aria-label="Map marker" 를 붙인다 (역할 없는 div 라 접근성 오류).
+  // 안쪽 핀 버튼에 장소 이름이 있으므로 감싸개 쪽 라벨은 지운다
+  useEffect(() => {
+    wrapRef.current
+      ?.querySelectorAll(".maplibregl-marker[aria-label], .mapboxgl-marker[aria-label]")
+      .forEach((el) => el.removeAttribute("aria-label"));
+  });
   const mapRef = useRef<MapCameraRef>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -162,7 +170,7 @@ export default function TripMapCore({
   );
 
   return (
-    <div className={`relative w-full overflow-hidden rounded-[var(--radius-card)] ${heightClass}`}>
+    <div ref={wrapRef} className={`relative w-full overflow-hidden rounded-[var(--radius-card)] ${heightClass}`}>
       <Map
         ref={mapRef}
         mapStyle={mapStyle}
@@ -178,9 +186,15 @@ export default function TripMapCore({
               : {}),
         }}
         style={{ width: "100%", height: "100%" }}
+        // 출처 표기를 (i) 버튼으로 접어 지도를 덜 가린다 (펼치면 OSM·OpenFreeMap 표기)
+        attributionControl={{ compact: true }}
         cursor={editable ? "crosshair" : "grab"}
         onClick={handleMapClick}
-        onLoad={() => setMapReady(true)}
+        onLoad={() => {
+          setMapReady(true);
+          // MapLibre 는 넓은 화면에서 출처 표기를 펼친 채 시작한다. 처음엔 접어 둔다 ((i) 를 누르면 펼쳐짐)
+          wrapRef.current?.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+        }}
         onError={(e: { error?: { message?: string } }) =>
           setMapError(e?.error?.message ?? "지도를 불러오지 못했어요")
         }
@@ -196,6 +210,7 @@ export default function TripMapCore({
                 category={point.category}
                 color={point.color}
                 label={numbered ? i + 1 : undefined}
+                name={point.name}
                 selected={point.id === selectedPointId}
                 onClick={() => {
                   setPopupId(point.id);
@@ -249,7 +264,7 @@ export default function TripMapCore({
                   type="button"
                   onClick={() => setPopupId(null)}
                   aria-label="닫기"
-                  className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1 text-foreground/55 hover:bg-surface-muted hover:text-foreground"
+                  className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1 text-foreground/68 hover:bg-surface-muted hover:text-foreground"
                 >
                   <X size={14} />
                 </button>

@@ -78,14 +78,14 @@ export default function ExpenseSummary({
     <div className="space-y-4">
       {/* 총액 */}
       <div className="card p-5">
-        <div className="flex items-center gap-2 text-xs font-semibold text-[var(--foreground)]/50">
+        <div className="flex items-center gap-2 text-xs font-semibold text-foreground/68">
           <Wallet size={14} />
           총 지출 ({daysCount}일)
         </div>
         <p className="mt-1 text-2xl font-extrabold tabular-nums text-[var(--color-primary-strong)] md:text-3xl">
           ₩{totalKrw.toLocaleString("ko-KR")}
         </p>
-        <p className="mt-0.5 text-xs tabular-nums text-[var(--foreground)]/60">
+        <p className="mt-0.5 text-xs tabular-nums text-foreground/68">
           일평균 ₩{avgDaily.toLocaleString("ko-KR")}
           {localTotals.length > 0 && (
             <>
@@ -102,7 +102,7 @@ export default function ExpenseSummary({
       {/* 카테고리별 지출 막대 */}
       {byCategory.length > 0 && (
         <div className="card space-y-2.5 p-5">
-          <h3 className="text-xs font-semibold text-[var(--foreground)]/50">카테고리별</h3>
+          <h3 className="text-xs font-semibold text-foreground/68">카테고리별</h3>
           {byCategory.map(({ value, label, krw, barClass }) => (
             <div key={value} className="flex items-center gap-3">
               <span className="w-16 shrink-0 text-xs font-medium">{label}</span>
@@ -123,22 +123,22 @@ export default function ExpenseSummary({
       {/* Day별 추이 */}
       {byDay.length > 1 && (
         <div className="card p-5">
-          <h3 className="text-xs font-semibold text-[var(--foreground)]/50">Day별 지출 추이</h3>
+          <h3 className="text-xs font-semibold text-foreground/68">Day별 지출 추이</h3>
           <div className="mt-4 flex h-28 items-end gap-1.5 overflow-x-auto pb-1">
             {byDay.map(({ day, krw }) => (
               <div key={day} className="group flex min-w-6 flex-1 flex-col items-center gap-1">
-                <span className="hidden text-[10px] tabular-nums text-[var(--foreground)]/60 group-hover:block">
+                <span className="hidden text-[10px] tabular-nums text-foreground/68 group-hover:block">
                   {krw > 9999 ? `${Math.round(krw / 1000)}k` : krw}
                 </span>
                 <div
-                  className="w-full rounded-t-md bg-gradient-to-t from-[var(--color-primary)] to-[var(--color-mint)] transition-all duration-500"
+                  className="w-full rounded-t-md bg-[var(--color-primary)] transition-all duration-500"
                   style={{
                     height: `${Math.max(4, Math.round((krw / maxDayKrw) * 88))}px`,
                     opacity: krw === 0 ? 0.15 : 1,
                   }}
                   title={`Day ${day}: ₩${krw.toLocaleString("ko-KR")}`}
                 />
-                <span className="text-[10px] tabular-nums text-[var(--foreground)]/40">
+                <span className="text-[10px] tabular-nums text-foreground/68">
                   {day}
                 </span>
               </div>

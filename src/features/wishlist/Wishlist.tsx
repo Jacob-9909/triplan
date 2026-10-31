@@ -161,7 +161,7 @@ export default function Wishlist() {
       )}
 
       {/* 새로 담기: 목적지 고르기 → 메모 */}
-      <Sheet open={adding} onClose={closeAdd} title={picked ? `${picked.country.flag} ${picked.city.name}` : "어디에 가고 싶나요?"} wide={!picked}>
+      <Sheet open={adding} onClose={closeAdd} title={picked ? `${picked.city.name} · ${picked.country.name}` : "어디에 가고 싶나요?"} wide={!picked}>
         {picked ? (
           <WishForm selection={picked} onSubmit={create} submitLabel="가고 싶은 곳에 담기" />
         ) : (
@@ -202,7 +202,7 @@ function WishCard({
         focused ? "ring-4 ring-primary" : ""
       }`}
     >
-      <CoverPhoto country={wish.country} continent={wish.continent} zoomOnHover />
+      <CoverPhoto country={wish.country} continent={wish.continent} city={wish.region} title={wish.name} zoomOnHover />
 
       <div className="relative flex items-start justify-between p-3">
         <span className="rounded-full bg-black/25 px-2 py-1 backdrop-blur-md">

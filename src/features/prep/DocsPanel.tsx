@@ -63,8 +63,8 @@ const DOC_META: Record<
   insurance: {
     label: "보험",
     icon: ShieldCheck,
-    bg: "bg-[var(--color-mint)]/15",
-    text: "text-emerald-600",
+    bg: "bg-teal-soft",
+    text: "text-mint",
   },
   etc: {
     label: "기타",
@@ -137,6 +137,7 @@ export default function DocsPanel({
       {!readOnly && (
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface-muted)] p-4 sm:grid-cols-4">
         <select
+          aria-label="종류"
           value={form.type}
           onChange={setField("type")}
           className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
@@ -148,18 +149,21 @@ export default function DocsPanel({
           ))}
         </select>
         <input
+          aria-label="제목"
           value={form.title}
           onChange={setField("title")}
           placeholder="제목 * (예: 인천→도쿄 편도)"
           className="col-span-1 rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] sm:col-span-3"
         />
         <input
+          aria-label="제공사"
           value={form.provider}
           onChange={setField("provider")}
           placeholder="제공사 (대한항공)"
           className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
         />
         <input
+          aria-label="예약번호"
           value={form.confirmation_code}
           onChange={setField("confirmation_code")}
           placeholder="예약번호"
@@ -167,6 +171,7 @@ export default function DocsPanel({
         />
         <input
           type="date"
+          aria-label="시작일"
           value={form.starts_at}
           onChange={setField("starts_at")}
           className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
@@ -174,13 +179,15 @@ export default function DocsPanel({
         <div className="relative">
           <input
             type="date"
-            value={form.ends_at}
+            aria-label="종료일"
+          value={form.ends_at}
             min={form.starts_at || undefined}
             onChange={setField("ends_at")}
             className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 pr-8 text-sm outline-none focus:border-[var(--color-primary)]"
           />
         </div>
         <input
+          aria-label="링크 주소"
           value={form.url}
           onChange={setField("url")}
           type="url"
@@ -190,7 +197,7 @@ export default function DocsPanel({
         <button
           onClick={() => void handleSubmit()}
           disabled={!form.title.trim() || saving}
-          className="col-span-2 flex items-center justify-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-strong)] disabled:cursor-not-allowed disabled:opacity-40 sm:col-span-1"
+          className="btn btn-primary col-span-2 px-4 text-sm sm:col-span-1"
         >
           {saving ? (
             <Loader2 size={16} className="animate-spin" />
@@ -274,7 +281,7 @@ function DocCard({
               {meta.label}
             </span>
             {ongoing && (
-              <span className="animate-pulse rounded-full bg-[var(--color-mint)]/20 px-2 py-0.5 text-[10px] font-bold text-emerald-600">
+              <span className="animate-pulse rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-mint">
                 진행 중
               </span>
             )}

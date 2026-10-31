@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, ChevronRight, MapPin, Search, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
 import type { City } from "@/data/world";
 import CoverPhoto from "@/features/ui/CoverPhoto";
 import {
@@ -63,66 +63,77 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
   }
 
   const breadcrumb = [
-    continent && { label: `${continent.emoji} ${continent.name}`, onClick: () => back() },
-    country && step === "city" && { label: `${country.flag} ${country.name}`, onClick: () => back() },
+    continent && { label: continent.name, onClick: () => back() },
+    country && step === "city" && { label: country.name, onClick: () => back() },
   ].filter(Boolean) as { label: string; onClick: () => void }[];
 
   return (
     <div className="mx-auto w-full max-w-3xl lg:max-w-5xl xl:max-w-6xl">
       {/* 검색 바 */}
+      <label htmlFor="dest-search" className="sr-only">
+        나라나 도시 검색
+      </label>
       <div className="relative mb-5">
-        <Search
-          size={18}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-[color:var(--color-primary)]"
-        />
+        <Search size={18} aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/68" />
         <input
+          id="dest-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="국가 또는 도시를 바로 검색해보세요 (예: 도쿄, 스위스)"
-          className="card w-full rounded-full py-3 pl-11 pr-11 text-sm outline-none placeholder:text-slate-400 focus:border-[color:var(--color-primary)]"
+          placeholder="나라나 도시 이름 (예: 도쿄, 스위스)"
+          className="input rounded-full py-3 pl-11 pr-11 shadow-card"
         />
         {searching && (
           <button
             aria-label="검색 지우기"
             onClick={() => setQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
+            className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-foreground/68 hover:text-foreground"
           >
             <X size={16} />
           </button>
         )}
       </div>
 
-      {/* 브레드크럼 */}
-      {!searching && step !== "continent" && (
-        <div className="mb-4 flex items-center gap-2 text-sm text-slate-600">
-          <button
-            onClick={back}
-            className="flex items-center gap-1 rounded-full bg-surface px-3 py-1.5 border border-[color:var(--border)] shadow-sm hover:bg-[color:var(--surface-muted)]"
-          >
-            <ArrowLeft size={14} />
-            이전
-          </button>
-          <div className="flex flex-wrap items-center gap-2">
-            {breadcrumb.map((b) => (
-              <span key={b.label} className="flex items-center gap-2">
-                <ChevronRight size={12} />
-                <button onClick={b.onClick} className="hover:text-[color:var(--color-primary-strong)]">
-                  {b.label}
-                </button>
-              </span>
-            ))}
-            <ChevronRight size={12} />
-            <span className="font-semibold text-[color:var(--foreground)]">{stepLabels[step]}</span>
-          </div>
-        </div>
+      {/* 단계 표시 */}
+      {!searching && (
+        <ol className="mb-5 flex items-center gap-2 text-sm" aria-label="선택 단계">
+          {step !== "continent" && (
+            <li>
+              <button onClick={back} className="btn btn-ghost mr-1 px-3 text-sm">
+                <ArrowLeft size={14} aria-hidden /> 이전
+              </button>
+            </li>
+          )}
+          {breadcrumb.map((b) => (
+            <li key={b.label} className="flex items-center gap-2 text-foreground/65">
+              <button onClick={b.onClick} className="font-semibold hover:text-foreground">
+                {b.label}
+              </button>
+              <ChevronRight size={13} aria-hidden />
+            </li>
+          ))}
+          <li aria-current="step" className="font-bold text-foreground">
+            {stepLabels[step]}
+          </li>
+          <li className="ml-auto flex items-center gap-1.5" aria-hidden>
+            {(["continent", "country", "city"] as Step[]).map((s, i) => {
+              const active = ["continent", "country", "city"].indexOf(step) >= i;
+              return (
+                <span
+                  key={s}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${active ? "w-6 bg-primary" : "w-2.5 bg-border-subtle"}`}
+                />
+              );
+            })}
+          </li>
+        </ol>
       )}
 
       {/* 검색 결과 */}
       {searching ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
           {results.length === 0 && (
-            <p className="col-span-full text-center text-sm text-slate-500 py-8">
-              &ldquo;{query}&rdquo; 에 대한 결과가 없어요 🥲
+            <p className="col-span-full py-10 text-center text-sm text-foreground/65">
+              &ldquo;{query}&rdquo;에 맞는 곳이 없어요. 나라 이름으로 찾아보세요.
             </p>
           )}
           {results.slice(0, 24).map(({ continent, country, city }) => (
@@ -130,163 +141,105 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
               key={`${continent.id}-${country.name}-${city.name}`}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              whileHover={{ y: -2 }}
-              onClick={() => pickCity(city)}
-              className="card flex items-center gap-3 p-4 text-left transition-colors hover:border-[color:var(--color-primary)]"
+              onClick={() => {
+                setContinent(continent);
+                setCountry(country);
+                onComplete({ continent, country, city });
+              }}
+              className="card flex items-center gap-3 p-2.5 pr-4 text-left transition-colors hover:border-foreground/30"
             >
-              <span className="text-2xl">{city.emoji}</span>
-              <span className="flex-1 min-w-0">
-                <span className="block font-semibold truncate">
-                  {city.name}{" "}
-                  <span className="text-sm font-normal text-slate-500">
-                    {country.flag} {country.name}
-                  </span>
-                </span>
-                <span className="block text-xs text-slate-500 truncate">
-                  {continent.emoji} {continent.name} · {city.description}
+              <span className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-surface-muted">
+                <CoverPhoto country={country.name} continent={continent.name} city={city.name} scrim={false} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-bold">{city.name}</span>
+                <span className="block truncate text-xs text-foreground/65">
+                  {country.name} · {city.description}
                 </span>
               </span>
-              <MapPin size={16} className="shrink-0 text-[color:var(--color-accent)]" />
+              <ChevronRight size={16} aria-hidden className="shrink-0 text-foreground/40" />
             </motion.button>
           ))}
         </div>
       ) : (
-        /* 3단계 카드 UI */
-        <>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, x: 32 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -32 }}
-              transition={{ duration: 0.25, ease: "easeOut" }}
-              className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5"
-            >
-              {step === "continent" &&
-                WORLD.map((c) => (
-                  <CardButton
-                    key={c.id}
-                    emoji={c.emoji}
-                    title={c.name}
-                    subtitle={`${c.countries.length}개국`}
-                    onClick={() => pickContinent(c)}
-                    accent="primary"
-                  />
-                ))}
-
-              {step === "country" &&
-                continent?.countries.map((c) => (
-                  <CardButton
-                    key={c.name}
-                    emoji={c.flag}
-                    title={c.name}
-                    subtitle={`${c.currency} · ${c.cities.length}개 도시`}
-                    onClick={() => pickCountry(c)}
-                    accent="accent"
-                    photoCountry={c.name}
-                    continentName={continent.name}
-                  />
-                ))}
-
-              {step === "city" &&
-                country?.cities.map((c) => (
-                  <CardButton
-                    key={c.name}
-                    emoji={c.emoji}
-                    title={c.name}
-                    subtitle={c.description}
-                    onClick={() => pickCity(c)}
-                    accent="mint"
-                    footer={
-                      <span className="text-[10px] text-slate-400 tabular-nums">
-                        {c.lat.toFixed(1)}°, {c.lng.toFixed(1)}°
-                      </span>
-                    }
-                  />
-                ))}
-            </motion.div>
-          </AnimatePresence>
-
-          {/* 단계 인디케이터 */}
-          <div className="mt-6 flex items-center justify-center gap-2">
-            {(["continent", "country", "city"] as Step[]).map((s, i) => {
-              const order = ["continent", "country", "city"];
-              const active = order.indexOf(step) >= i;
-              return (
-                <span
-                  key={s}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    active ? "w-8 bg-[color:var(--color-primary)]" : "w-3 bg-[color:var(--border)]"
-                  }`}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={step}
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-4"
+          >
+            {step === "continent" &&
+              WORLD.map((c) => (
+                <PhotoTile
+                  key={c.id}
+                  title={c.name}
+                  subtitle={`${c.countries.length}개 나라`}
+                  onClick={() => pickContinent(c)}
+                  country={c.countries[0]?.name}
+                  continentName={c.name}
                 />
-              );
-            })}
-          </div>
-        </>
+              ))}
+
+            {step === "country" &&
+              continent?.countries.map((c) => (
+                <PhotoTile
+                  key={c.name}
+                  title={c.name}
+                  subtitle={`${c.currency} · 도시 ${c.cities.length}곳`}
+                  onClick={() => pickCountry(c)}
+                  country={c.name}
+                  continentName={continent.name}
+                />
+              ))}
+
+            {step === "city" &&
+              country?.cities.map((c) => (
+                <PhotoTile
+                  key={c.name}
+                  title={c.name}
+                  subtitle={c.description}
+                  onClick={() => pickCity(c)}
+                  country={country.name}
+                  city={c.name}
+                  continentName={continent?.name}
+                />
+              ))}
+          </motion.div>
+        </AnimatePresence>
       )}
     </div>
   );
 }
 
-function CardButton({
-  emoji,
+/** 사진 카드 버튼. 도시 사진 → 나라 사진 → 대륙 그라디언트 순으로 깐다 */
+function PhotoTile({
   title,
   subtitle,
-  footer,
   onClick,
-  accent,
-  photoCountry,
+  country,
+  city,
   continentName,
 }: {
-  emoji: string;
   title: string;
   subtitle: string;
-  footer?: React.ReactNode;
   onClick: () => void;
-  accent: "primary" | "accent" | "mint";
-  /** 지정하면 나라 대표 사진 카드로 렌더링 */
-  photoCountry?: string;
+  country?: string;
+  city?: string;
   continentName?: string;
 }) {
-  if (photoCountry) {
-    return (
-      <motion.button
-        whileHover={{ y: -3 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={onClick}
-        className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-[var(--radius-card)] bg-slate-200 p-3.5 text-left text-white shadow-card md:p-4"
-      >
-        <CoverPhoto country={photoCountry} continent={continentName} zoomOnHover />
-        <span className="relative text-2xl leading-none drop-shadow" role="img" aria-hidden>
-          {emoji}
-        </span>
-        <span className="relative mt-1.5 font-bold">{title}</span>
-        <span className="relative text-[11px] text-white/85">{subtitle}</span>
-      </motion.button>
-    );
-  }
-  const accentClass =
-    accent === "primary"
-      ? "group-hover:border-[color:var(--color-primary)] group-hover:bg-[color:var(--color-primary-soft)]"
-      : accent === "accent"
-        ? "group-hover:border-[color:var(--color-accent)] group-hover:bg-[color:var(--color-accent-soft)]"
-        : "group-hover:border-[color:var(--color-mint)] group-hover:bg-emerald-50";
   return (
     <motion.button
       whileHover={{ y: -3 }}
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
-      className={`card group relative flex flex-col items-start gap-1 p-4 pt-5 text-left transition-all md:p-5 md:pt-6 ${accentClass}`}
+      className="group relative flex aspect-[4/3] flex-col justify-end overflow-hidden rounded-[var(--radius-card)] bg-surface-muted p-3.5 text-left text-white shadow-card md:p-4"
     >
-      <span className="absolute right-3 top-3 text-lg opacity-0 transition-opacity group-hover:opacity-100">
-        <Check size={16} className="text-[color:var(--color-primary-strong)]" />
-      </span>
-      <span className="text-3xl leading-none drop-shadow-sm" role="img" aria-hidden>
-        {emoji}
-      </span>
-      <span className="mt-1.5 font-semibold">{title}</span>
-      <span className="text-xs text-slate-500 line-clamp-2">{subtitle}</span>
-      {footer && <span className="mt-auto pt-1">{footer}</span>}
+      <CoverPhoto country={country} city={city} continent={continentName} zoomOnHover />
+      <span className="relative text-base font-bold leading-tight md:text-lg">{title}</span>
+      <span className="relative mt-0.5 line-clamp-1 text-xs text-white/85">{subtitle}</span>
     </motion.button>
   );
 }

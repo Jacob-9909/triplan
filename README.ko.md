@@ -128,4 +128,4 @@ supabase/migrations/     DB 스키마
 
 ## 출처
 
-나라 배경 사진은 Wikimedia Commons 이미지입니다. [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md)를 참고하세요. 지도 데이터 © OpenStreetMap 기여자, 타일 OpenFreeMap.
+나라·도시 배경 사진은 Wikimedia Commons 이미지입니다(도시 사진은 `scripts/fetch-city-photos.mjs`로 받음). [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md)를 참고하세요. 지도 데이터 © OpenStreetMap 기여자, 타일 OpenFreeMap.

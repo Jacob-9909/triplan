@@ -42,7 +42,7 @@ export default function StylePicker({
         })}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-semibold text-foreground/62">핀 색</span>
+        <span className="mr-1 text-xs font-semibold text-foreground/68">핀 색</span>
         <button
           type="button"
           onClick={() => onChange({ category, color: null })}
