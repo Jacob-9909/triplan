@@ -45,12 +45,14 @@ export async function POST(request: Request, { params }: Ctx) {
   return Response.json({ id: target.id, username: target.username, kind: "invited" });
 }
 
-/** 초대 취소: 주인·관리자는 누구든, 초대받은 회원은 자기 자신만(나가기). ?member_id= */
+/** 초대 취소: 주인·관리자는 누구든, 초대받은 회원은 자기 자신만(나가기). ?member_id=<id> 또는 ?member_id=me */
 export async function DELETE(request: Request, { params }: Ctx) {
   const { id } = await params;
-  const memberId = new URL(request.url).searchParams.get("member_id") ?? "";
-  if (!UUID_RE.test(id) || !UUID_RE.test(memberId)) return jsonError("invalid id", 400);
   const me = await currentMember();
+  const param = new URL(request.url).searchParams.get("member_id") ?? "";
+  const memberId = param === "me" ? (me?.id ?? "") : param;
+  if (!UUID_RE.test(id)) return jsonError("invalid id", 400);
+  if (!UUID_RE.test(memberId)) return jsonError(param === "me" ? "unauthorized" : "invalid member_id", param === "me" ? 401 : 400);
   if (me?.id !== memberId) {
     const access = await requireTrip(request, id, "manage");
     if (access instanceof Response) return access;

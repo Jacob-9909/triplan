@@ -1,6 +1,6 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
-import { getPool, jsonError } from "@/lib/db";
+import { getPool, jsonError, UUID_RE } from "@/lib/db";
 
 /**
  * 접근 제어
@@ -101,9 +101,40 @@ export async function startAdminSession() {
   await setSession(COOKIE, `${exp}.${sign(`admin:${exp}`)}`);
 }
 
+/**
+ * 회원 세션 서명에 비밀번호 salt 를 섞는다. 비밀번호가 바뀌면(salt 가 새로 생기면) 이전 세션은 모두 무효가 된다.
+ * password_hash 는 "salt:hash" 형식이다.
+ */
+function memberSig(memberId: string, exp: string | number, passwordHash: string) {
+  return sign(`member:${memberId}:${exp}:${passwordHash.split(":")[0]}`);
+}
+
 export async function startMemberSession(memberId: string) {
+  const { rows } = await getPool().query<{ password_hash: string }>(
+    "SELECT password_hash FROM triplan.members WHERE id = $1",
+    [memberId]
+  );
+  if (!rows[0]) throw new Error("member not found");
   const exp = Date.now() + SESSION_DAYS * 86400_000;
-  await setSession(MEMBER_COOKIE, `${memberId}.${exp}.${sign(`member:${memberId}:${exp}`)}`);
+  await setSession(MEMBER_COOKIE, `${memberId}.${exp}.${memberSig(memberId, exp, rows[0].password_hash)}`);
+}
+
+/** 비밀번호 바꾸기. 그 회원의 모든 기존 세션이 무효가 된다 */
+export async function setMemberPassword(memberId: string, password: string) {
+  const { rowCount } = await getPool().query("UPDATE triplan.members SET password_hash = $1 WHERE id = $2", [
+    hashPassword(password),
+    memberId,
+  ]);
+  return (rowCount ?? 0) > 0;
+}
+
+/** 현재 비밀번호 확인 (내 비밀번호 바꾸기용) */
+export async function verifyMemberPassword(memberId: string, password: string) {
+  const { rows } = await getPool().query<{ password_hash: string }>(
+    "SELECT password_hash FROM triplan.members WHERE id = $1",
+    [memberId]
+  );
+  return rows[0] ? verifyPassword(password, rows[0].password_hash) : false;
 }
 
 export async function endSession() {
@@ -117,14 +148,19 @@ export async function currentMember(): Promise<Member | null> {
   const raw = (await cookies()).get(MEMBER_COOKIE)?.value;
   if (!raw) return null;
   const [id, exp, sig] = raw.split(".");
-  if (!id || !exp || !sig || Number(exp) < Date.now()) return null;
+  if (!id || !exp || !sig || Number(exp) < Date.now() || !UUID_RE.test(id)) return null;
+  const { rows } = await getPool().query<Member & { password_hash: string }>(
+    "SELECT id, username, role, password_hash FROM triplan.members WHERE id = $1",
+    [id]
+  );
+  const row = rows[0];
+  if (!row) return null;
   try {
-    if (!safeEqual(sig, sign(`member:${id}:${exp}`))) return null;
+    if (!safeEqual(sig, memberSig(id, exp, row.password_hash))) return null;
   } catch {
     return null;
   }
-  const { rows } = await getPool().query<Member>("SELECT id, username, role FROM triplan.members WHERE id = $1", [id]);
-  return rows[0] ?? null;
+  return { id: row.id, username: row.username, role: row.role };
 }
 
 /** 사용 권한(user) 회원이면 그 회원 */

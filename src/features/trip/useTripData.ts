@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { ApiError, apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { MapPoint, RouteLeg, Trip } from "@/lib/types";
 import { useTripChanges } from "@/lib/realtime";
 
@@ -11,6 +11,8 @@ export function useTripData(tripId: string) {
   const [legs, setLegs] = useState<RouteLeg[]>([]);
   const [loading, setLoading] = useState(true);
   const [notConfigured, setNotConfigured] = useState(false);
+  /** 열어 둔 사이에 초대 취소·링크 변경·삭제 등으로 접근할 수 없게 됨 */
+  const [revoked, setRevoked] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -66,7 +68,7 @@ export function useTripData(tripId: string) {
   }, [tripId]);
 
   // 다른 사람이 바꾸면 화면 깜빡임 없이 조용히 다시 불러온다. 실패하면 지금 화면을 그대로 둔다
-  useTripChanges(tripId, ["trips", "map_points", "route_legs"], () => {
+  useTripChanges(tripId, ["trips", "map_points", "route_legs", "access"], () => {
     void Promise.all([
       apiGet<Trip>(`/api/trips/${tripId}`),
       apiGet<MapPoint[]>(`/api/map-points?trip_id=${tripId}`),
@@ -76,11 +78,14 @@ export function useTripData(tripId: string) {
         setTrip(t);
         setPoints(p);
         setLegs(l);
+        setRevoked(false);
       })
-      .catch(() => null);
+      .catch((err) => {
+        if (err instanceof ApiError && [401, 403, 404].includes(err.status)) setRevoked(true);
+      });
   });
 
-  return { trip, points, legs, loading, notConfigured, setPoints, setLegs, refresh };
+  return { trip, points, legs, loading, notConfigured, revoked, setPoints, setLegs, refresh };
 }
 
 /** 순서 변경: visit_order 재정렬 저장 */

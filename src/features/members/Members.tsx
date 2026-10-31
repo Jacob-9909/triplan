@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Repeat, Trash2, UserPlus } from "lucide-react";
+import { Check, KeyRound, Loader2, Repeat, Trash2, UserPlus } from "lucide-react";
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
 interface Member {
@@ -53,6 +53,22 @@ export default function Members() {
       role: m.role === "user" ? "demo" : "user",
     });
     setMembers((list) => (list ?? []).map((x) => (x.id === m.id ? updated : x)));
+  }
+
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [resetPw, setResetPw] = useState("");
+  const [resetMsg, setResetMsg] = useState<{ id: string; text: string; ok: boolean } | null>(null);
+
+  async function resetPassword(e: React.FormEvent, m: Member) {
+    e.preventDefault();
+    try {
+      await apiPatch(`/api/members/${m.id}`, { password: resetPw });
+      setResetMsg({ id: m.id, text: "바꿨어요. 그 회원의 기존 로그인은 모두 풀렸어요.", ok: true });
+      setResetId(null);
+      setResetPw("");
+    } catch (err) {
+      setResetMsg({ id: m.id, text: err instanceof ApiError ? err.message : "바꾸지 못했어요.", ok: false });
+    }
   }
 
   async function remove(m: Member) {
@@ -116,7 +132,7 @@ export default function Members() {
         {members === null && <li className="p-4 text-sm text-foreground/60">불러오는 중…</li>}
         {members?.length === 0 && <li className="p-4 text-sm text-foreground/60">아직 회원이 없어요.</li>}
         {members?.map((m) => (
-          <li key={m.id} className="flex items-center justify-between gap-3 p-4">
+          <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div>
               <p className="flex items-center gap-1.5 font-semibold">
                 {m.username}
@@ -132,6 +148,16 @@ export default function Members() {
             </div>
             <span className="flex items-center gap-1">
               <button
+                onClick={() => {
+                  setResetId(resetId === m.id ? null : m.id);
+                  setResetPw("");
+                  setResetMsg(null);
+                }}
+                className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/65 transition hover:bg-surface-muted hover:text-foreground"
+              >
+                <KeyRound size={13} /> 비밀번호 초기화
+              </button>
+              <button
                 onClick={() => void toggleRole(m)}
                 className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/65 transition hover:bg-surface-muted hover:text-foreground"
               >
@@ -145,6 +171,30 @@ export default function Members() {
                 <Trash2 size={16} />
               </button>
             </span>
+            {resetId === m.id && (
+              <form onSubmit={(e) => void resetPassword(e, m)} className="flex w-full gap-2">
+                <input
+                  value={resetPw}
+                  onChange={(e) => setResetPw(e.target.value)}
+                  placeholder="새 비밀번호 (6자 이상)"
+                  autoComplete="new-password"
+                  autoFocus
+                  className="input flex-1"
+                />
+                <button
+                  type="submit"
+                  disabled={resetPw.length < 6}
+                  className="btn btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  <Check size={15} /> 바꾸기
+                </button>
+              </form>
+            )}
+            {resetMsg?.id === m.id && (
+              <p className={`w-full text-xs font-medium ${resetMsg.ok ? "text-emerald-600" : "text-accent"}`}>
+                {resetMsg.text}
+              </p>
+            )}
           </li>
         ))}
       </ul>
