@@ -6,8 +6,10 @@ import { getPool, jsonError } from "@/lib/db";
  * 접근 제어
  * - 관리자: ADMIN_PASSWORD로 로그인하면 HMAC 서명 쿠키를 받는다. 모든 여행·위시리스트 접근.
  * - 공유 링크: 여행마다 edit_token(편집), view_token(보기) 두 개. 요청 헤더 x-trip-token으로 전달.
- * - 체험 회원: 관리자가 만든 아이디/비밀번호로 로그인. is_demo 여행만 보기 전용, 외부 API(검색·번역·환율)는 못 쓴다.
- *   is_admin 회원은 관리자 세션을 받아 관리자와 똑같이 쓴다.
+ * - 회원: 관리자가 만든 아이디/비밀번호로 로그인. role 이 둘이다.
+ *   - demo(체험): is_demo 여행만 보기 전용, 외부 API(검색·번역·환율)는 못 쓴다.
+ *   - user(사용): 자기 여행·위시리스트를 만들고, 다른 user 회원을 여행에 초대해 함께 편집한다.
+ * - 관리자는 ADMIN_PASSWORD 한 명뿐이다. 회원에게 관리자 권한을 주지 않는다.
  */
 
 const COOKIE = "triplan_admin";
@@ -15,7 +17,19 @@ const MEMBER_COOKIE = "triplan_member";
 const SESSION_DAYS = 30;
 export const TOKEN_HEADER = "x-trip-token";
 
-export type Access = "admin" | "edit" | "view";
+/** admin: 관리자, owner: 여행을 만든 회원, edit: 초대된 회원·편집 링크, view: 보기 링크·체험 회원 */
+export type Access = "admin" | "owner" | "edit" | "view";
+export type MemberRole = "demo" | "user";
+export interface Member {
+  id: string;
+  username: string;
+  role: MemberRole;
+}
+
+/** 여행 공유 설정(링크·초대·삭제)을 바꿀 수 있는 권한 */
+export function canManage(access: Access) {
+  return access === "admin" || access === "owner";
+}
 
 function secret() {
   const s = process.env.SESSION_SECRET || process.env.ADMIN_PASSWORD;
@@ -57,16 +71,15 @@ function verifyPassword(password: string, stored: string) {
 }
 
 /** 아이디/비밀번호가 맞으면 회원 */
-export async function checkMember(
-  username: string,
-  password: string
-): Promise<{ id: string; is_admin: boolean } | null> {
-  const { rows } = await getPool().query<{ id: string; is_admin: boolean; password_hash: string }>(
-    "SELECT id, is_admin, password_hash FROM triplan.members WHERE username = $1",
+export async function checkMember(username: string, password: string): Promise<Member | null> {
+  const { rows } = await getPool().query<Member & { password_hash: string }>(
+    "SELECT id, username, role, password_hash FROM triplan.members WHERE username = $1",
     [username]
   );
   const row = rows[0];
-  return row && verifyPassword(password, row.password_hash) ? { id: row.id, is_admin: row.is_admin } : null;
+  return row && verifyPassword(password, row.password_hash)
+    ? { id: row.id, username: row.username, role: row.role }
+    : null;
 }
 
 async function setSession(name: string, value: string) {
@@ -82,13 +95,10 @@ async function setSession(name: string, value: string) {
   });
 }
 
-/** memberId 없이 부르면 ADMIN_PASSWORD 관리자, 있으면 관리자 권한을 받은 회원 */
-export async function startAdminSession(memberId?: string) {
+/** ADMIN_PASSWORD 관리자 세션 */
+export async function startAdminSession() {
   const exp = Date.now() + SESSION_DAYS * 86400_000;
-  await setSession(
-    COOKIE,
-    memberId ? `${memberId}.${exp}.${sign(`admin:${memberId}:${exp}`)}` : `${exp}.${sign(`admin:${exp}`)}`
-  );
+  await setSession(COOKIE, `${exp}.${sign(`admin:${exp}`)}`);
 }
 
 export async function startMemberSession(memberId: string) {
@@ -102,8 +112,8 @@ export async function endSession() {
   jar.delete(MEMBER_COOKIE);
 }
 
-/** 로그인한 체험 회원. 관리자가 회원을 지우면 바로 무효가 되도록 DB도 확인한다 */
-export async function currentMember(): Promise<{ id: string; username: string } | null> {
+/** 로그인한 회원. 관리자가 회원을 지우거나 권한을 바꾸면 바로 반영되도록 DB도 확인한다 */
+export async function currentMember(): Promise<Member | null> {
   const raw = (await cookies()).get(MEMBER_COOKIE)?.value;
   if (!raw) return null;
   const [id, exp, sig] = raw.split(".");
@@ -113,29 +123,45 @@ export async function currentMember(): Promise<{ id: string; username: string } 
   } catch {
     return null;
   }
-  const { rows } = await getPool().query<{ id: string; username: string }>(
-    "SELECT id, username FROM triplan.members WHERE id = $1",
-    [id]
-  );
+  const { rows } = await getPool().query<Member>("SELECT id, username, role FROM triplan.members WHERE id = $1", [id]);
   return rows[0] ?? null;
+}
+
+/** 사용 권한(user) 회원이면 그 회원 */
+export async function currentUser(): Promise<Member | null> {
+  const m = await currentMember();
+  return m?.role === "user" ? m : null;
 }
 
 export async function isAdmin() {
   const raw = (await cookies()).get(COOKIE)?.value;
   if (!raw) return false;
-  const parts = raw.split(".");
-  // exp.sig = ADMIN_PASSWORD 관리자, memberId.exp.sig = 관리자 권한 회원
-  const [memberId, exp, sig] = parts.length === 3 ? parts : [null, ...parts];
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
+  // exp.sig 형식만 관리자. 예전 회원 관리자 세션(memberId.exp.sig)은 더 받지 않는다
+  const [exp, sig, extra] = raw.split(".");
+  if (extra !== undefined || !exp || !sig || Number(exp) < Date.now()) return false;
   try {
-    if (!safeEqual(sig, sign(memberId ? `admin:${memberId}:${exp}` : `admin:${exp}`))) return false;
+    return safeEqual(sig, sign(`admin:${exp}`));
   } catch {
     return false;
   }
-  if (!memberId) return true;
-  // 권한을 빼거나 회원을 지우면 바로 막히도록 DB를 확인한다
-  const { rows } = await getPool().query("SELECT 1 FROM triplan.members WHERE id = $1 AND is_admin", [memberId]);
-  return rows.length > 0;
+}
+
+/** 관리자 또는 사용 권한 회원. 여행·위시리스트를 만들 수 있는 사람 */
+export type Actor = { kind: "admin" } | { kind: "user"; member: Member };
+
+export async function currentActor(): Promise<Actor | null> {
+  if (await isAdmin()) return { kind: "admin" };
+  const member = await currentUser();
+  return member ? { kind: "user", member } : null;
+}
+
+export async function requireActor(): Promise<Actor | Response> {
+  return (await currentActor()) ?? jsonError("unauthorized", 401);
+}
+
+/** 여행·위시리스트의 owner_id 값: 관리자는 null, 사용 회원은 자기 id */
+export function ownerOf(actor: Actor) {
+  return actor.kind === "user" ? actor.member.id : null;
 }
 
 /** 공유 토큰으로 여행 찾기 (공유 페이지 서버 컴포넌트용) */
@@ -153,44 +179,59 @@ export async function findTripByToken(token: string): Promise<{ tripId: string; 
 /** 요청자가 해당 여행에 갖는 권한. 없으면 null */
 export async function tripAccess(request: Request, tripId: string): Promise<Access | null> {
   if (await isAdmin()) return "admin";
-  // <img src>처럼 헤더를 못 붙이는 요청은 ?t= 쿼리로 토큰을 받는다
-  const token = request.headers.get(TOKEN_HEADER) ?? new URL(request.url).searchParams.get("t");
-  const { rows } = await getPool().query<{ edit_token: string; view_token: string; is_demo: boolean }>(
-    "SELECT edit_token, view_token, is_demo FROM triplan.trips WHERE id = $1",
-    [tripId]
+  const member = await currentMember();
+  const { rows } = await getPool().query<{
+    edit_token: string;
+    view_token: string;
+    is_demo: boolean;
+    owner_id: string | null;
+    invited: boolean;
+  }>(
+    `SELECT edit_token, view_token, is_demo, owner_id,
+            EXISTS (SELECT 1 FROM triplan.trip_members WHERE trip_id = t.id AND member_id = $2) AS invited
+       FROM triplan.trips t WHERE id = $1`,
+    [tripId, member?.id ?? null]
   );
   const row = rows[0];
   if (!row) return null;
+  // 사용 권한 회원은 자기 여행·초대받은 여행에 링크보다 높은 권한을 갖는다
+  if (member?.role === "user") {
+    if (row.owner_id === member.id) return "owner";
+    if (row.invited) return "edit";
+  }
+  // <img src>·EventSource처럼 헤더를 못 붙이는 요청은 ?t= 쿼리로 토큰을 받는다
+  const token = request.headers.get(TOKEN_HEADER) ?? new URL(request.url).searchParams.get("t");
   if (token) {
     if (safeEqual(row.edit_token, token)) return "edit";
     if (safeEqual(row.view_token, token)) return "view";
     return null;
   }
-  return row.is_demo && (await currentMember()) ? "view" : null;
+  return row.is_demo && member ? "view" : null;
 }
 
 /**
  * 무료 한도가 있는 외부 API(장소 검색·번역·환율) 사용 허용 여부.
- * 관리자와 공유 링크 소지자만. 체험 회원과 비로그인 방문자는 막는다.
+ * 관리자·사용 권한 회원·공유 링크 소지자만. 체험 회원과 비로그인 방문자는 막는다.
  */
 export async function canUseExternalApis(request: Request) {
-  if (await isAdmin()) return true;
+  if (await currentActor()) return true;
   const token = request.headers.get(TOKEN_HEADER);
   return token ? (await findTripByToken(token)) !== null : false;
 }
 
 /**
  * 권한 검사. 통과하면 Access, 아니면 그대로 반환할 에러 Response.
- * need="edit"이면 admin·edit만, "view"면 모두 통과.
+ * need="edit"이면 view 빼고, "manage"면 admin·owner만, "view"면 모두 통과.
  */
 export async function requireTrip(
   request: Request,
   tripId: string,
-  need: "view" | "edit"
+  need: "view" | "edit" | "manage"
 ): Promise<Access | Response> {
   const access = await tripAccess(request, tripId);
   if (!access) return jsonError("unauthorized", 401);
   if (need === "edit" && access === "view") return jsonError("read-only link", 403);
+  if (need === "manage" && !canManage(access)) return jsonError("only the trip owner can do this", 403);
   return access;
 }
 
@@ -210,9 +251,9 @@ export async function tripIdOf(
   return rows[0]?.trip_id ?? null;
 }
 
-/** 관리자가 아니면 공유 토큰 컬럼을 응답에서 뺀다 */
+/** 관리자·주인이 아니면 공유 토큰 컬럼을 응답에서 뺀다 */
 export function stripTokens<T extends Record<string, unknown>>(trip: T, access: Access): T {
-  if (access === "admin") return trip;
+  if (canManage(access)) return trip;
   const rest = { ...trip };
   delete rest.edit_token;
   delete rest.view_token;

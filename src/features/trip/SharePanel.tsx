@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Copy, Eye, PencilLine, RefreshCw, Share, Trash2 } from "lucide-react";
+import { Check, Copy, Eye, Loader2, PencilLine, RefreshCw, Share, Trash2, UserPlus, X } from "lucide-react";
 import type { Trip } from "@/lib/types";
-import { apiDelete, apiPatch, apiPost } from "@/lib/api";
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import Sheet from "@/features/ui/Sheet";
 
 type Kind = "edit" | "view";
@@ -27,7 +27,24 @@ const META: Record<Kind, { title: string; body: string; icon: typeof Eye; path: 
   },
 };
 
-export default function SharePanel({ open, onClose, trip }: { open: boolean; onClose: () => void; trip: Trip }) {
+interface Collaborator {
+  id: string;
+  username: string;
+  kind: "owner" | "invited";
+}
+
+/** 여행 주인·관리자용 공유 창: 회원 초대, 공유 링크, (관리자만) 체험 회원 공개, 삭제 */
+export default function SharePanel({
+  open,
+  onClose,
+  trip,
+  isAdmin,
+}: {
+  open: boolean;
+  onClose: () => void;
+  trip: Trip;
+  isAdmin: boolean;
+}) {
   const router = useRouter();
   const [tokens, setTokens] = useState({ edit: trip.edit_token ?? "", view: trip.view_token ?? "" });
   const [copied, setCopied] = useState<Kind | null>(null);
@@ -72,8 +89,9 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
 
   return (
     <Sheet open={open} onClose={onClose} title="여행 공유">
-      <p className="text-sm text-foreground/65">링크를 가진 사람은 로그인 없이 들어올 수 있어요.</p>
-      <div className="mt-4 space-y-3">
+      <InviteSection tripId={trip.id} open={open} />
+      <p className="mt-5 text-sm text-foreground/65">링크를 가진 사람은 로그인 없이 들어올 수 있어요.</p>
+      <div className="mt-3 space-y-3">
         {(Object.keys(META) as Kind[]).map((k) => {
           const { title, body, icon: Icon, tone } = META[k];
           return (
@@ -139,7 +157,7 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
         })}
       </div>
 
-      <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle p-4">
+      {isAdmin && <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle p-4">
         <input type="checkbox" checked={demo} onChange={() => void toggleDemo()} className="mt-1 h-4 w-4 accent-primary" />
         <span>
           <span className="font-bold">체험 회원에게 공개</span>
@@ -147,7 +165,7 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
             회원 관리에서 만든 체험 계정이 이 여행을 보기 전용으로 볼 수 있어요.
           </span>
         </span>
-      </label>
+      </label>}
 
       <div className="mt-6 border-t border-border-subtle pt-4">
         {confirming === "delete" ? (
@@ -172,5 +190,97 @@ export default function SharePanel({ open, onClose, trip }: { open: boolean; onC
         )}
       </div>
     </Sheet>
+  );
+}
+
+/** 사용 권한 회원을 아이디로 초대하면, 그 회원이 로그인해서 이 여행을 함께 편집한다 */
+function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
+  const [people, setPeople] = useState<Collaborator[] | null>(null);
+  const [username, setUsername] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    apiGet<Collaborator[]>(`/api/trips/${tripId}/members`)
+      .then(setPeople)
+      .catch(() => setPeople([]));
+  }, [tripId, open]);
+
+  async function invite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!username.trim() || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const p = await apiPost<Collaborator>(`/api/trips/${tripId}/members`, { username: username.trim() });
+      setPeople((list) => [...(list ?? []).filter((x) => x.id !== p.id), p]);
+      setUsername("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "초대하지 못했어요.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function uninvite(p: Collaborator) {
+    await apiDelete(`/api/trips/${tripId}/members?member_id=${p.id}`);
+    setPeople((list) => (list ?? []).filter((x) => x.id !== p.id));
+  }
+
+  return (
+    <section className="rounded-2xl border border-border-subtle p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
+          <UserPlus size={18} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="font-bold">회원 초대</h3>
+          <p className="mt-0.5 text-xs leading-relaxed text-foreground/65">
+            사용 권한 회원의 아이디를 넣으면, 그 회원이 로그인해서 같이 편집해요. 바뀐 내용은 서로의 화면에 바로 보여요.
+          </p>
+        </div>
+      </div>
+      <form onSubmit={invite} className="mt-3 flex gap-2">
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="회원 아이디"
+          autoComplete="off"
+          className="input flex-1"
+        />
+        <button
+          type="submit"
+          disabled={!username.trim() || saving}
+          className="btn btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-50"
+        >
+          {saving ? <Loader2 size={15} className="animate-spin" /> : "초대"}
+        </button>
+      </form>
+      {error && <p className="mt-2 text-xs font-medium text-accent">{error}</p>}
+      {people && people.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {people.map((p) => (
+            <li
+              key={p.id}
+              className="inline-flex items-center gap-1 rounded-full bg-surface-muted py-1 pl-3 pr-1.5 text-xs font-semibold"
+            >
+              {p.username}
+              {p.kind === "owner" ? (
+                <span className="px-1 text-foreground/55">주인</span>
+              ) : (
+                <button
+                  onClick={() => void uninvite(p)}
+                  aria-label={`${p.username} 초대 취소`}
+                  className="flex h-5 w-5 items-center justify-center rounded-full text-foreground/55 hover:bg-accent-soft hover:text-accent"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

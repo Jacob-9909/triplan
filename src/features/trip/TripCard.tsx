@@ -34,6 +34,11 @@ export default function TripCard({ trip, index = 0, href = `/trips/${trip.id}` }
           >
             {ddayLabel(trip)}
           </span>
+          {trip.access === "edit" && trip.owner_username && (
+            <span className="rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md">
+              {trip.owner_username}님이 초대
+            </span>
+          )}
         </div>
         <div className="absolute inset-x-0 bottom-0 p-4 text-white">
           <p className="text-xs font-semibold text-white/88">

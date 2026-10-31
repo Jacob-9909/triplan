@@ -1,22 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Shield, Trash2, UserPlus } from "lucide-react";
+import { Loader2, Repeat, Trash2, UserPlus } from "lucide-react";
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 
 interface Member {
   id: string;
   username: string;
-  is_admin: boolean;
+  role: "demo" | "user";
   created_at: string;
 }
 
-/** 회원 관리: 관리자가 정한 아이디/비밀번호만 로그인할 수 있다. 관리자 권한을 주면 관리자와 똑같이 쓴다 */
+/** 회원 관리: 관리자가 정한 아이디/비밀번호만 로그인할 수 있다. 관리자는 ADMIN_PASSWORD 한 명뿐 */
 export default function Members() {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [asAdmin, setAsAdmin] = useState(false);
+  const [asUser, setAsUser] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -35,12 +35,12 @@ export default function Members() {
       const m = await apiPost<Member>("/api/members", {
         username,
         password,
-        is_admin: asAdmin,
+        role: asUser ? "user" : "demo",
       });
       setMembers((list) => [m, ...(list ?? [])]);
       setUsername("");
       setPassword("");
-      setAsAdmin(false);
+      setAsUser(true);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "회원을 만들지 못했어요.");
     } finally {
@@ -48,9 +48,9 @@ export default function Members() {
     }
   }
 
-  async function toggleAdmin(m: Member) {
+  async function toggleRole(m: Member) {
     const updated = await apiPatch<Member>(`/api/members/${m.id}`, {
-      is_admin: !m.is_admin,
+      role: m.role === "user" ? "demo" : "user",
     });
     setMembers((list) => (list ?? []).map((x) => (x.id === m.id ? updated : x)));
   }
@@ -64,8 +64,9 @@ export default function Members() {
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
       <h1 className="text-2xl font-extrabold tracking-tight">회원 관리</h1>
       <p className="mt-1 text-sm text-foreground/65">
-        체험 회원은 공유 창에서 &lsquo;체험 회원에게 공개&rsquo;를 켠 여행만 보기 전용으로 볼 수 있어요. 장소
-        검색·번역·환율은 못 써요. 관리자 권한을 주면 여행·위시리스트·회원 관리까지 관리자와 똑같이 쓸 수 있어요.
+        <b>사용</b> 회원은 자기 여행과 가고 싶은 곳을 만들고, 다른 사용 회원을 여행에 초대해 함께 편집해요. 회원
+        관리는 못 해요. <b>체험</b> 회원은 공유 창에서 &lsquo;체험 회원에게 공개&rsquo;를 켠 여행만 보기 전용으로
+        보고, 장소 검색·번역·환율은 못 써요.
       </p>
 
       <form
@@ -102,11 +103,11 @@ export default function Members() {
         <label className="flex items-center gap-2 text-sm sm:col-span-3">
           <input
             type="checkbox"
-            checked={asAdmin}
-            onChange={(e) => setAsAdmin(e.target.checked)}
+            checked={asUser}
+            onChange={(e) => setAsUser(e.target.checked)}
             className="h-4 w-4 accent-primary"
           />
-          관리자 권한 주기
+          사용 권한 주기 (끄면 체험 계정)
         </label>
         {error && <p className="text-xs font-medium text-accent sm:col-span-3">{error}</p>}
       </form>
@@ -121,20 +122,20 @@ export default function Members() {
                 {m.username}
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                    m.is_admin ? "bg-primary-soft text-primary-strong" : "bg-surface-muted text-foreground/60"
+                    m.role === "user" ? "bg-primary-soft text-primary-strong" : "bg-surface-muted text-foreground/60"
                   }`}
                 >
-                  {m.is_admin ? "관리자" : "체험"}
+                  {m.role === "user" ? "사용" : "체험"}
                 </span>
               </p>
               <p className="text-xs text-foreground/60">{new Date(m.created_at).toLocaleDateString("ko-KR")} 생성</p>
             </div>
             <span className="flex items-center gap-1">
               <button
-                onClick={() => void toggleAdmin(m)}
+                onClick={() => void toggleRole(m)}
                 className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground/65 transition hover:bg-surface-muted hover:text-foreground"
               >
-                <Shield size={13} /> {m.is_admin ? "관리자 권한 빼기" : "관리자 권한 주기"}
+                <Repeat size={13} /> {m.role === "user" ? "체험으로 바꾸기" : "사용 권한 주기"}
               </button>
               <button
                 onClick={() => void remove(m)}

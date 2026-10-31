@@ -64,7 +64,12 @@ export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
   return parse<T>(res, `POST ${url}`);
 }
 
+/** 헤더를 못 붙이는 요청(<img src>, EventSource)용. 공유 링크면 "?t=<토큰>", 아니면 빈 문자열 */
+export function tokenQuery() {
+  return tripToken ? `?t=${encodeURIComponent(tripToken)}` : "";
+}
+
 /** <img src>용 사진 주소. 공유 링크면 토큰을 쿼리로 붙인다 */
 export function photoUrl(id: string) {
-  return `/api/point-photos/${id}${tripToken ? `?t=${encodeURIComponent(tripToken)}` : ""}`;
+  return `/api/point-photos/${id}${tokenQuery()}`;
 }

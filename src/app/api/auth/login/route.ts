@@ -8,7 +8,7 @@ const LOCK_MS = 15 * 60_000;
 // ponytail: 메모리 Map, VM 의 node 프로세스 하나 기준. 재시작하면 초기화되고, 인스턴스가 늘면 DB로 옮긴다.
 const fails = new Map<string, { count: number; lockedUntil: number }>();
 
-/** 아이디가 비었거나 admin이면 관리자 비밀번호, 아니면 관리자가 만든 체험 회원 */
+/** 아이디가 비었거나 admin이면 관리자 비밀번호, 아니면 관리자가 만든 회원(체험·사용) */
 export async function POST(request: Request) {
   if (!process.env.ADMIN_PASSWORD) return jsonError("ADMIN_PASSWORD is not configured", 503);
   const body = await request.json().catch(() => ({}));
@@ -39,12 +39,8 @@ export async function POST(request: Request) {
       const member = await checkMember(username, password);
       if (member) {
         fails.delete(key);
-        if (member.is_admin) {
-          await startAdminSession(member.id);
-          return Response.json({ ok: true, role: "admin" });
-        }
         await startMemberSession(member.id);
-        return Response.json({ ok: true, role: "member" });
+        return Response.json({ ok: true, role: member.role });
       }
     }
   }

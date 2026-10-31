@@ -25,16 +25,17 @@ A travel planner that starts from the places you dream about. Save places you wa
 
 ## Access Model
 
-There is no sign-up. One admin password protects everything, each trip carries two random tokens, and the admin can create demo accounts.
+There is no sign-up. One admin password protects everything, each trip carries two random tokens, and the admin creates member accounts (user or demo).
 
 | Who | How | Can do |
 |---|---|---|
-| Admin | Logs in with `ADMIN_PASSWORD` (HMAC-signed cookie) | Everything: trips, wishlist, share links, delete |
+| Admin | Logs in with only `ADMIN_PASSWORD` (HMAC-signed cookie). The only admin | Everything: all trips, own wishlist, share links, members, delete |
+| User account | Logs in with an ID and password the admin created on the Members page | Own trips and wishlist. Invites other users to a trip by ID; invited users edit it after logging in. Only the owner (or admin) manages links, invites, and deletion |
 | Edit link `/t/<token>` | Opens the link | Edit that one trip's pins, plan, budget, checklist, bookings |
 | View link `/v/<token>` | Opens the link | Read that one trip. Booking codes and links are removed by the API |
 | Demo account | Logs in with an ID and password the admin created on the Members page | Read trips the admin marked "Show to demo accounts" in the share sheet. No place search, translation, or exchange rates |
 
-Links can be regenerated at any time, which immediately disables the old one. Every API route checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
+Links can be regenerated at any time, which immediately disables the old one. Changes appear on everyone's open trip page within about a second (Postgres `NOTIFY` → Server-Sent Events), or every few seconds by polling if a proxy blocks the stream. Every API route checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
 
 ## How Korean Labels Work
 
