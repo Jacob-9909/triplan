@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -14,9 +15,11 @@ import {
   PencilLine,
   Plane,
   Share2,
+  LogOut,
+  Lock,
 } from "lucide-react";
 import type { Access, MapPoint, RouteLeg } from "@/lib/types";
-import { apiPatch, setTripToken } from "@/lib/api";
+import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
 import { useSyncStatus } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
@@ -60,7 +63,20 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
   if (inApp) setTripToken(null);
 
-  const { trip, points, legs, loading, notConfigured, setPoints, setLegs } = useTripData(tripId);
+  const { trip, points, legs, loading, notConfigured, revoked, setPoints, setLegs } = useTripData(tripId);
+  const router = useRouter();
+  const [leaving, setLeaving] = useState<"confirm" | "busy" | null>(null);
+
+  async function leaveTrip() {
+    setLeaving("busy");
+    try {
+      await apiDelete(`/api/trips/${tripId}/members?member_id=me`);
+      router.replace("/");
+      router.refresh();
+    } catch {
+      setLeaving(null);
+    }
+  }
   const access: Access = inApp ? (trip?.access ?? "view") : mode;
   const canEdit = access !== "view";
   const canManage = access === "admin" || access === "owner";
@@ -191,6 +207,28 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     }
   }
 
+  // 보고 있는 사이에 초대가 취소되거나, 링크가 바뀌거나, 여행이 지워진 경우
+  if (revoked) {
+    return (
+      <div className="mx-auto mt-24 max-w-sm px-6 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
+          <Lock size={26} />
+        </div>
+        <h2 className="mt-4 text-lg font-bold">이 여행에 더는 들어올 수 없어요</h2>
+        <p className="mt-2 text-sm text-foreground/65">
+          {inApp
+            ? "초대가 취소되었거나, 여행이 삭제되었거나, 계정 권한이 바뀌었어요."
+            : "링크가 새로 바뀌었거나 여행이 삭제되었어요. 링크를 보낸 사람에게 새 링크를 받아 주세요."}
+        </p>
+        {inApp && (
+          <Link href="/" className="btn btn-ghost mt-5 px-5 py-2.5 text-sm">
+            내 여행으로
+          </Link>
+        )}
+      </div>
+    );
+  }
+
   if (notConfigured) {
     return (
       <div className="mx-auto mt-24 max-w-sm px-6 text-center">
@@ -279,6 +317,29 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                   <PencilLine size={13} />
                   {trip.owner_username ? `${trip.owner_username}님의 여행` : "초대받은 여행"} · 함께 편집
                 </span>
+              )}
+              {inApp && access === "edit" && (
+                leaving === "confirm" ? (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
+                    나갈까요?
+                    <button onClick={() => void leaveTrip()} className="font-bold text-orange-300">
+                      나가기
+                    </button>
+                    <button onClick={() => setLeaving(null)} className="text-white/75">
+                      취소
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setLeaving("confirm")}
+                    disabled={leaving === "busy"}
+                    aria-label="이 여행에서 나가기"
+                    title="이 여행에서 나가기"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 backdrop-blur-md transition hover:bg-black/40 disabled:opacity-50"
+                  >
+                    <LogOut size={15} />
+                  </button>
+                )
               )}
             </span>
           </div>

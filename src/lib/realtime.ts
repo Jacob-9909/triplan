@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { apiGet, tokenQuery } from "@/lib/api";
+import { ApiError, apiGet, tokenQuery } from "@/lib/api";
 
 /**
  * 실시간 반영 (클라이언트 쪽).
@@ -17,7 +17,9 @@ export type ChangeTable =
   | "expenses"
   | "checklist_items"
   | "travel_docs"
-  | "point_photos";
+  | "point_photos"
+  /** 초대·여행 삭제·회원 권한/비밀번호 변경처럼 접근 권한이 바뀌었을 수 있음 */
+  | "access";
 
 /** live: SSE 연결됨, polling: 몇 초마다 확인, offline: 연결 안 됨 */
 export type SyncStatus = "connecting" | "live" | "polling" | "offline";
@@ -149,7 +151,9 @@ class TripChannel {
       const { rev } = await apiGet<{ rev: number }>(`/api/trips/${this.tripId}/rev`);
       this.noteRev(rev);
       if (this.status !== "polling") this.setStatus("polling");
-    } catch {
+    } catch (err) {
+      // 권한이 없어졌으면 화면이 다시 불러오다가 알아채도록 알린다
+      if (err instanceof ApiError && [401, 403, 404].includes(err.status)) this.emit("access");
       this.setStatus("offline");
     }
   }
