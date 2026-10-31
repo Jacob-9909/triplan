@@ -1,15 +1,15 @@
 import { getPool, jsonError, UUID_RE } from "@/lib/db";
-import { newToken, requireAdmin } from "@/lib/auth";
+import { newToken, requireTrip } from "@/lib/auth";
 
 /**
- * 공유 링크 재발급 (관리자 전용). 이전 링크는 즉시 무효가 된다.
+ * 공유 링크 재발급 (관리자·주인). 이전 링크는 즉시 무효가 된다.
  * body: { kind: "edit" | "view" | "both" }
  */
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID_RE.test(id)) return jsonError("invalid id", 400);
-  const denied = await requireAdmin();
-  if (denied) return denied;
+  const access = await requireTrip(request, id, "manage");
+  if (access instanceof Response) return access;
   try {
     const { kind = "both" } = await request.json().catch(() => ({}));
     const sets: string[] = [];

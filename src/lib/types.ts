@@ -21,15 +21,22 @@ export interface Trip {
   created_at: string;
   /** 체험 회원에게 보기 전용으로 공개 */
   is_demo?: boolean;
-  /** 공유 토큰: 관리자 응답에만 포함 */
+  /** 만든 회원. null 이면 관리자 여행 */
+  owner_id?: string | null;
+  /** 목록 응답에 붙는 주인 아이디 */
+  owner_username?: string | null;
+  /** 공유 토큰: 관리자·주인 응답에만 포함 */
   edit_token?: string;
   view_token?: string;
   /** GET /api/trips/[id] 응답에 붙는 요청자 권한 */
   access?: Access;
 }
 
-/** admin: 비밀번호 로그인, edit: 편집 링크, view: 보기 링크 */
-export type Access = "admin" | "edit" | "view";
+/** admin: 관리자, owner: 여행을 만든 회원, edit: 초대된 회원·편집 링크, view: 보기 링크·체험 회원 */
+export type Access = "admin" | "owner" | "edit" | "view";
+
+/** 화면 틀(AppShell)에서 쓰는 로그인 종류 */
+export type ShellRole = "admin" | "user" | "demo";
 
 /** 언젠가 가고 싶은 곳 (날짜 없음) */
 export interface WishlistPlace {

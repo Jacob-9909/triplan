@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { MapPoint, RouteLeg, Trip } from "@/lib/types";
+import { useTripChanges } from "@/lib/realtime";
 
 export function useTripData(tripId: string) {
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -63,6 +64,21 @@ export function useTripData(tripId: string) {
       cancelled = true;
     };
   }, [tripId]);
+
+  // 다른 사람이 바꾸면 화면 깜빡임 없이 조용히 다시 불러온다. 실패하면 지금 화면을 그대로 둔다
+  useTripChanges(tripId, ["trips", "map_points", "route_legs"], () => {
+    void Promise.all([
+      apiGet<Trip>(`/api/trips/${tripId}`),
+      apiGet<MapPoint[]>(`/api/map-points?trip_id=${tripId}`),
+      apiGet<RouteLeg[]>(`/api/route-legs?trip_id=${tripId}`),
+    ])
+      .then(([t, p, l]) => {
+        setTrip(t);
+        setPoints(p);
+        setLegs(l);
+      })
+      .catch(() => null);
+  });
 
   return { trip, points, legs, loading, notConfigured, setPoints, setLegs, refresh };
 }

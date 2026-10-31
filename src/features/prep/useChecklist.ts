@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { ChecklistItem } from "@/lib/types";
+import { useTripChanges } from "@/lib/realtime";
 
 export function useChecklist(tripId: string) {
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -36,6 +37,8 @@ export function useChecklist(tripId: string) {
       cancelled = true;
     };
   }, [fetchAll]);
+
+  useTripChanges(tripId, ["checklist_items"], () => void fetchAll((data) => setItems(data)));
 
   /** 새로고침 (명시적 호출용) */
   const refresh = useCallback(async () => {

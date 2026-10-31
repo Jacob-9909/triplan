@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { Access, MapPoint, RouteLeg } from "@/lib/types";
 import { apiPatch, setTripToken } from "@/lib/api";
+import { useSyncStatus } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
@@ -50,12 +51,20 @@ const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
   { id: "prep", label: "준비", icon: Luggage },
 ];
 
+/**
+ * mode="admin": 로그인한 관리자·사용 회원 화면 (실제 권한은 API가 돌려준 trip.access 로 정한다)
+ * mode="edit" | "view": 공유 링크·체험 회원 화면
+ */
 export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: Access }) {
-  // 관리자 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
-  if (mode === "admin") setTripToken(null);
-  const canEdit = mode !== "view";
+  const inApp = mode === "admin";
+  // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
+  if (inApp) setTripToken(null);
 
   const { trip, points, legs, loading, notConfigured, setPoints, setLegs } = useTripData(tripId);
+  const access: Access = inApp ? (trip?.access ?? "view") : mode;
+  const canEdit = access !== "view";
+  const canManage = access === "admin" || access === "owner";
+  const sync = useSyncStatus(tripId);
   const { expenses } = useExpenses(tripId);
   const [tab, setTab] = useState<Tab>("plan");
   const [day, setDay] = useState(1);
@@ -190,9 +199,11 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         </div>
         <h2 className="mt-4 text-lg font-bold">여행을 열 수 없어요</h2>
         <p className="mt-2 text-sm text-foreground/65">
-          삭제되었거나 링크가 바뀌었을 수 있어요. {mode === "admin" ? "" : "링크를 보낸 사람에게 새 링크를 받아 주세요."}
+          {inApp
+            ? "삭제되었거나 초대가 취소되었을 수 있어요."
+            : "삭제되었거나 링크가 바뀌었을 수 있어요. 링크를 보낸 사람에게 새 링크를 받아 주세요."}
         </p>
-        {mode === "admin" && (
+        {inApp && (
           <Link href="/" className="btn btn-ghost mt-5 px-5 py-2.5 text-sm">
             내 여행으로
           </Link>
@@ -226,7 +237,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       : getTripCenter(trip.country, trip.region);
 
   return (
-    <div className={mode === "admin" ? "" : "min-h-dvh pb-16"}>
+    <div className={inApp ? "" : "min-h-dvh pb-16"}>
       {/* 사진 헤더 */}
       <header className="relative isolate overflow-hidden bg-slate-300 text-white md:mx-auto md:mt-6 md:max-w-6xl md:rounded-[1.75rem]">
         <motion.div
@@ -239,7 +250,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         </motion.div>
         <div className="flex min-h-56 flex-col justify-between p-4 pt-[max(1rem,env(safe-area-inset-top))] md:min-h-72 md:p-8">
           <div className="flex items-center justify-between gap-2">
-            {mode === "admin" ? (
+            {inApp ? (
               <Link
                 href="/"
                 aria-label="내 여행으로"
@@ -253,14 +264,23 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                 {mode === "edit" ? "공유받은 여행 · 함께 편집 중" : "공유받은 여행 · 보기 전용"}
               </span>
             )}
-            {mode === "admin" && (
-              <button
-                onClick={() => setShareOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-lift transition active:scale-95"
-              >
-                <Share2 size={15} /> 공유
-              </button>
-            )}
+            <span className="ml-auto flex items-center gap-2">
+              <SyncBadge status={sync} />
+              {inApp && canManage && (
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-lift transition active:scale-95"
+                >
+                  <Share2 size={15} /> 공유
+                </button>
+              )}
+              {inApp && access === "edit" && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
+                  <PencilLine size={13} />
+                  {trip.owner_username ? `${trip.owner_username}님의 여행` : "초대받은 여행"} · 함께 편집
+                </span>
+              )}
+            </span>
           </div>
           <div>
             <span
@@ -415,7 +435,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         />
       )}
 
-      {mode === "admin" && <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} />}
+      {inApp && canManage && (
+        <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} isAdmin={access === "admin"} />
+      )}
 
       <PlaceDetail point={detailPoint} canEdit={canEdit} onClose={() => setDetailId(null)} onSave={savePoint} />
 
@@ -605,5 +627,24 @@ function LegSheetBody({
         완료
       </button>
     </div>
+  );
+}
+
+/** 실시간 연결 상태. live 면 다른 사람의 변경이 바로, polling 이면 몇 초 안에 반영된다 */
+function SyncBadge({ status }: { status: ReturnType<typeof useSyncStatus> }) {
+  const meta = {
+    live: { dot: "bg-mint", label: "실시간 반영 중" },
+    polling: { dot: "bg-amber-400", label: "몇 초마다 반영" },
+    connecting: { dot: "bg-white/70 animate-pulse", label: "연결 중" },
+    offline: { dot: "bg-accent", label: "연결 끊김" },
+  }[status];
+  return (
+    <span
+      title={meta.label}
+      className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur-md"
+    >
+      <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+      <span className="hidden sm:inline">{meta.label}</span>
+    </span>
   );
 }

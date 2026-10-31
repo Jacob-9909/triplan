@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { isAdmin } from "@/lib/auth";
+import { currentActor } from "@/lib/auth";
 import AppShell from "@/features/shell/AppShell";
 
-/** 관리자 전용 영역: 로그인하지 않았으면 로그인 화면으로 */
-export default async function AdminLayout({ children }: LayoutProps<"/">) {
-  if (!(await isAdmin())) redirect("/login");
-  return <AppShell>{children}</AppShell>;
+/** 로그인한 관리자·사용 회원 영역 (회원 관리는 페이지에서 관리자만 다시 확인한다) */
+export default async function AppLayout({ children }: LayoutProps<"/">) {
+  const actor = await currentActor();
+  if (!actor) redirect("/login");
+  return <AppShell role={actor.kind}>{children}</AppShell>;
 }

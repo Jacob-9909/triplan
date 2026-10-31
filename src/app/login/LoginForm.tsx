@@ -47,7 +47,7 @@ export default function LoginForm() {
       >
         <Logo />
         <h1 className="mt-6 text-2xl font-extrabold tracking-tight">다시 떠날 준비, 되셨나요?</h1>
-        <p className="mt-1.5 text-sm text-foreground/72">관리자는 비밀번호만, 체험 계정은 아이디와 비밀번호로 들어와요.</p>
+        <p className="mt-1.5 text-sm text-foreground/72">관리자는 비밀번호만, 회원은 아이디와 비밀번호로 들어와요.</p>
         <label className="mt-6 block">
           <span className="sr-only">아이디</span>
           <div className="relative">

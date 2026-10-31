@@ -5,8 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Heart, Home, LogOut, Plus, Users } from "lucide-react";
 import type { ReactNode } from "react";
+import type { ShellRole } from "@/lib/types";
 
-const NAV = [
+const ALL_NAV = [
   { href: "/", label: "홈", icon: Home },
   { href: "/wishlist", label: "가고 싶은 곳", icon: Heart },
   { href: "/members", label: "회원", icon: Users },
@@ -26,10 +27,15 @@ export function Logo({ className = "" }: { className?: string }) {
   );
 }
 
-/** 관리자 화면 공통 틀: 데스크톱 상단 바 + 모바일 하단 탭바. member면 메뉴 없이 로고와 로그아웃만 */
-export default function AppShell({ children, member = false }: { children: ReactNode; member?: boolean }) {
+/**
+ * 로그인 화면 공통 틀: 데스크톱 상단 바 + 모바일 하단 탭바.
+ * admin 은 회원 메뉴까지, user 는 회원 메뉴 없이, demo 는 메뉴 없이 로고와 로그아웃만
+ */
+export default function AppShell({ children, role }: { children: ReactNode; role: ShellRole }) {
   const pathname = usePathname();
   const router = useRouter();
+  const member = role === "demo";
+  const NAV = role === "admin" ? ALL_NAV : ALL_NAV.filter((n) => n.href !== "/members");
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -111,7 +117,9 @@ export default function AppShell({ children, member = false }: { children: React
         aria-label="주요 메뉴"
         className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-        <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-4 items-center">
+        <div
+          className={`mx-auto grid h-[var(--nav-height)] max-w-md items-center ${NAV.length === 3 ? "grid-cols-4" : "grid-cols-3"}`}
+        >
           {NAV.slice(0, 1).map((item) => (
             <TabItem key={item.href} {...item} active={isActive(pathname, item.href)} />
           ))}

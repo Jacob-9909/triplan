@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Expense } from "@/lib/types";
 import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
+import { useTripChanges } from "@/lib/realtime";
 
 /** Expense에서 서버 생성 필드를 제외한 입력 타입 */
 export interface ExpenseInput {
@@ -65,6 +66,12 @@ export function useExpenses(tripId: string) {
       cancelled = true;
     };
   }, [tripId, fetchAll]);
+
+  useTripChanges(tripId, ["expenses"], () => {
+    void fetchAll((data, err) => {
+      if (!err) setExpenses(data);
+    });
+  });
 
   /** 새로고침 (명시적 호출용) */
   const refresh = useCallback(async () => {

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiPost, apiDelete } from "@/lib/api";
 import type { TravelDoc } from "@/lib/types";
+import { useTripChanges } from "@/lib/realtime";
 
 export type TravelDocInput = Omit<
   TravelDoc,
@@ -43,6 +44,8 @@ export function useTravelDocs(tripId: string) {
       cancelled = true;
     };
   }, [fetchAll]);
+
+  useTripChanges(tripId, ["travel_docs"], () => void fetchAll((data) => setDocs(data)));
 
   /** 새로고침 (명시적 호출용) */
   const refresh = useCallback(async () => {

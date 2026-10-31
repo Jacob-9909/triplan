@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ExternalLink, ImagePlus, Link2, Loader2, Trash2, X } from "lucide-react";
 import type { MapPoint, PointPhoto } from "@/lib/types";
 import { apiDelete, apiGet, apiUpload, photoUrl } from "@/lib/api";
+import { useTripChanges } from "@/lib/realtime";
 import { categoryStyle, PointBadge } from "@/features/map/pointStyle";
 import StylePicker from "@/features/map/StylePicker";
 import { DEFAULT_STAY, formatDuration } from "@/features/route/schedule";
@@ -95,6 +96,12 @@ function Body({
       .then(setPhotos)
       .catch(() => setPhotos([]));
   }, [point.id]);
+
+  useTripChanges(point.trip_id, ["point_photos"], () => {
+    apiGet<PointPhoto[]>(`/api/point-photos?point_id=${point.id}`)
+      .then(setPhotos)
+      .catch(() => null);
+  });
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
