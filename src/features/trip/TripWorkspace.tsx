@@ -12,6 +12,7 @@ import {
   Luggage,
   MapPin,
   MousePointerClick,
+  NotebookPen,
   PencilLine,
   Plane,
   Share2,
@@ -30,7 +31,7 @@ import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
 import DaySummary from "@/features/route/DaySummary";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
-import { formatDuration } from "@/features/route/schedule";
+import { adjacentLegs, formatDuration } from "@/features/route/schedule";
 import { METHOD_META } from "@/features/route/meta";
 import { PointBadge } from "@/features/map/pointStyle";
 import MoneyInput from "@/features/ui/MoneyInput";
@@ -45,13 +46,15 @@ import DocsPanel from "@/features/prep/DocsPanel";
 import CoverPhoto from "@/features/ui/CoverPhoto";
 import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
 import SharePanel from "./SharePanel";
+import RecordTab from "@/features/archive/RecordTab";
 
-type Tab = "plan" | "expenses" | "prep";
+type Tab = "plan" | "expenses" | "prep" | "record";
 
 const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
   { id: "plan", label: "일정", icon: MapPin },
   { id: "expenses", label: "가계부", icon: Banknote },
   { id: "prep", label: "준비", icon: Luggage },
+  { id: "record", label: "기록", icon: NotebookPen },
 ];
 
 /**
@@ -82,7 +85,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const canManage = access === "admin" || access === "owner";
   const sync = useSyncStatus(tripId);
   const { expenses } = useExpenses(tripId);
-  const [tab, setTab] = useState<Tab>("plan");
+  /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
+  const [pickedTab, setTab] = useState<Tab | null>(null);
   const [day, setDay] = useState(1);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
@@ -97,15 +101,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         .sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99)),
     [points, day]
   );
-  // 지금 순서에서 바로 이웃한 장소 사이의 구간만 쓴다 (순서를 바꾸면 예전 구간은 합계에서 빠진다)
-  const dayLegs = useMemo(() => {
-    const out: RouteLeg[] = [];
-    for (let i = 0; i < dayPoints.length - 1; i++) {
-      const leg = legs.find((l) => l.from_point_id === dayPoints[i].id && l.to_point_id === dayPoints[i + 1].id);
-      if (leg) out.push(leg);
-    }
-    return out;
-  }, [legs, dayPoints]);
+  const dayLegs = useMemo(() => adjacentLegs(dayPoints, legs), [legs, dayPoints]);
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [legEditId, setLegEditId] = useState<string | null>(null);
@@ -265,6 +261,10 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   }
 
   const phase = tripPhase(trip);
+  // 기록은 여행 중이거나 다녀온 뒤에만
+  const hasRecord = phase.phase === "ongoing" || phase.phase === "past";
+  const tabs = hasRecord ? TABS : TABS.filter((t) => t.id !== "record");
+  const tab: Tab = pickedTab && tabs.some((t) => t.id === pickedTab) ? pickedTab : phase.phase === "past" ? "record" : "plan";
   const stay = stayLabel(trip);
   const mapCenter =
     dayPoints.length > 0
@@ -369,11 +369,11 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       {/* 탭 */}
       <div className="glass sticky top-0 z-30 border-b border-border-subtle md:top-16 md:border-none md:bg-transparent md:backdrop-blur-none">
         <nav className="mx-auto flex max-w-6xl gap-1 px-4 py-2 md:px-0 md:py-4">
-          {TABS.map(({ id, label, icon: Icon }) => (
+          {tabs.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors md:flex-none md:px-5 ${
+              className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-full px-2 py-2.5 text-sm font-semibold transition-colors md:flex-none md:px-5 ${
                 tab === id ? "text-white" : "text-foreground/65 hover:text-foreground"
               }`}
             >
@@ -470,6 +470,17 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
 
             {tab === "expenses" && (
               <ExpensesTab tripId={tripId} day={day} canEdit={canEdit} startDate={trip.start_date} endDate={trip.end_date} />
+            )}
+
+            {tab === "record" && (
+              <RecordTab
+                trip={trip}
+                points={points}
+                legs={legs}
+                expenses={expenses}
+                canEdit={canEdit}
+                onSavePoint={savePoint}
+              />
             )}
 
             {tab === "prep" && (

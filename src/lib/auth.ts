@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { getPool, jsonError, UUID_RE } from "@/lib/db";
+import type { ChildTable } from "@/lib/crud";
 
 /**
  * 접근 제어
@@ -277,7 +278,7 @@ export async function requireAdmin(): Promise<Response | null> {
 
 /** [id] 라우트용: 하위 테이블 행의 trip_id 조회 */
 export async function tripIdOf(
-  table: "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos",
+  table: ChildTable,
   id: string
 ): Promise<string | null> {
   const { rows } = await getPool().query<{ trip_id: string }>(

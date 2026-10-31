@@ -20,6 +20,8 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
 | Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
 | Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges |
+| Trip journal | Once a trip starts, a **Record** tab adds a daily journal with weather and mood, star ratings and one-line reviews for each stop, and trip stats (places, distance, spending). Finished trips open on this tab |
+| Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
 | Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA |
 
