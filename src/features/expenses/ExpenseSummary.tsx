@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import { Wallet } from "lucide-react";
+import { useMemo, useState } from "react";
+import { differenceInCalendarDays, parseISO } from "date-fns";
+import { PiggyBank, Wallet } from "lucide-react";
+import MoneyInput from "@/features/ui/MoneyInput";
 import type { Expense } from "@/lib/types";
 import { CATEGORIES, currencySymbol, formatMoney } from "./categories";
 
@@ -10,12 +12,17 @@ interface ExpenseSummaryProps {
   /** 여행 기간 — Day 추이 계산에 사용 */
   startDate?: string | null;
   endDate?: string | null;
+  budgetKrw?: number | null;
+  /** 없으면 예산을 바꿀 수 없다 */
+  onBudgetChange?: (krw: number | null) => void;
 }
 
 export default function ExpenseSummary({
   expenses,
   startDate,
   endDate,
+  budgetKrw = null,
+  onBudgetChange,
 }: ExpenseSummaryProps) {
   const { totalKrw, localTotals, byCategory, byDay, avgDaily, daysCount } =
     useMemo(() => {
@@ -97,6 +104,13 @@ export default function ExpenseSummary({
             </>
           )}
         </p>
+        <Budget
+          spentKrw={totalKrw}
+          budgetKrw={budgetKrw}
+          startDate={startDate}
+          endDate={endDate}
+          onChange={onBudgetChange}
+        />
       </div>
 
       {/* 카테고리별 지출 막대 */}
@@ -146,6 +160,118 @@ export default function ExpenseSummary({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 예산 대비 지출. 여행이 안 끝났으면 남은 날 하루에 쓸 수 있는 돈도 */
+function Budget({
+  spentKrw,
+  budgetKrw,
+  startDate,
+  endDate,
+  onChange,
+}: {
+  spentKrw: number;
+  budgetKrw: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  onChange?: (krw: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<number | null>(budgetKrw);
+
+  if (editing && onChange) {
+    return (
+      <div className="mt-4 space-y-2 border-t border-[var(--border-subtle)] pt-4">
+        <p className="text-xs font-semibold text-foreground/68">여행 예산</p>
+        <MoneyInput value={draft} onChange={setDraft} placeholder="예산" />
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={() => setEditing(false)} className="px-3 py-2 text-sm font-medium text-foreground/68">
+            취소
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              onChange(draft);
+              setEditing(false);
+            }}
+            className="btn btn-primary px-4 text-sm"
+          >
+            저장
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!budgetKrw) {
+    return onChange ? (
+      <button
+        type="button"
+        onClick={() => {
+          setDraft(null);
+          setEditing(true);
+        }}
+        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-primary-strong)]"
+      >
+        <PiggyBank size={14} /> 예산 정하기
+      </button>
+    ) : null;
+  }
+
+  const left = budgetKrw - spentKrw;
+  const ratio = Math.min(1, spentKrw / budgetKrw);
+  // 오늘을 포함한 남은 날 (여행 전이면 전체 일수, 끝났으면 0)
+  const today = new Date();
+  const days =
+    startDate && endDate
+      ? Math.max(0, differenceInCalendarDays(parseISO(endDate), today) + 1) -
+        Math.max(0, differenceInCalendarDays(parseISO(startDate), today))
+      : 0;
+
+  return (
+    <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
+      <div className="flex items-center justify-between text-xs font-semibold text-foreground/68">
+        <span className="inline-flex items-center gap-1.5">
+          <PiggyBank size={14} /> 예산 ₩{budgetKrw.toLocaleString("ko-KR")}
+        </span>
+        {onChange && (
+          <button
+            type="button"
+            onClick={() => {
+              setDraft(budgetKrw);
+              setEditing(true);
+            }}
+            className="text-[var(--color-primary-strong)]"
+          >
+            바꾸기
+          </button>
+        )}
+      </div>
+      <div
+        role="progressbar"
+        aria-label="예산 사용"
+        aria-valuenow={Math.round(ratio * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--surface-muted)]"
+      >
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${left < 0 ? "bg-[var(--color-accent)]" : "bg-[var(--color-mint)]"}`}
+          style={{ width: `${Math.round(ratio * 100)}%` }}
+        />
+      </div>
+      <p className="mt-1.5 text-xs tabular-nums text-foreground/72">
+        {left >= 0 ? (
+          <>
+            ₩{left.toLocaleString("ko-KR")} 남음
+            {days > 0 && ` · 남은 ${days}일 동안 하루 ₩${Math.floor(left / days).toLocaleString("ko-KR")}`}
+          </>
+        ) : (
+          <span className="font-semibold text-[var(--color-accent)]">₩{(-left).toLocaleString("ko-KR")} 초과</span>
+        )}
+      </p>
     </div>
   );
 }

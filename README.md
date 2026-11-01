@@ -20,6 +20,9 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
 | Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
 | Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges |
+| Splitting costs and budget | Add travel companions, pick who paid and who shares each expense, and get the fewest transfers that settle up ("A sends B ₩32,000"). Set a trip budget to see what's left and how much you can spend per remaining day |
+| Today mode | During a trip, the plan opens on today. A card shows where you should be now or the next stop with its ETA, and a **Directions** button opens Kakao Map in Korea or Google Maps elsewhere |
+| Weather and local info | Day tabs show the Open-Meteo forecast (no API key) from 16 days out. The prep tab shows the time difference and local time, plug type and voltage (with an adapter warning), emergency numbers, and tipping customs |
 | Trip journal | Once a trip starts, a **Record** tab adds a daily journal with weather and mood, star ratings and one-line reviews for each stop, and trip stats (places, distance, spending). Finished trips open on this tab |
 | Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |

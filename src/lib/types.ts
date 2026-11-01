@@ -30,6 +30,10 @@ export interface Trip {
   view_token?: string;
   /** GET /api/trips/[id] 응답에 붙는 요청자 권한 */
   access?: Access;
+  /** 여행 예산(원화) */
+  budget_krw?: number | null;
+  /** 정산에 쓰는 동행자 이름 */
+  travelers?: string[];
 }
 
 /** admin: 관리자, owner: 여행을 만든 회원, edit: 초대된 회원·편집 링크, view: 보기 링크·체험 회원 */
@@ -138,6 +142,10 @@ export interface Expense {
   exchange_rate_krw: number; // 1 단위당 원화
   amount_krw: number;
   spent_at: string | null;
+  /** 낸 사람 (trip.travelers 중 하나) */
+  paid_by?: string | null;
+  /** 나눌 사람. null 이면 동행자 전원 */
+  split_with?: string[] | null;
   created_at: string;
 }
 

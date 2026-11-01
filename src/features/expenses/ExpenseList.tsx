@@ -82,6 +82,7 @@ export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListP
                       <p className="mt-0.5 text-xs text-foreground/68">
                         {meta.label}
                         {e.day_number != null && ` · Day ${e.day_number}`}
+                        {e.paid_by && ` · ${e.paid_by} 결제`}
                         {e.exchange_rate_krw > 0 &&
                           ` · 1${e.currency_code} = ₩${e.exchange_rate_krw.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}`}
                       </p>

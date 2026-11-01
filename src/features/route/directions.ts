@@ -56,3 +56,11 @@ export function estimateDirections(from: LatLng, to: LatLng, method: LegMethod):
   const durationMin = Math.max(1, Math.round((distanceKm / speed) * 60));
   return { durationMin, distanceKm, source: "estimate" };
 }
+
+/** 지도 앱 길찾기 링크: 한국 안은 카카오맵, 밖은 구글 지도. 출발지는 앱이 현재 위치로 잡는다 */
+export function directionsUrl(p: LatLng & { name: string }): string {
+  const inKorea = p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131;
+  return inKorea
+    ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
+    : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+}

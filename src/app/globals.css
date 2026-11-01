@@ -127,10 +127,9 @@ body {
   box-shadow: var(--shadow-lift);
 }
 
+/* 상단·하단 고정 바. 반투명이면 스크롤한 글자가 비쳐 읽기 어려워 불투명으로 둔다 */
 .glass {
-  background: color-mix(in srgb, var(--background) 82%, transparent);
-  backdrop-filter: saturate(1.6) blur(18px);
-  -webkit-backdrop-filter: saturate(1.6) blur(18px);
+  background: var(--background);
 }
 
 .btn {

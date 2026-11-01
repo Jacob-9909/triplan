@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, ImagePlus, Link2, Loader2, Trash2, X } from "lucide-react";
+import { ExternalLink, ImagePlus, Link2, Loader2, Navigation, Trash2, X } from "lucide-react";
 import type { MapPoint, PointPhoto } from "@/lib/types";
 import { apiDelete, apiGet, apiUpload, photoUrl } from "@/lib/api";
 import { useTripChanges } from "@/lib/realtime";
 import { categoryStyle, PointBadge } from "@/features/map/pointStyle";
 import StylePicker from "@/features/map/StylePicker";
 import { DEFAULT_STAY, formatDuration } from "@/features/route/schedule";
+import { directionsUrl } from "@/features/route/directions";
 
 export type PointPatch = Partial<
   Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min" | "rating" | "review">
@@ -292,7 +293,17 @@ function Body({
 
       {/* 링크 */}
       <section>
-        <h3 className="mb-2 text-sm font-bold">링크</h3>
+        <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
+          링크
+          <a
+            href={directionsUrl(point)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-white"
+          >
+            <Navigation size={12} /> 길찾기
+          </a>
+        </h3>
         {canEdit ? (
           <div className="flex gap-2">
             <div className="relative flex-1">
