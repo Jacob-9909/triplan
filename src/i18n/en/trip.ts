@@ -199,6 +199,16 @@ const en: Record<string, string> = {
   "네이버지도": "Naver Map",
   "구글지도": "Google Maps",
   "지도를 표시할 수 없어요": "Can't show the map",
+
+  // 후보함 · 동선 정리
+  "후보함": "Maybe list",
+  "후보함이 비어 있어요": "Your maybe list is empty",
+  "어느 날 갈지 아직 모르는 곳을 여기 모아 두고, 장소를 눌러 Day로 옮기세요": "Keep places you haven't scheduled here, then tap one to move it to a day",
+  "되돌리기": "Undo",
+  "이동 거리가 짧은 순서로 다시 줄 세워요. 첫 장소는 그대로 둬요": "Reorder stops to shorten the route. The first stop stays put",
+  "이미 가장 짧은 순서예요": "Already the shortest order",
+  "동선 정리": "Optimize route",
+  "어느 날 갈까요": "Which day?",
 };
 
 export default en;

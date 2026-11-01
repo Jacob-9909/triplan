@@ -26,7 +26,8 @@ import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg 
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
-import DayTabs from "@/features/route/DayTabs";
+import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
+import { optimizeOrder } from "@/features/route/optimize";
 import ItineraryList from "@/features/route/ItineraryList";
 import RouteTimeline from "@/features/route/RouteTimeline";
 import DaySummary from "@/features/route/DaySummary";
@@ -44,7 +45,7 @@ import { useExpenses } from "@/features/expenses/useExpenses";
 import ChecklistPanel from "@/features/prep/ChecklistPanel";
 import DocsPanel from "@/features/prep/DocsPanel";
 import CoverPhoto from "@/features/ui/CoverPhoto";
-import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
+import { ddayLabel, formatRange, nights, stayLabel, tripPhase } from "@/features/ui/dates";
 import SharePanel from "./SharePanel";
 import RecordTab from "@/features/archive/RecordTab";
 import NowCard from "@/features/route/NowCard";
@@ -107,14 +108,18 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
 
-  const dayPoints = useMemo(
-    () =>
-      points
-        .filter((p) => p.day_number === day)
-        .sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99)),
-    [points, day]
-  );
-  const dayLegs = useMemo(() => adjacentLegs(dayPoints, legs), [legs, dayPoints]);
+  /** 후보함(BIN_DAY)이면 아직 Day 를 정하지 않은 장소 */
+  const inBin = day === BIN_DAY;
+  const pointsOf = (d: number | null) =>
+    points.filter((p) => p.day_number === d).sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99));
+  const dayPoints = useMemo(() => pointsOf(inBin ? null : day), [points, day, inBin]); // eslint-disable-line react-hooks/exhaustive-deps
+  // 후보함은 순서가 없으니 이동 구간도 없다
+  const dayLegs = useMemo(() => (inBin ? [] : adjacentLegs(dayPoints, legs)), [legs, dayPoints, inBin]);
+  const binCount = points.filter((p) => p.day_number == null).length;
+  const tripDays = trip ? (nights(trip) ?? -1) + 1 : 0;
+  /** 동선 정리 직후 되돌리기용: 정리 전·후 순서 */
+  const [undo, setUndo] = useState<{ day: number; before: string[]; after: string[] } | null>(null);
+  const canUndo = undo?.day === day && undo.after.join() === dayPoints.map((p) => p.id).join();
 
   const [detailId, setDetailId] = useState<string | null>(null);
   const [legEditId, setLegEditId] = useState<string | null>(null);
@@ -188,6 +193,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       })
     );
     await persistOrder(tripId, orderedIds);
+    if (inBin) return;
     // 순서가 바뀐 인접 구간의 leg 확보
     const updated: typeof legs = [...legs];
     for (let i = 0; i < orderedIds.length - 1; i++) {
@@ -197,13 +203,47 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     setLegs(updated);
   }
 
+  /** 이동 거리가 짧은 순서로. 이미 그 순서면 false */
+  function handleOptimize() {
+    const before = dayPoints.map((p) => p.id);
+    const after = optimizeOrder(dayPoints).map((p) => p.id);
+    if (before.join() === after.join()) return false;
+    setUndo({ day, before, after });
+    void handleReorder(after);
+    return true;
+  }
+
+  /** 다른 Day 나 후보함(null)으로 옮긴다: 새 자리의 맨 끝에 붙이고, 비운 자리 앞뒤는 다시 잇는다 */
+  async function movePoint(id: string, target: number | null) {
+    const p = points.find((x) => x.id === id);
+    if (!p || p.day_number === target) return null;
+    const from = pointsOf(p.day_number);
+    const idx = from.findIndex((x) => x.id === id);
+    const dest = pointsOf(target);
+    const order = Math.max(0, ...dest.map((x) => x.visit_order ?? 0)) + 1;
+    try {
+      await apiPatch(`/api/map-points/${id}`, { day_number: target, visit_order: order });
+    } catch (e) {
+      return e instanceof Error ? e.message : t("저장하지 못했어요.");
+    }
+    setPoints((prev) => prev.map((x) => (x.id === id ? { ...x, day_number: target, visit_order: order } : x)));
+    const links: [string, string][] = [];
+    if (p.day_number != null && from[idx - 1] && from[idx + 1]) links.push([from[idx - 1].id, from[idx + 1].id]);
+    if (target != null && dest.length) links.push([dest[dest.length - 1].id, id]);
+    for (const [a, b] of links) {
+      const leg = await ensureLeg(tripId, a, b);
+      if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+    }
+    return null;
+  }
+
   async function handlePointCreate(draft: PointDraft) {
     if (!pendingLatLng) return;
     const maxOrder = Math.max(0, ...dayPoints.map((p) => p.visit_order ?? 0));
-    const created = await addPoint(tripId, { ...draft, lat: pendingLatLng.lat, lng: pendingLatLng.lng }, day, maxOrder + 1);
+    const created = await addPoint(tripId, { ...draft, lat: pendingLatLng.lat, lng: pendingLatLng.lng }, inBin ? null : day, maxOrder + 1);
     if (created) {
       setPoints((prev) => [...prev, created]);
-      const prevPoint = dayPoints[dayPoints.length - 1];
+      const prevPoint = inBin ? null : dayPoints[dayPoints.length - 1];
       if (prevPoint) {
         const leg = await ensureLeg(tripId, prevPoint.id, created.id);
         if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
@@ -221,7 +261,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     // 가운데 장소를 지웠으면 앞뒤 장소를 새 구간으로 잇는다
     const before = dayPoints[idx - 1];
     const after = dayPoints[idx + 1];
-    if (before && after) {
+    if (!inBin && before && after) {
       const leg = await ensureLeg(tripId, before.id, after.id);
       if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
     }
@@ -430,7 +470,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           >
             {tab === "plan" && (
               <div className="space-y-4">
-                <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} />
+                <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} bin={canEdit || binCount > 0 ? binCount : undefined} />
                 {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
                 <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
                   <div className="space-y-4 lg:col-span-3">
@@ -467,7 +507,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         editable={canEdit}
                       />
                     </div>
-                    <DaySummary points={dayPoints} legs={dayLegs} />
+                    {!inBin && <DaySummary points={dayPoints} legs={dayLegs} />}
                   </div>
                   <aside className="space-y-4 lg:col-span-2">
                     {canEdit && (
@@ -477,6 +517,16 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                           onReorder={handleReorder}
                           onDelete={handlePointDelete}
                           onOpen={(p) => setDetailId(p.id)}
+                          bin={inBin}
+                          onOptimize={handleOptimize}
+                          onUndo={
+                            canUndo && undo
+                              ? () => {
+                                  void handleReorder(undo.before);
+                                  setUndo(null);
+                                }
+                              : undefined
+                          }
                         />
                         <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/68">
                           <MousePointerClick size={13} /> {t("지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.")}
@@ -486,12 +536,12 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                     {canEdit && dayLegs.length > 0 && (
                       <p className="px-1 text-xs text-foreground/68">{t("구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.")}</p>
                     )}
-                    <RouteTimeline
+                    {!inBin && <RouteTimeline
                       points={dayPoints}
                       legs={dayLegs}
                       onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}
                       onPointClick={(p) => setDetailId(p.id)}
-                    />
+                    />}
                   </aside>
                 </div>
               </div>
@@ -541,7 +591,14 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} isAdmin={access === "admin"} />
       )}
 
-      <PlaceDetail point={detailPoint} canEdit={canEdit} onClose={() => setDetailId(null)} onSave={savePoint} />
+      <PlaceDetail
+        point={detailPoint}
+        canEdit={canEdit}
+        onClose={() => setDetailId(null)}
+        onSave={savePoint}
+        dayCount={tripDays}
+        onMove={movePoint}
+      />
 
       <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title={t("이동 구간")}>
         {editingLeg && (

@@ -19,7 +19,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ArrowRight, MapPin, Move, X } from "lucide-react";
+import { ArrowRight, Inbox, MapPin, Move, Route, Undo2, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import { categoryStyle, pointColor } from "@/features/map/pointStyle";
 import { useT } from "@/i18n/I18nProvider";
@@ -35,6 +35,12 @@ export interface ItineraryListProps {
   onOpen?: (point: MapPoint) => void;
   /** 삭제 중인 id 집합 (낙관적 UI 용, optional) */
   deletingIds?: ReadonlySet<string>;
+  /** 동선 정리 (이동 거리가 짧은 순서로). 순서가 바뀌었으면 true */
+  onOptimize?: () => boolean;
+  /** 있으면 정리 직후 되돌리기 버튼을 보인다 */
+  onUndo?: () => void;
+  /** 후보함: 순서가 없는 목록 (화살표·동선 정리 없음) */
+  bin?: boolean;
 }
 
 interface ChipProps {
@@ -105,8 +111,10 @@ function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
   );
 }
 
-export default function ItineraryList({ points, onReorder, onDelete, onOpen, deletingIds }: ItineraryListProps) {
+export default function ItineraryList({ points, onReorder, onDelete, onOpen, deletingIds, onOptimize, onUndo, bin = false }: ItineraryListProps) {
   const t = useT();
+  /** 정리해 봤는데 이미 가장 짧은 순서였을 때 잠깐 보이는 안내 */
+  const [already, setAlready] = useState(false);
   // 드래그 중 미리보기 순서
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   // 드래그를 놓을 때 따라오는 click으로 상세가 열리지 않게 잠깐 막는다
@@ -161,10 +169,14 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
     return (
       <div className="card flex flex-col items-center gap-2 px-4 py-8 text-center">
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-soft text-primary-strong">
-          <MapPin size={20} />
+          {bin ? <Inbox size={20} /> : <MapPin size={20} />}
         </span>
-        <p className="text-sm font-medium">{t("이 Day에 추가된 장소가 없어요")}</p>
-        <p className="text-xs text-foreground/68">{t("지도를 누르거나 장소를 검색해 일정을 만들어 보세요")}</p>
+        <p className="text-sm font-medium">{bin ? t("후보함이 비어 있어요") : t("이 Day에 추가된 장소가 없어요")}</p>
+        <p className="text-xs text-foreground/68">
+          {bin
+            ? t("어느 날 갈지 아직 모르는 곳을 여기 모아 두고, 장소를 눌러 Day로 옮기세요")
+            : t("지도를 누르거나 장소를 검색해 일정을 만들어 보세요")}
+        </p>
       </div>
     );
   }
@@ -172,10 +184,33 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
   return (
     <div className="card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold">{t("방문 순서")}</h3>
-        <span className="flex items-center gap-1 text-[11px] text-foreground/68">
-          <Move size={12} /> {t("끌어서 순서 바꾸기")}
-        </span>
+        <h3 className="text-sm font-bold">{bin ? t("후보함") : t("방문 순서")}</h3>
+        {onUndo ? (
+          <button
+            type="button"
+            onClick={onUndo}
+            className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold text-primary-strong hover:bg-primary-soft"
+          >
+            <Undo2 size={13} /> {t("되돌리기")}
+          </button>
+        ) : !bin && onOptimize && points.length >= 3 ? (
+          <button
+            type="button"
+            onClick={() => {
+              if (onOptimize()) return;
+              setAlready(true);
+              setTimeout(() => setAlready(false), 2000);
+            }}
+            title={t("이동 거리가 짧은 순서로 다시 줄 세워요. 첫 장소는 그대로 둬요")}
+            className="flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-semibold text-primary-strong transition hover:bg-primary hover:text-white"
+          >
+            <Route size={13} /> {already ? t("이미 가장 짧은 순서예요") : t("동선 정리")}
+          </button>
+        ) : (
+          <span className="flex items-center gap-1 text-[11px] text-foreground/68">
+            <Move size={12} /> {t("끌어서 순서 바꾸기")}
+          </span>
+        )}
       </div>
       <DndContext
         sensors={sensors}
@@ -189,7 +224,7 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
           <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-2.5">
             {orderedPoints.map((point, i) => (
               <li key={point.id} className="flex max-w-full items-center gap-1.5">
-                {i > 0 && <ArrowRight size={16} strokeWidth={2.5} className="shrink-0 text-foreground/45" aria-hidden />}
+                {i > 0 && !bin && <ArrowRight size={16} strokeWidth={2.5} className="shrink-0 text-foreground/45" aria-hidden />}
                 <PointChip
                   point={point}
                   index={i}

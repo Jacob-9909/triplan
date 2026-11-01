@@ -22,7 +22,7 @@ export async function GET() {
       pool.query<Row>(
         `${past}
          SELECT t.id, t.title, t.continent, t.country, t.region, t.start_date, t.end_date,
-                (SELECT count(*)::int FROM triplan.map_points p WHERE p.trip_id = t.id) AS place_count,
+                (SELECT count(*)::int FROM triplan.map_points p WHERE p.trip_id = t.id AND p.day_number IS NOT NULL) AS place_count,
                 (SELECT coalesce(sum(e.amount_krw), 0)::float FROM triplan.expenses e WHERE e.trip_id = t.id) AS spend_krw
            FROM t ORDER BY t.start_date DESC`,
         [memberId]

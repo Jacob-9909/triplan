@@ -10,6 +10,7 @@ import {
 import type { Trip } from "@/lib/types";
 import type { DayForecast } from "./weather";
 import { usePrefs } from "@/i18n/I18nProvider";
+import { Inbox } from "lucide-react";
 
 export interface DayTabsProps {
   trip: Pick<Trip, "start_date" | "end_date">;
@@ -21,7 +22,12 @@ export interface DayTabsProps {
   forecast?: Map<string, DayForecast>;
   /** 오늘에 해당하는 day_number */
   today?: number | null;
+  /** 있으면 맨 끝에 후보함 탭(값 BIN_DAY)을 붙인다. 숫자는 담긴 장소 수 */
+  bin?: number;
 }
+
+/** 아직 Day 를 정하지 않은 장소(day_number 없음)를 모아 보는 탭의 값 */
+export const BIN_DAY = 0;
 
 function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
   if (!trip.start_date || !trip.end_date) return [];
@@ -31,7 +37,7 @@ function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
   return Array.from({ length: count }, (_, i) => addDays(start, i));
 }
 
-export default function DayTabs({ trip, value = null, onChange, forecast, today = null }: DayTabsProps) {
+export default function DayTabs({ trip, value = null, onChange, forecast, today = null, bin }: DayTabsProps) {
   const { t, df } = usePrefs();
   const days = getDays(trip);
   const [internalDay, setInternalDay] = useState(1);
@@ -90,6 +96,25 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
           </button>
         );
       })}
+      {bin !== undefined && (
+        <button
+          role="tab"
+          aria-selected={selected === BIN_DAY}
+          onClick={() => handleSelect(BIN_DAY)}
+          className={`flex shrink-0 flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-2 transition-all md:px-5 md:py-2.5 ${
+            selected === BIN_DAY
+              ? "border-ink bg-ink text-white shadow-md"
+              : "border-border-subtle bg-surface-muted text-foreground hover:border-ink"
+          }`}
+        >
+          <span className="flex items-center gap-1 text-xs font-semibold">
+            <Inbox size={13} aria-hidden /> {t("후보함")}
+          </span>
+          <span className={`mt-0.5 text-[11px] ${selected === BIN_DAY ? "text-white" : "text-foreground/68"}`}>
+            {t("{n}곳", { n: bin })}
+          </span>
+        </button>
+      )}
     </div>
   );
 }

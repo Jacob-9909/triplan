@@ -51,7 +51,8 @@ export function tripStats(points: MapPoint[], legs: RouteLeg[], expenses: Expens
   const topCategory = maxEntry(byCategory);
 
   return {
-    places: points.length,
+    // 후보함(Day 없음)에 남은 곳은 간 곳으로 세지 않는다
+    places: points.filter((p) => p.day_number != null).length,
     distanceKm: Math.round(distanceKm * 10) / 10,
     spendKrw,
     perDayKrw: days > 0 ? Math.round(spendKrw / days) : 0,

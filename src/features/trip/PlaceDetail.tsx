@@ -47,22 +47,30 @@ function hostOf(url: string) {
   }
 }
 
-/** 장소 상세: 시간 · 분류/색 · 사진 · 링크 · 메모 */
+type MoveTo = (id: string, day: number | null) => Promise<string | null>;
+
+/** 장소 상세: Day 옮기기 · 시간 · 분류/색 · 사진 · 링크 · 메모 */
 export default function PlaceDetail({
   point,
   canEdit,
   onClose,
   onSave,
+  dayCount = 0,
+  onMove,
 }: {
   point: MapPoint | null;
   canEdit: boolean;
   onClose: () => void;
   /** 메모·링크 저장. 실패하면 오류 메시지를 돌려준다 */
   onSave: (id: string, patch: PointPatch) => Promise<string | null>;
+  /** 여행 일수 (Day 옮기기 칩 개수) */
+  dayCount?: number;
+  /** 다른 Day 나 후보함(null)으로 옮기기. 실패하면 오류 메시지 */
+  onMove?: MoveTo;
 }) {
   return (
     <Sheet open={point !== null} onClose={onClose} title={point ? <Title point={point} /> : null}>
-      {point && <Body key={point.id} point={point} canEdit={canEdit} onSave={onSave} />}
+      {point && <Body key={point.id} point={point} canEdit={canEdit} onSave={onSave} dayCount={dayCount} onMove={onMove} />}
     </Sheet>
   );
 }
@@ -80,10 +88,14 @@ function Body({
   point,
   canEdit,
   onSave,
+  dayCount,
+  onMove,
 }: {
   point: MapPoint;
   canEdit: boolean;
   onSave: (id: string, patch: PointPatch) => Promise<string | null>;
+  dayCount: number;
+  onMove?: MoveTo;
 }) {
   const { t, locale } = usePrefs();
   const [photos, setPhotos] = useState<PointPhoto[] | null>(null);
@@ -151,6 +163,32 @@ function Body({
 
   return (
     <div className="space-y-5">
+      {/* Day 옮기기: 후보함 ↔ Day */}
+      {canEdit && onMove && dayCount > 0 && (
+        <section>
+          <h3 className="mb-2 text-sm font-bold">{t("어느 날 갈까요")}</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {[...Array.from({ length: dayCount }, (_, i) => i + 1), null].map((d) => {
+              const on = point.day_number === d;
+              return (
+                <button
+                  key={d ?? "bin"}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={on}
+                  onClick={async () => setError(await onMove(point.id, d))}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                    on ? "bg-ink text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+                  }`}
+                >
+                  {d === null ? t("후보함") : `Day ${d}`}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {/* 시간 */}
       <section>
         <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
