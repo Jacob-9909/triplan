@@ -209,6 +209,9 @@ const en: Record<string, string> = {
   "이미 가장 짧은 순서예요": "Already the shortest order",
   "동선 정리": "Optimize route",
   "어느 날 갈까요": "Which day?",
+  "이동 {time}": "{time} travel",
+  "손잡이를 끌어 순서를 바꾸고, 구간을 누르면 이동수단·시간·비용을 바꿔요.": "Drag the handle to reorder. Tap a leg to change mode, time, or cost.",
+  "{name} 순서 바꾸기": "Reorder {name}",
 };
 
 export default en;
