@@ -11,7 +11,6 @@ import {
   Eye,
   Luggage,
   MapPin,
-  MousePointerClick,
   NotebookPen,
   PencilLine,
   Plane,
@@ -28,9 +27,7 @@ import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
 import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
 import { optimizeOrder } from "@/features/route/optimize";
-import ItineraryList from "@/features/route/ItineraryList";
-import RouteTimeline from "@/features/route/RouteTimeline";
-import DaySummary from "@/features/route/DaySummary";
+import DayPlan from "@/features/route/DayPlan";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
 import { METHOD_META } from "@/features/route/meta";
@@ -472,8 +469,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
               <div className="space-y-4">
                 <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} bin={canEdit || binCount > 0 ? binCount : undefined} />
                 {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
-                <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
-                  <div className="space-y-4 lg:col-span-3">
+                <div className="grid gap-4 lg:grid-cols-5 lg:items-start lg:gap-6">
+                  {/* 데스크톱: 목록을 내려도 지도는 그 자리에 (상단 바 + 탭 바 아래) */}
+                  <div className="lg:sticky lg:top-36 lg:col-span-3">
                     <div className="relative overflow-hidden rounded-[var(--radius-card)] shadow-card">
                       {canEdit && (
                         <div className="absolute left-3 right-14 top-3 z-10 sm:right-auto">
@@ -505,44 +503,31 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         onPointClick={(id: string) => setSelectedPointId(id)}
                         onPointOpen={(id: string) => setDetailId(id)}
                         editable={canEdit}
+                        // 휴대폰에서는 지도를 낮춰 일정 목록이 첫 화면에 보이게
+                        heightClass="h-[300px] sm:h-[420px] lg:h-[520px]"
                       />
                     </div>
-                    {!inBin && <DaySummary points={dayPoints} legs={dayLegs} />}
                   </div>
-                  <aside className="space-y-4 lg:col-span-2">
-                    {canEdit && (
-                      <>
-                        <ItineraryList
-                          points={dayPoints}
-                          onReorder={handleReorder}
-                          onDelete={handlePointDelete}
-                          onOpen={(p) => setDetailId(p.id)}
-                          bin={inBin}
-                          onOptimize={handleOptimize}
-                          onUndo={
-                            canUndo && undo
-                              ? () => {
-                                  void handleReorder(undo.before);
-                                  setUndo(null);
-                                }
-                              : undefined
-                          }
-                        />
-                        <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/68">
-                          <MousePointerClick size={13} /> {t("지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.")}
-                        </p>
-                      </>
-                    )}
-                    {canEdit && dayLegs.length > 0 && (
-                      <p className="px-1 text-xs text-foreground/68">{t("구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.")}</p>
-                    )}
-                    {!inBin && <RouteTimeline
+                  <div className="lg:col-span-2">
+                    <DayPlan
                       points={dayPoints}
                       legs={dayLegs}
+                      bin={inBin}
+                      onOpen={(p) => setDetailId(p.id)}
+                      onReorder={canEdit ? handleReorder : undefined}
+                      onDelete={canEdit ? handlePointDelete : undefined}
                       onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}
-                      onPointClick={(p) => setDetailId(p.id)}
-                    />}
-                  </aside>
+                      onOptimize={canEdit ? handleOptimize : undefined}
+                      onUndo={
+                        canUndo && undo
+                          ? () => {
+                              void handleReorder(undo.before);
+                              setUndo(null);
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
                 </div>
               </div>
             )}
