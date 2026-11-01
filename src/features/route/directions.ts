@@ -24,7 +24,7 @@ const AVG_SPEED_KMH: Record<LegMethod, number> = {
   ferry: 35,
 };
 
-function haversineKm(a: LatLng, b: LatLng): number {
+export function haversineKm(a: LatLng, b: LatLng): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;

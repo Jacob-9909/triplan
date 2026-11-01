@@ -101,7 +101,8 @@ export async function persistOrder(_tripId: string, orderedIds: string[]) {
 export async function addPoint(
   tripId: string,
   draft: { name: string; category: string; color?: string | null; memo: string | null; lat: number; lng: number },
-  dayNumber: number,
+  /** null 이면 후보함 */
+  dayNumber: number | null,
   visitOrder: number,
 ): Promise<MapPoint | null> {
   try {
