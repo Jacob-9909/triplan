@@ -6,7 +6,7 @@ import { getPool } from "./db";
  * MYMEMORY_EMAIL이 있으면 하루 한도가 5천 자에서 5만 자로 늘어난다.
  */
 
-export const HANGUL_RE = /[가-힣]/;
+export const HANGUL_RE = /[가-힣]/; // i18n-ignore
 export const LANG_RE = /^(autodetect|[a-z]{2}(-[A-Z]{2})?)$/;
 export const MAX_NAME_LENGTH = 100;
 

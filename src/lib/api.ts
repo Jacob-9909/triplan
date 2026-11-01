@@ -1,3 +1,5 @@
+import { translate, type Locale } from "@/i18n/translate";
+
 /**
  * 공유 링크(/t/…, /v/…)로 들어온 경우 모든 API 요청에 토큰을 실어 보낸다.
  * 관리자는 쿠키로 인증되므로 토큰이 없다.
@@ -24,10 +26,21 @@ function headers(json: boolean): HeadersInit {
   return h;
 }
 
+/** 서버 오류 문구는 한국어다. 사전에 그대로 없으면 숫자를 {0},{1}… 로 바꿔 한 번 더 찾는다 */
+export function translateError(lang: Locale, msg: string) {
+  const exact = translate(lang, msg);
+  if (exact !== msg || lang === "ko") return exact;
+  const nums: string[] = [];
+  const key = msg.replace(/\d+(\.\d+)?/g, (n) => `{${nums.push(n) - 1}}`);
+  return translate(lang, key, Object.fromEntries(nums.entries()));
+}
+
 async function parse<T>(res: Response, label: string): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    throw new ApiError(body?.error ?? `${label} failed`, res.status);
+    // 서버 오류 문구는 한국어다. 화면 언어가 영어면 사전으로 옮긴다
+    const lang = typeof document !== "undefined" && document.documentElement.lang === "en" ? "en" : "ko";
+    throw new ApiError(translateError(lang, body?.error ?? `${label} failed`), res.status);
   }
   return res.json();
 }

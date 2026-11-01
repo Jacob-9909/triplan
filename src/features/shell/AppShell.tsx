@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Heart, Home, LogOut, NotebookPen, Plus, UserRound, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import type { ShellRole } from "@/lib/types";
+import PrefsToggle from "@/i18n/PrefsToggle";
+import { useT } from "@/i18n/I18nProvider";
 
 const ALL_NAV = [
   { href: "/", label: "홈", icon: Home },
@@ -45,6 +47,7 @@ export function Logo({ className = "", tone = "ink" }: { className?: string; ton
 export default function AppShell({ children, role }: { children: ReactNode; role: ShellRole }) {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   const member = role === "demo";
   // 관리자는 회원 관리, 사용 회원은 내 계정 (관리자 비밀번호는 서버 설정이라 계정 화면이 없다)
   const NAV = ALL_NAV.filter((n) => n.href !== (role === "admin" ? "/account" : "/members"));
@@ -62,11 +65,11 @@ export default function AppShell({ children, role }: { children: ReactNode; role
       {/* 데스크톱 상단 바 */}
       <header className="glass sticky top-0 z-40 hidden border-b border-border-subtle md:block">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-6">
-          <Link href="/" aria-label="Triplan 홈" className="rounded-xl">
+          <Link href="/" aria-label={t("Triplan 홈")} className="rounded-xl">
             <Logo />
           </Link>
           {!member && (
-            <nav aria-label="주요 메뉴" className="flex gap-1">
+            <nav aria-label={t("주요 메뉴")} className="flex gap-1">
               {NAV.map(({ href, label }) => {
                 const active = isActive(pathname, href);
                 return (
@@ -81,28 +84,29 @@ export default function AppShell({ children, role }: { children: ReactNode; role
                     {active && (
                       <motion.span
                         layoutId="nav-pill"
-                        className="absolute inset-0 rounded-full bg-foreground"
+                        className="absolute inset-0 rounded-full bg-ink"
                         transition={{ type: "spring", bounce: 0.2, duration: 0.5 }}
                       />
                     )}
-                    <span className="relative">{label}</span>
+                    <span className="relative">{t(label)}</span>
                   </Link>
                 );
               })}
             </nav>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <PrefsToggle />
             {member ? (
-              <span className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-bold text-foreground/70">체험 계정</span>
+              <span className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-bold text-foreground/70">{t("체험 계정")}</span>
             ) : (
               <Link href="/trips/new" className="btn btn-primary px-4 text-sm">
-                <Plus size={16} aria-hidden /> 새 여행
+                <Plus size={16} aria-hidden /> {t("새 여행")}
               </Link>
             )}
             <button
               onClick={logout}
-              aria-label="로그아웃"
-              title="로그아웃"
+              aria-label={t("로그아웃")}
+              title={t("로그아웃")}
               className="flex h-10 w-10 items-center justify-center rounded-full text-foreground/65 transition hover:bg-surface-muted hover:text-foreground"
             >
               <LogOut size={18} aria-hidden />
@@ -114,16 +118,17 @@ export default function AppShell({ children, role }: { children: ReactNode; role
       {/* 모바일 상단: 여행 상세에서는 숨긴다 */}
       {!tripDetail && (
         <header className="flex items-center justify-between px-4 pb-1 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
-          <Link href="/" aria-label="Triplan 홈" className="rounded-xl">
+          <Link href="/" aria-label={t("Triplan 홈")} className="rounded-xl">
             <Logo />
           </Link>
           <div className="flex items-center gap-1">
+            <PrefsToggle />
             {member && (
-              <span className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-bold text-foreground/70">체험 계정</span>
+              <span className="rounded-full bg-surface-muted px-3 py-1.5 text-xs font-bold text-foreground/70">{t("체험 계정")}</span>
             )}
             <button
               onClick={logout}
-              aria-label="로그아웃"
+              aria-label={t("로그아웃")}
               className="flex h-11 w-11 items-center justify-center rounded-full text-foreground/65 active:bg-surface-muted"
             >
               <LogOut size={18} aria-hidden />
@@ -143,7 +148,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
       {/* 모바일 하단 탭바 */}
       {showTabBar && (
         <nav
-          aria-label="주요 메뉴"
+          aria-label={t("주요 메뉴")}
           className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle pb-[env(safe-area-inset-bottom)] md:hidden"
         >
           <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-5 items-center">
@@ -153,7 +158,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
             <div className="flex justify-center">
               <Link
                 href="/trips/new"
-                aria-label="새 여행"
+                aria-label={t("새 여행")}
                 className="-mt-8 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lift ring-4 ring-background transition active:scale-95"
               >
                 <Plus size={26} aria-hidden />
@@ -180,6 +185,7 @@ function TabItem({
   icon: typeof Home;
   active: boolean;
 }) {
+  const t = useT();
   return (
     <Link
       href={href}
@@ -195,7 +201,7 @@ function TabItem({
       >
         <Icon size={21} strokeWidth={active ? 2.4 : 2} fill={active && href === "/wishlist" ? "currentColor" : "none"} aria-hidden />
       </motion.span>
-      {label}
+      {t(label)}
     </Link>
   );
 }

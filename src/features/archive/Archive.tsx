@@ -9,8 +9,8 @@ import type { MapPoint, Trip, WishlistPlace } from "@/lib/types";
 import { getTripCenter } from "@/data/countryCenters";
 import { TripMap } from "@/features/map";
 import { CATEGORIES, PointBadge } from "@/features/map/pointStyle";
-import { formatMoney } from "@/features/expenses/categories";
 import { nights } from "@/features/ui/dates";
+import { usePrefs } from "@/i18n/I18nProvider";
 import TripStamp from "./TripStamp";
 import { Stars } from "./RecordTab";
 
@@ -34,6 +34,7 @@ function pin(id: string, name: string, color: string, memo: string, at: { lat: n
 
 /** 다녀온 여행 모아 보기: 다녀온 곳·가고 싶은 곳 지도, 여권 도장, 내가 평가한 장소 */
 export default function Archive() {
+  const { t: tr, money } = usePrefs();
   const [data, setData] = useState<{ trips: PastTrip[]; places: ReviewedPlace[] } | null>(null);
   const [wishes, setWishes] = useState<WishlistPlace[]>([]);
   const [category, setCategory] = useState<MapPoint["category"] | "all">("all");
@@ -53,14 +54,14 @@ export default function Archive() {
   const mapPoints = useMemo(() => {
     const visited = trips.flatMap((t) => {
       const at = getTripCenter(t.country, t.region);
-      return at ? [pin(`trip-${t.id}`, t.title, VISITED, `다녀옴 · ${t.start_date ?? ""}`, at)] : [];
+      return at ? [pin(`trip-${t.id}`, t.title, VISITED, tr("다녀옴 · {date}", { date: t.start_date ?? "" }), at)] : [];
     });
     const done = new Set(trips.map((t) => t.id));
     const wished = wishes
       .filter((w) => w.lat !== null && w.lng !== null && !(w.trip_id && done.has(w.trip_id)))
-      .map((w) => pin(`wish-${w.id}`, w.name, WISHED, "가고 싶은 곳", { lat: w.lat!, lng: w.lng! }));
+      .map((w) => pin(`wish-${w.id}`, w.name, WISHED, tr("가고 싶은 곳"), { lat: w.lat!, lng: w.lng! }));
     return [...visited, ...wished];
-  }, [trips, wishes]);
+  }, [trips, wishes, tr]);
 
   const usedCategories = CATEGORIES.filter((c) => places.some((p) => p.category === c.id));
   const shownPlaces = places.filter((p) => category === "all" || p.category === category);
@@ -68,9 +69,9 @@ export default function Archive() {
   return (
     <div className="mx-auto max-w-6xl px-4 md:px-6">
       <div className="mt-3 md:mt-8">
-        <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">여행 기록</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{tr("여행 기록")}</h1>
         <p className="mt-1 text-sm text-foreground/65">
-          {data === null ? "불러오는 중…" : `${countries}개 나라 · ${trips.length}번의 여행 · 모두 ${totalDays}일`}
+          {data === null ? tr("불러오는 중…") : tr("{countries}개 나라 · {trips}번의 여행 · 모두 {days}일", { countries, trips: trips.length, days: totalDays })}
         </p>
       </div>
 
@@ -85,14 +86,14 @@ export default function Archive() {
       </div>
       <p className="mt-2 flex gap-4 px-1 text-xs text-foreground/68">
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: VISITED }} /> 다녀온 곳
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: VISITED }} /> {tr("다녀온 곳")}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-full" style={{ background: WISHED }} /> 가고 싶은 곳
+          <span className="h-2.5 w-2.5 rounded-full" style={{ background: WISHED }} /> {tr("가고 싶은 곳")}
         </span>
       </p>
 
-      <h2 className="mt-8 text-lg font-bold">여권 도장</h2>
+      <h2 className="mt-8 text-lg font-bold">{tr("여권 도장")}</h2>
       {data === null ? (
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
@@ -104,8 +105,8 @@ export default function Archive() {
           <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-teal-soft text-mint">
             <NotebookPen size={26} />
           </span>
-          <p className="mt-4 font-bold">아직 다녀온 여행이 없어요</p>
-          <p className="mt-1.5 max-w-xs text-sm text-foreground/65">여행 날짜가 지나면 여기에 도장이 찍혀요. 여행 화면의 기록 탭에서 일기와 별점을 남길 수 있어요.</p>
+          <p className="mt-4 font-bold">{tr("아직 다녀온 여행이 없어요")}</p>
+          <p className="mt-1.5 max-w-xs text-sm text-foreground/65">{tr("여행 날짜가 지나면 여기에 도장이 찍혀요. 여행 화면의 기록 탭에서 일기와 별점을 남길 수 있어요.")}</p>
         </div>
       ) : (
         <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -121,7 +122,7 @@ export default function Archive() {
                 <TripStamp trip={t} className="h-32 w-32" />
                 <p className="mt-2 line-clamp-1 text-sm font-bold">{t.title}</p>
                 <p className="text-xs text-foreground/65">
-                  {t.place_count}곳{t.spend_krw > 0 && ` · ₩${formatMoney(t.spend_krw, "KRW")}`}
+                  {tr("{n}곳", { n: t.place_count })}{t.spend_krw > 0 && ` · ${money(t.spend_krw)}`}
                 </p>
               </Link>
             </motion.div>
@@ -131,7 +132,7 @@ export default function Archive() {
 
       {places.length > 0 && (
         <>
-          <h2 className="mt-8 text-lg font-bold">내가 남긴 장소 평가</h2>
+          <h2 className="mt-8 text-lg font-bold">{tr("내가 남긴 장소 평가")}</h2>
           <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
             {[{ id: "all" as const, label: "전체" }, ...usedCategories].map((c) => (
               <button
@@ -139,10 +140,10 @@ export default function Archive() {
                 aria-pressed={category === c.id}
                 onClick={() => setCategory(c.id)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  category === c.id ? "bg-foreground text-white" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
+                  category === c.id ? "bg-ink text-white" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
                 }`}
               >
-                {c.label}
+                {tr(c.label)}
               </button>
             ))}
           </div>
@@ -157,7 +158,7 @@ export default function Archive() {
                   </div>
                   {p.review && <p className="mt-0.5 text-sm text-foreground/75">{p.review}</p>}
                   <Link href={`/trips/${p.trip_id}`} className="mt-1 block truncate text-xs text-foreground/65 hover:text-primary-strong">
-                    {p.trip_title} · {[p.country, p.region].filter(Boolean).join(" ")}
+                    {p.trip_title} · {[p.country, p.region].filter(Boolean).map((n) => tr(n!)).join(" ")}
                   </Link>
                 </div>
               </li>

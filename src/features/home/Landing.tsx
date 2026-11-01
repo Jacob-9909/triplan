@@ -6,13 +6,15 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Heart, Map, MapPin, Users } from "lucide-react";
 import { Logo } from "@/features/shell/AppShell";
 import CoverPhoto from "@/features/ui/CoverPhoto";
+import PrefsToggle from "@/i18n/PrefsToggle";
+import { useT } from "@/i18n/I18nProvider";
 
 const SLIDES = [
-  { country: "그리스", city: undefined, caption: "산토리니 · 그리스" },
-  { country: "일본", city: "교토", caption: "교토 · 일본" },
-  { country: "이탈리아", city: "베네치아", caption: "베네치아 · 이탈리아" },
-  { country: "스위스", city: "인터라켄", caption: "인터라켄 · 스위스" },
-  { country: "호주", city: "시드니", caption: "시드니 · 호주" },
+  { country: "그리스", city: undefined, caption: "산토리니 · 그리스" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "일본", city: "교토", caption: "교토 · 일본" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "이탈리아", city: "베네치아", caption: "베네치아 · 이탈리아" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "스위스", city: "인터라켄", caption: "인터라켄 · 스위스" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "호주", city: "시드니", caption: "시드니 · 호주" }, // i18n-ignore: country·city 는 사진 조회 키
 ];
 
 const FEATURES = [
@@ -37,10 +39,11 @@ const FEATURES = [
 ];
 
 export default function Landing() {
+  const t = useT();
   const [i, setI] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setI((v) => (v + 1) % SLIDES.length), 5200);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setI((v) => (v + 1) % SLIDES.length), 5200);
+    return () => clearInterval(timer);
   }, []);
   const slide = SLIDES[i];
 
@@ -64,8 +67,9 @@ export default function Landing() {
 
         <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8">
           <Logo tone="light" />
+          <PrefsToggle tone="light" className="ml-auto mr-2" />
           <Link href="/login" className="btn bg-white/15 px-4 text-sm text-white backdrop-blur-md hover:bg-white/25">
-            로그인
+            {t("로그인")}
           </Link>
         </header>
 
@@ -76,7 +80,7 @@ export default function Landing() {
             animate={{ opacity: 1, y: 0 }}
             className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1 text-xs font-semibold text-white/90 backdrop-blur-md"
           >
-            <MapPin size={12} aria-hidden /> {slide.caption}
+            <MapPin size={12} aria-hidden /> {t(slide.caption)}
           </motion.p>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -84,9 +88,9 @@ export default function Landing() {
             transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
             className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.15] tracking-tight md:text-6xl"
           >
-            가고 싶은 곳에서
+            {t("가고 싶은 곳에서")}
             <br />
-            함께 떠나는 여행까지.
+            {t("함께 떠나는 여행까지.")}
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -94,7 +98,7 @@ export default function Landing() {
             transition={{ delay: 0.15, duration: 0.7 }}
             className="mt-4 max-w-md text-base text-white/88 md:text-lg"
           >
-            꿈꾸던 여행지를 모아 두고, 지도 위에서 하루씩 계획하고, 링크 하나로 동행자와 나눠요.
+            {t("꿈꾸던 여행지를 모아 두고, 지도 위에서 하루씩 계획하고, 링크 하나로 동행자와 나눠요.")}
           </motion.p>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
@@ -103,7 +107,7 @@ export default function Landing() {
             className="mt-8 flex items-center gap-4"
           >
             <Link href="/login" className="btn btn-primary px-6 py-3.5 text-sm">
-              내 여행 열기 <ArrowRight size={16} />
+              {t("내 여행 열기")} <ArrowRight size={16} />
             </Link>
             <div className="flex gap-1.5" aria-hidden>
               {SLIDES.map((s, idx) => (
@@ -120,9 +124,9 @@ export default function Landing() {
       {/* 기능 소개 */}
       <section className="topo">
        <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24">
-        <p className="eyebrow">이렇게 써요</p>
+        <p className="eyebrow">{t("이렇게 써요")}</p>
         <h2 className="mt-2 max-w-md text-2xl font-extrabold tracking-tight md:text-3xl">
-          여행 준비의 처음부터 끝까지, 한 화면에서
+          {t("여행 준비의 처음부터 끝까지, 한 화면에서")}
         </h2>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
           {FEATURES.map(({ icon: Icon, title, body, tone }, idx) => (
@@ -138,8 +142,8 @@ export default function Landing() {
                 <Icon size={21} />
               </span>
               <p className="mt-5 font-mono text-xs font-semibold text-foreground/68">0{idx + 1}</p>
-              <h3 className="mt-1 text-lg font-bold tracking-tight">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-foreground/72">{body}</p>
+              <h3 className="mt-1 text-lg font-bold tracking-tight">{t(title)}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-foreground/72">{t(body)}</p>
             </motion.article>
           ))}
         </div>
@@ -147,7 +151,7 @@ export default function Landing() {
       </section>
 
       <footer className="border-t border-border-subtle py-8 text-center text-xs text-foreground/68">
-        Triplan · 가고 싶은 곳을 모으고 함께 계획하는 여행 플래너
+        {t("Triplan · 가고 싶은 곳을 모으고 함께 계획하는 여행 플래너")}
       </footer>
     </main>
   );

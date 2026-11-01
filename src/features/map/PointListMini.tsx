@@ -4,6 +4,7 @@ import { MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import type { MapPoint } from "@/lib/types";
 import { getCategoryColor, getCategoryLabel } from "./categories";
+import { useT } from "@/i18n/I18nProvider";
 
 export interface PointListMiniProps {
   points: MapPoint[];
@@ -16,14 +17,15 @@ export interface PointListMiniProps {
  * 지도 옆 사이드바용 포인트 리스트.
  */
 export default function PointListMini({ points, selectedPointId = null, onSelect }: PointListMiniProps) {
+  const t = useT();
   if (points.length === 0) {
     return (
       <div className="card flex flex-col items-center gap-2 p-6 text-center">
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-soft" aria-hidden>
           <MapPin size={18} className="text-primary-strong" />
         </span>
-        <p className="text-sm font-semibold text-foreground/70">아직 포인트가 없어요</p>
-        <p className="text-xs text-foreground/68">지도를 클릭해 첫 장소를 추가해보세요</p>
+        <p className="text-sm font-semibold text-foreground/70">{t("아직 포인트가 없어요")}</p>
+        <p className="text-xs text-foreground/68">{t("지도를 클릭해 첫 장소를 추가해보세요")}</p>
       </div>
     );
   }
@@ -53,14 +55,14 @@ export default function PointListMini({ points, selectedPointId = null, onSelect
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold">{point.name}</span>
                 <span className="block truncate text-xs text-foreground/68">
-                  {point.memo ?? `${point.day_number ? `Day ${point.day_number} · ` : ""}${getCategoryLabel(point.category)}`}
+                  {point.memo ?? `${point.day_number ? `Day ${point.day_number} · ` : ""}${t(getCategoryLabel(point.category))}`}
                 </span>
               </span>
               <span
                 className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
                 style={{ borderColor: color, color }}
               >
-                {getCategoryLabel(point.category)}
+                {t(getCategoryLabel(point.category))}
               </span>
             </motion.button>
           </li>

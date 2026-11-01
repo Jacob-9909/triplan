@@ -55,7 +55,7 @@ export async function listChildren(
     return Response.json(transform ? transform(rows, access) : rows);
   } catch (err) {
     console.error(`GET ${table} failed:`, err);
-    return jsonError(`${label} 불러오기에 실패했어요.`);
+    return jsonError(`${label} 불러오기에 실패했어요.`); // i18n-ignore
   }
 }
 

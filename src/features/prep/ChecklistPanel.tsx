@@ -13,6 +13,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { useT } from "@/i18n/I18nProvider";
 import { useChecklist } from "./useChecklist";
 import {
   CHECKLIST_CATEGORY_LABEL,
@@ -76,6 +77,7 @@ export default function ChecklistPanel({
 }) {
   const { items, loading, addItem, addItems, toggleItem: toggle, removeItem } =
     useChecklist(tripId);
+  const tr = useT();
   const toggleItem = (id: string) => (readOnly ? Promise.resolve() : toggle(id));
   const [newLabel, setNewLabel] = useState("");
   const [newCategory, setNewCategory] = useState<ChecklistCategory>("etc");
@@ -85,8 +87,10 @@ export default function ChecklistPanel({
   const existingLabels = useMemo(() => new Set(items.map((i) => i.label)), [
     items,
   ]);
+  // 템플릿은 화면 언어로 넣는다. 예전에 한국어로 넣은 항목도 있는 것으로 본다
+  const has = (label: string) => existingLabels.has(label) || existingLabels.has(tr(label));
   const missingTemplateCount = CHECKLIST_TEMPLATES.filter(
-    (t) => !existingLabels.has(t.label),
+    (t) => !has(t.label),
   ).length;
 
   /** 템플릿 카테고리별 그룹 */
@@ -135,9 +139,9 @@ export default function ChecklistPanel({
           <Luggage size={22} />
         </div>
         <div>
-          <h2 className="text-lg font-bold">출국 전 준비물 체크리스트</h2>
+          <h2 className="text-lg font-bold">{tr("출국 전 준비물 체크리스트")}</h2>
           <p className="text-sm text-slate-600">
-            {doneCount}/{items.length} 완료 · 챙기고 떠나요!
+            {tr("{done}/{total} 완료 · 챙기고 떠나요!", { done: doneCount, total: items.length })}
           </p>
         </div>
         <div className="ml-auto">
@@ -159,11 +163,11 @@ export default function ChecklistPanel({
                   className={`flex min-h-9 items-center gap-1 rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
                     isActive
                       ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
-                      : "border-[var(--border-subtle)] bg-white text-slate-600 hover:border-[var(--color-primary)]/50"
+                      : "border-[var(--border-subtle)] bg-surface text-slate-600 hover:border-[var(--color-primary)]/50"
                   }`}
                 >
                   <Icon size={13} />
-                  {CHECKLIST_CATEGORY_LABEL[cat]}
+                  {tr(CHECKLIST_CATEGORY_LABEL[cat])}
                 </button>
               );
             },
@@ -174,15 +178,15 @@ export default function ChecklistPanel({
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void handleAdd()}
-            aria-label="새 준비물"
-            placeholder={`준비물 추가 (${CHECKLIST_CATEGORY_LABEL[newCategory]})`}
+            aria-label={tr("새 준비물")}
+            placeholder={tr("준비물 추가 ({category})", { category: tr(CHECKLIST_CATEGORY_LABEL[newCategory]) })}
             className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-primary)]"
           />
           <button
             onClick={() => void handleAdd()}
             className="flex items-center gap-1 rounded-xl bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--color-primary-strong)]"
           >
-            <Plus size={16} /> 추가
+            <Plus size={16} /> {tr("추가")}
           </button>
         </div>
       </div>
@@ -193,8 +197,8 @@ export default function ChecklistPanel({
       >
         <Sparkles size={14} />
         {showTemplates
-          ? "템플릿 닫기"
-          : `템플릿 한 번에 추가 (${missingTemplateCount}개)`}
+          ? tr("템플릿 닫기")
+          : tr("템플릿 한 번에 추가 ({n}개)", { n: missingTemplateCount })}
       </button>
 
       <AnimatePresence>
@@ -210,44 +214,44 @@ export default function ChecklistPanel({
               {[...groupedTemplates.entries()].map(([category, templates]) => {
                 const Icon = CATEGORY_ICON[category];
                 const missing = templates.filter(
-                  (t) => !existingLabels.has(t.label),
+                  (t) => !has(t.label),
                 );
                 return (
                   <div key={category}>
                     <div className="mb-1.5 flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
                         <Icon size={14} className="text-[var(--color-violet)]" />
-                        {CHECKLIST_CATEGORY_LABEL[category]}
+                        {tr(CHECKLIST_CATEGORY_LABEL[category])}
                       </div>
                       {missing.length > 0 && (
                         <button
                           onClick={() =>
                             void addItems(
-                              missing.map((t) => t.label),
+                              missing.map((t) => tr(t.label)),
                               missing.map(() => category),
                             )
                           }
                           className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--color-primary-strong)] transition hover:bg-[var(--color-primary)]/20"
                         >
-                          + 이 항목만 추가 ({missing.length})
+                          {tr("+ 이 항목만 추가 ({n})", { n: missing.length })}
                         </button>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {templates.map((t) => {
-                        const exists = existingLabels.has(t.label);
+                        const exists = has(t.label);
                         return (
                           <button
                             key={t.label}
                             disabled={exists}
-                            onClick={() => void addItems([t.label], [category])}
+                            onClick={() => void addItems([tr(t.label)], [category])}
                             className={`rounded-full px-3 py-1 text-xs transition ${
                               exists
                                 ? "cursor-default bg-slate-200/60 text-slate-500 line-through"
-                                : "bg-white text-slate-700 shadow-sm ring-1 ring-[var(--border-subtle)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
+                                : "bg-surface text-slate-700 shadow-sm ring-1 ring-[var(--border-subtle)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
                             }`}
                           >
-                            {t.label}
+                            {tr(t.label)}
                           </button>
                         );
                       })}
@@ -259,16 +263,16 @@ export default function ChecklistPanel({
                 <button
                   onClick={() => {
                     const missing = CHECKLIST_TEMPLATES.filter(
-                      (t) => !existingLabels.has(t.label),
+                      (t) => !has(t.label),
                     );
                     void addItems(
-                      missing.map((t) => t.label),
+                      missing.map((t) => tr(t.label)),
                       missing.map((t) => t.category),
                     );
                   }}
                   className="w-full rounded-xl bg-[var(--color-violet)] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
                 >
-                  없는 항목 {missingTemplateCount}개 한 번에 추가하기
+                  {tr("없는 항목 {n}개 한 번에 추가하기", { n: missingTemplateCount })}
                 </button>
               )}
             </div>
@@ -279,11 +283,11 @@ export default function ChecklistPanel({
 
       {loading ? (
         <p className="mt-6 text-center text-sm text-slate-500">
-          불러오는 중…
+          {tr("불러오는 중…")}
         </p>
       ) : items.length === 0 ? (
         <p className="mt-6 text-center text-sm text-slate-500">
-          아직 준비물이 없어요. 템플릿으로 시작해보세요!
+          {tr("아직 준비물이 없어요. 템플릿으로 시작해보세요!")}
         </p>
       ) : (
         <div className="mt-5 space-y-5">
@@ -296,7 +300,7 @@ export default function ChecklistPanel({
                   <span className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--color-violet)]/15 text-[var(--color-violet)]">
                     <Icon size={13} />
                   </span>
-                  {CHECKLIST_CATEGORY_LABEL[category]}
+                  {tr(CHECKLIST_CATEGORY_LABEL[category])}
                   <span className="ml-auto font-normal text-slate-500">
                     {done}/{list.length}
                   </span>
@@ -314,17 +318,17 @@ export default function ChecklistPanel({
                 className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition ${
                   item.is_checked
                     ? "bg-[var(--color-primary-soft)]/60"
-                    : "bg-white ring-1 ring-[var(--border-subtle)] hover:ring-[var(--color-primary)]/40"
+                    : "bg-surface ring-1 ring-[var(--border-subtle)] hover:ring-[var(--color-primary)]/40"
                 }`}
               >
                 <motion.button
                   whileTap={{ scale: 0.85 }}
                   onClick={() => void toggleItem(item.id)}
-                  aria-label={`${item.label} 체크`}
+                  aria-label={tr("{label} 체크", { label: tr(item.label) })}
                   className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition ${
                     item.is_checked
                       ? "border-[var(--color-mint)] bg-[var(--color-mint)] text-white"
-                      : "border-slate-300 bg-white text-transparent hover:border-[var(--color-primary)]"
+                      : "border-slate-300 bg-surface text-transparent hover:border-[var(--color-primary)]"
                   }`}
                 >
                   <motion.span
@@ -345,7 +349,7 @@ export default function ChecklistPanel({
                   onClick={() => void toggleItem(item.id)}
                 >
                   <span className={item.is_checked ? "text-slate-500" : ""}>
-                    {item.label}
+                    {tr(item.label)}
                   </span>
                   <motion.span
                     aria-hidden
@@ -362,7 +366,7 @@ export default function ChecklistPanel({
                 {!readOnly && (
                   <button
                     onClick={() => void removeItem(item.id)}
-                    aria-label={`${item.label} 삭제`}
+                    aria-label={tr("{title} 삭제", { title: tr(item.label) })}
                     className="text-slate-400 transition hover:text-[var(--color-accent)] md:opacity-0 md:group-hover:opacity-100"
                   >
                     <Trash2 size={16} />

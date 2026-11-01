@@ -7,6 +7,7 @@ import type { Trip } from "@/lib/types";
 import { apiPost } from "@/lib/api";
 import type { DestinationSelection } from "@/data/world";
 import CoverPhoto from "@/features/ui/CoverPhoto";
+import { useT } from "@/i18n/I18nProvider";
 
 interface TripCreateFormProps {
   selection: DestinationSelection;
@@ -26,7 +27,8 @@ function diffNights(start: string, end: string): number | null {
 
 export default function TripCreateForm({ selection, onSuccess, onCancel }: TripCreateFormProps) {
   const { continent, country, city } = selection;
-  const [title, setTitle] = useState(`${city.name} 여행`);
+  const t = useT();
+  const [title, setTitle] = useState(() => t("{city} 여행", { city: t(city.name) }));
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(false);
@@ -39,9 +41,9 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
     e.preventDefault();
     setError(null);
 
-    if (!title.trim()) return setError("여행 제목을 입력해 주세요.");
-    if (!startDate || !endDate) return setError("시작일과 종료일을 모두 골라 주세요.");
-    if (invalidRange) return setError("종료일이 시작일보다 빠를 수 없어요.");
+    if (!title.trim()) return setError(t("여행 제목을 입력해 주세요."));
+    if (!startDate || !endDate) return setError(t("시작일과 종료일을 모두 골라 주세요."));
+    if (invalidRange) return setError(t("종료일이 시작일보다 빠를 수 없어요."));
 
     setLoading(true);
     try {
@@ -56,7 +58,7 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
       });
       onSuccess?.(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "여행을 만들지 못했어요. 다시 시도해 주세요.");
+      setError(err instanceof Error ? err.message : t("여행을 만들지 못했어요. 다시 시도해 주세요."));
       setLoading(false);
     }
   }
@@ -76,7 +78,7 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
           <button
             type="button"
             onClick={onCancel}
-            aria-label="목적지 다시 고르기"
+            aria-label={t("목적지 다시 고르기")}
             className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-black/30 backdrop-blur-md transition hover:bg-black/45"
           >
             <ArrowLeft size={17} />
@@ -84,33 +86,33 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
         )}
         <div className="absolute inset-x-0 bottom-0 p-5">
           <p className="text-sm font-semibold text-white/88">
-            {country.name} · {continent.name}
+            {t(country.name)} · {t(continent.name)}
           </p>
           <p className="mt-0.5 text-3xl font-extrabold tracking-tight">
-            {city.name}
+            {t(city.name)}
           </p>
           <p className="mt-1 text-xs text-white/82">
-            {city.description} · 현지 화폐 <span className="font-mono font-semibold">{country.currency}</span>
+            {t(city.description)} · {t("현지 화폐")} <span className="font-mono font-semibold">{country.currency}</span>
           </p>
         </div>
       </div>
 
       <div className="p-5 md:p-7">
         <label className="field-label" htmlFor="trip-title">
-          여행 이름
+          {t("여행 이름")}
         </label>
         <input
           id="trip-title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="예: 도쿄 맛집 투어"
+          placeholder={t("예: 도쿄 맛집 투어")}
           className="input"
         />
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="trip-start" className="field-label">
-              가는 날
+              {t("가는 날")}
             </label>
             <input
               id="trip-start"
@@ -122,7 +124,7 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
           </div>
           <div>
             <label htmlFor="trip-end" className="field-label">
-              오는 날
+              {t("오는 날")}
             </label>
             <input
               id="trip-end"
@@ -142,24 +144,24 @@ export default function TripCreateForm({ selection, onSuccess, onCancel }: TripC
             className="mt-3 flex items-center gap-1.5 text-sm font-medium text-primary-strong"
           >
             <CalendarDays size={14} />
-            {nights === 0 ? "당일치기 여행이에요" : `${nights}박 ${nights + 1}일 여행이에요`}
+            {nights === 0 ? t("당일치기 여행이에요") : t("{nights}박 {days}일 여행이에요", { nights, days: nights + 1 })}
           </motion.p>
         )}
 
         {(error || invalidRange) && (
           <p role="alert" className="mt-4 rounded-xl bg-accent-soft px-4 py-2.5 text-sm text-accent">
-            {error ?? "종료일이 시작일보다 빠를 수 없어요."}
+            {error ?? t("종료일이 시작일보다 빠를 수 없어요.")}
           </p>
         )}
 
         <button type="submit" disabled={loading} className="btn btn-primary mt-6 w-full py-3.5 disabled:opacity-60">
           {loading ? (
             <>
-              <Loader2 size={18} className="animate-spin" /> 만드는 중…
+              <Loader2 size={18} className="animate-spin" /> {t("만드는 중…")}
             </>
           ) : (
             <>
-              <Plane size={18} /> 여행 시작하기
+              <Plane size={18} /> {t("여행 시작하기")}
             </>
           )}
         </button>

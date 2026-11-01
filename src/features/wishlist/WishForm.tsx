@@ -5,6 +5,7 @@ import { Loader2, X } from "lucide-react";
 import type { DestinationSelection } from "@/data/world";
 import type { WishlistPlace } from "@/lib/types";
 import Hearts from "./Hearts";
+import { useT } from "@/i18n/I18nProvider";
 import { priorityLabel } from "./priority";
 
 export interface WishDraft {
@@ -26,7 +27,8 @@ export default function WishForm({
   onSubmit: (draft: WishDraft) => Promise<void>;
   submitLabel: string;
 }) {
-  const [name, setName] = useState(initial?.name ?? selection?.city.name ?? "");
+  const tr = useT();
+  const [name, setName] = useState(initial?.name ?? (selection ? tr(selection.city.name) : ""));
   const [priority, setPriority] = useState(initial?.priority ?? 2);
   const [memo, setMemo] = useState(initial?.memo ?? "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
@@ -50,36 +52,36 @@ export default function WishForm({
   return (
     <form onSubmit={submit} className="space-y-4">
       <label className="block">
-        <span className="text-sm font-semibold">이름</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} className="input mt-1.5" placeholder="예: 교토 단풍 여행" />
+        <span className="text-sm font-semibold">{tr("이름")}</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} className="input mt-1.5" placeholder={tr("예: 교토 단풍 여행")} />
       </label>
 
       <div>
-        <span className="text-sm font-semibold">얼마나 가고 싶나요?</span>
+        <span className="text-sm font-semibold">{tr("얼마나 가고 싶나요?")}</span>
         <div className="mt-1.5 flex items-center gap-3">
           <Hearts value={priority} onChange={setPriority} size={24} />
-          <span className="text-sm font-medium text-foreground/65">{priorityLabel(priority)}</span>
+          <span className="text-sm font-medium text-foreground/65">{tr(priorityLabel(priority))}</span>
         </div>
       </div>
 
       <label className="block">
-        <span className="text-sm font-semibold">메모</span>
+        <span className="text-sm font-semibold">{tr("메모")}</span>
         <textarea
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
           rows={3}
           className="input mt-1.5 resize-none"
-          placeholder="가고 싶은 이유, 보고 싶은 것, 좋은 계절…"
+          placeholder={tr("가고 싶은 이유, 보고 싶은 것, 좋은 계절…")}
         />
       </label>
 
       <div>
-        <span className="text-sm font-semibold">태그</span>
+        <span className="text-sm font-semibold">{tr("태그")}</span>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-[0.875rem] border border-border-subtle bg-surface-muted p-2">
           {tags.map((t) => (
             <span key={t} className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 text-xs font-semibold shadow-sm">
               #{t}
-              <button type="button" aria-label={`${t} 태그 삭제`} onClick={() => setTags(tags.filter((x) => x !== t))}>
+              <button type="button" aria-label={tr("{tag} 태그 삭제", { tag: t })} onClick={() => setTags(tags.filter((x) => x !== t))}>
                 <X size={12} className="text-foreground/68" />
               </button>
             </span>
@@ -94,7 +96,7 @@ export default function WishForm({
               }
             }}
             onBlur={addTag}
-            placeholder={tags.length ? "" : "바다, 미식, 겨울… (Enter)"}
+            placeholder={tags.length ? "" : tr("바다, 미식, 겨울… (Enter)")}
             className="min-w-24 flex-1 bg-transparent px-1 py-1 text-sm outline-none"
           />
         </div>

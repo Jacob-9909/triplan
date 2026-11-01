@@ -13,18 +13,20 @@ import CoverPhoto from "@/features/ui/CoverPhoto";
 import Sheet from "@/features/ui/Sheet";
 import Hearts from "./Hearts";
 import WishForm, { type WishDraft } from "./WishForm";
+import { usePrefs } from "@/i18n/I18nProvider";
+import type { T } from "@/i18n/translate";
 import { PRIORITIES, priorityLabel } from "./priority";
 
 type Filter = "all" | 1 | 2 | 3;
 
 /** 위시리스트 항목을 지도 핀 모양으로 변환 */
-function toPoint(w: WishlistPlace): MapPoint {
+function toPoint(w: WishlistPlace, t: T): MapPoint {
   return {
     id: w.id,
     trip_id: "",
-    name: w.name,
+    name: t(w.name),
     category: w.priority === 3 ? "food" : w.priority === 2 ? "attraction" : "nature",
-    memo: [priorityLabel(w.priority), w.memo].filter(Boolean).join(" · "),
+    memo: [t(priorityLabel(w.priority)), w.memo].filter(Boolean).join(" · "),
     lat: w.lat ?? 0,
     lng: w.lng ?? 0,
     day_number: null,
@@ -34,6 +36,7 @@ function toPoint(w: WishlistPlace): MapPoint {
 }
 
 export default function Wishlist() {
+  const { t } = usePrefs();
   const [items, setItems] = useState<WishlistPlace[] | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [adding, setAdding] = useState(false);
@@ -86,20 +89,20 @@ export default function Wishlist() {
     <div className="mx-auto max-w-6xl px-4 md:px-6">
       <div className="mt-3 flex items-end justify-between gap-4 md:mt-8">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">가고 싶은 곳</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{t("가고 싶은 곳")}</h1>
           <p className="mt-1 text-sm text-foreground/65">
-            {items === null ? "불러오는 중…" : `${countries}개 나라 · ${items.length}곳을 담아 뒀어요`}
+            {items === null ? t("불러오는 중…") : t("{countries}개 나라 · {n}곳을 담아 뒀어요", { countries, n: items.length })}
           </p>
         </div>
         <button onClick={() => setAdding(true)} className="btn btn-primary shrink-0 px-4 py-2.5 text-sm">
-          <Plus size={16} /> 담기
+          <Plus size={16} /> {t("담기")}
         </button>
       </div>
 
       {/* 세계지도 */}
       <div className="mt-5 overflow-hidden rounded-[var(--radius-card)] shadow-card">
         <TripMap
-          points={(items ?? []).filter((w) => w.lat !== null && w.lng !== null).map(toPoint)}
+          points={(items ?? []).filter((w) => w.lat !== null && w.lng !== null).map((w) => toPoint(w, t))}
           showRoute={false}
           numbered={false}
           heightClass="h-56 md:h-80"
@@ -124,10 +127,10 @@ export default function Wishlist() {
               }`}
             >
               {active && (
-                <motion.span layoutId="wish-filter" className="absolute inset-0 rounded-full bg-foreground" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />
+                <motion.span layoutId="wish-filter" className="absolute inset-0 rounded-full bg-ink" transition={{ type: "spring", bounce: 0.2, duration: 0.4 }} />
               )}
               <span className="relative flex items-center gap-1.5">
-                {f === "all" ? "전체" : <><Hearts value={f} size={12} light={active} /> {priorityLabel(f)}</>}
+                {f === "all" ? t("전체") : <><Hearts value={f} size={12} light={active} /> {t(priorityLabel(f))}</>}
               </span>
             </button>
           );
@@ -161,16 +164,16 @@ export default function Wishlist() {
       )}
 
       {/* 새로 담기: 목적지 고르기 → 메모 */}
-      <Sheet open={adding} onClose={closeAdd} title={picked ? `${picked.city.name} · ${picked.country.name}` : "어디에 가고 싶나요?"} wide={!picked}>
+      <Sheet open={adding} onClose={closeAdd} title={picked ? `${t(picked.city.name)} · ${t(picked.country.name)}` : t("어디에 가고 싶나요?")} wide={!picked}>
         {picked ? (
-          <WishForm selection={picked} onSubmit={create} submitLabel="가고 싶은 곳에 담기" />
+          <WishForm selection={picked} onSubmit={create} submitLabel={t("가고 싶은 곳에 담기")} />
         ) : (
           <DestinationSelector onComplete={setPicked} />
         )}
       </Sheet>
 
-      <Sheet open={editing !== null} onClose={() => setEditing(null)} title="가고 싶은 곳 수정">
-        {editing && <WishForm initial={editing} onSubmit={update} submitLabel="저장" />}
+      <Sheet open={editing !== null} onClose={() => setEditing(null)} title={t("가고 싶은 곳 수정")}>
+        {editing && <WishForm initial={editing} onSubmit={update} submitLabel={t("저장")} />}
       </Sheet>
     </div>
   );
@@ -189,6 +192,7 @@ function WishCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = usePrefs();
   const [menu, setMenu] = useState(false);
   return (
     <motion.article
@@ -211,7 +215,7 @@ function WishCard({
         <div className="relative">
           <button
             onClick={() => setMenu((v) => !v)}
-            aria-label="더보기"
+            aria-label={t("더보기")}
             className="flex h-8 w-8 items-center justify-center rounded-full bg-black/25 backdrop-blur-md"
           >
             <MoreHorizontal size={16} />
@@ -226,10 +230,10 @@ function WishCard({
                 onMouseLeave={() => setMenu(false)}
               >
                 <button onClick={() => { setMenu(false); onEdit(); }} className="flex w-full items-center gap-2 px-3 py-2.5 hover:bg-surface-muted">
-                  <PencilLine size={14} /> 수정
+                  <PencilLine size={14} /> {t("수정")}
                 </button>
                 <button onClick={() => { setMenu(false); onDelete(); }} className="flex w-full items-center gap-2 px-3 py-2.5 text-accent hover:bg-accent-soft">
-                  <Trash2 size={14} /> 삭제
+                  <Trash2 size={14} /> {t("삭제")}
                 </button>
               </motion.div>
             )}
@@ -239,15 +243,15 @@ function WishCard({
 
       <div className="relative mt-auto p-3.5">
         <p className="text-xs font-semibold text-white/88">
-          <MapPin size={12} className="inline -mt-0.5" /> {[wish.country, wish.region].filter(Boolean).join(" · ")}
+          <MapPin size={12} className="inline -mt-0.5" /> {[wish.country, wish.region].filter(Boolean).map((n) => t(n!)).join(" · ")}
         </p>
-        <h3 className="mt-0.5 line-clamp-2 text-lg font-bold leading-snug tracking-tight">{wish.name}</h3>
+        <h3 className="mt-0.5 line-clamp-2 text-lg font-bold leading-snug tracking-tight">{t(wish.name)}</h3>
         {wish.memo && <p className="mt-1 line-clamp-2 text-xs text-white/85">{wish.memo}</p>}
         {wish.tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
-            {wish.tags.slice(0, 3).map((t) => (
-              <span key={t} className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold backdrop-blur-sm">
-                #{t}
+            {wish.tags.slice(0, 3).map((tag) => (
+              <span key={tag} className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold backdrop-blur-sm">
+                #{tag}
               </span>
             ))}
           </div>
@@ -257,14 +261,14 @@ function WishCard({
             href={`/trips/${wish.trip_id}`}
             className="mt-3 flex items-center justify-center gap-1 rounded-full bg-mint py-2 text-xs font-bold text-white"
           >
-            계획 중인 여행 보기 <ArrowRight size={13} />
+            {t("계획 중인 여행 보기")} <ArrowRight size={13} />
           </Link>
         ) : (
           <Link
             href={`/trips/new?wish=${wish.id}`}
-            className="mt-3 flex items-center justify-center gap-1 rounded-full bg-white py-2 text-xs font-bold text-foreground transition active:scale-95"
+            className="mt-3 flex items-center justify-center gap-1 rounded-full bg-surface py-2 text-xs font-bold text-foreground transition active:scale-95"
           >
-            <Plane size={13} /> 여행으로 만들기
+            <Plane size={13} /> {t("여행으로 만들기")}
           </Link>
         )}
       </div>
@@ -273,6 +277,7 @@ function WishCard({
 }
 
 function EmptyWish({ onAdd, filtered }: { onAdd: () => void; filtered: boolean }) {
+  const { t } = usePrefs();
   return (
     <div className="card mt-5 flex flex-col items-center px-6 py-14 text-center">
       <motion.span
@@ -282,13 +287,13 @@ function EmptyWish({ onAdd, filtered }: { onAdd: () => void; filtered: boolean }
       >
         <Heart size={26} fill="currentColor" />
       </motion.span>
-      <h2 className="mt-4 text-lg font-bold">{filtered ? "이 우선순위에는 아직 없어요" : "가고 싶은 곳을 담아 보세요"}</h2>
+      <h2 className="mt-4 text-lg font-bold">{filtered ? t("이 우선순위에는 아직 없어요") : t("가고 싶은 곳을 담아 보세요")}</h2>
       <p className="mt-1.5 max-w-xs text-sm text-foreground/65">
-        언젠가 가 보고 싶은 나라와 도시를 모아 두면, 마음이 정해졌을 때 바로 여행으로 바꿀 수 있어요.
+        {t("언젠가 가 보고 싶은 나라와 도시를 모아 두면, 마음이 정해졌을 때 바로 여행으로 바꿀 수 있어요.")}
       </p>
       {!filtered && (
         <button onClick={onAdd} className="btn btn-primary mt-5 px-5 py-2.5 text-sm">
-          <Plus size={16} /> 첫 번째 담기
+          <Plus size={16} /> {t("첫 번째 담기")}
         </button>
       )}
     </div>

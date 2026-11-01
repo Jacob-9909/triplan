@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import type { MapPoint } from "@/lib/types";
 import { categoryStyle } from "./pointStyle";
+import { useT } from "@/i18n/I18nProvider";
 
 export interface PinMarkerProps {
   category: MapPoint["category"];
@@ -20,6 +21,7 @@ export interface PinMarkerProps {
  * 분류 아이콘이 들어간 티어드롭 핀. 색은 장소마다 지정할 수 있다.
  */
 export default function PinMarker({ category, color, label, selected = false, onClick, name }: PinMarkerProps) {
+  const t = useT();
   const style = categoryStyle(category);
   const fill = color || style.color;
   const Icon = style.icon;
@@ -27,7 +29,7 @@ export default function PinMarker({ category, color, label, selected = false, on
   return (
     <motion.button
       type="button"
-      aria-label={[label != null ? `${label}번` : null, name, style.label].filter(Boolean).join(" · ")}
+      aria-label={[label != null ? t("{n}번", { n: label }) : null, name, t(style.label)].filter(Boolean).join(" · ")}
       aria-pressed={selected}
       onClick={(e) => {
         e.stopPropagation();

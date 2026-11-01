@@ -3,9 +3,9 @@
 import { useMemo } from "react";
 import { motion } from "framer-motion";
 import { format, isValid, parseISO } from "date-fns";
-import { ko } from "date-fns/locale";
 import { Pencil, Trash2 } from "lucide-react";
 import type { Expense } from "@/lib/types";
+import { usePrefs } from "@/i18n/I18nProvider";
 import CurrencyBadge from "./CurrencyBadge";
 import { categoryMeta } from "./categories";
 
@@ -20,6 +20,7 @@ function dateKey(e: Expense): string {
 }
 
 export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListProps) {
+  const { t, df, intl, money } = usePrefs();
   const groups = useMemo(() => {
     const map = new Map<string, Expense[]>();
     for (const e of expenses) {
@@ -35,7 +36,7 @@ export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListP
   if (expenses.length === 0) {
     return (
       <div className="card p-8 text-center text-sm text-foreground/68">
-        아직 기록된 지출이 없어요. 첫 지출을 추가해보세요!
+        {t("아직 기록된 지출이 없어요. 첫 지출을 추가해보세요!")}
       </div>
     );
   }
@@ -48,9 +49,9 @@ export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListP
         return (
           <section key={key} className="card overflow-hidden">
             <header className="flex items-center justify-between border-b border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-2.5">
-              <h3 className="text-sm font-bold">{d ? format(d, "M월 d일 (EEE)", { locale: ko }) : key}</h3>
+              <h3 className="text-sm font-bold">{d ? format(d, t("M월 d일 (EEE)"), { locale: df }) : t(key)}</h3>
               <span className="text-xs font-semibold tabular-nums text-foreground/68">
-                ₩{dayTotalKrw.toLocaleString("ko-KR")}
+                {money(dayTotalKrw)}
               </span>
             </header>
 
@@ -80,23 +81,23 @@ export default function ExpenseList({ expenses, onEdit, onDelete }: ExpenseListP
                         />
                       </div>
                       <p className="mt-0.5 text-xs text-foreground/68">
-                        {meta.label}
+                        {t(meta.label)}
                         {e.day_number != null && ` · Day ${e.day_number}`}
-                        {e.paid_by && ` · ${e.paid_by} 결제`}
+                        {e.paid_by && ` · ${t("{name} 결제", { name: e.paid_by })}`}
                         {e.exchange_rate_krw > 0 &&
-                          ` · 1${e.currency_code} = ₩${e.exchange_rate_krw.toLocaleString("ko-KR", { maximumFractionDigits: 2 })}`}
+                          ` · 1${e.currency_code} = ₩${e.exchange_rate_krw.toLocaleString(intl, { maximumFractionDigits: 2 })}`}
                       </p>
                     </div>
                     <button
                       onClick={() => onEdit(e)}
-                      aria-label={`${e.title} 수정`}
+                      aria-label={t("{title} 수정", { title: e.title })}
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/68 transition hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary-strong)]"
                     >
                       <Pencil size={15} />
                     </button>
                     <button
                       onClick={() => onDelete(e)}
-                      aria-label={`${e.title} 삭제`}
+                      aria-label={t("{title} 삭제", { title: e.title })}
                       className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground/68 transition hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)]"
                     >
                       <Trash2 size={15} />

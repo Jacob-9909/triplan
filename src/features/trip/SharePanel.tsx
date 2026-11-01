@@ -7,6 +7,7 @@ import { Check, Copy, Eye, Loader2, PencilLine, RefreshCw, Share, Trash2, UserPl
 import type { Trip } from "@/lib/types";
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import Sheet from "@/features/ui/Sheet";
+import { useT } from "@/i18n/I18nProvider";
 
 type Kind = "edit" | "view";
 
@@ -45,6 +46,7 @@ export default function SharePanel({
   trip: Trip;
   isAdmin: boolean;
 }) {
+  const t = useT();
   const router = useRouter();
   const [tokens, setTokens] = useState({ edit: trip.edit_token ?? "", view: trip.view_token ?? "" });
   const [copied, setCopied] = useState<Kind | null>(null);
@@ -63,7 +65,7 @@ export default function SharePanel({
 
   async function nativeShare(k: Kind) {
     if (navigator.share) {
-      await navigator.share({ title: trip.title, text: `${trip.title} 여행 계획`, url: link(k) }).catch(() => null);
+      await navigator.share({ title: trip.title, text: t("{title} 여행 계획", { title: trip.title }), url: link(k) }).catch(() => null);
     } else {
       await copy(k);
     }
@@ -88,9 +90,9 @@ export default function SharePanel({
   }
 
   return (
-    <Sheet open={open} onClose={onClose} title="여행 공유">
+    <Sheet open={open} onClose={onClose} title={t("여행 공유")}>
       <InviteSection tripId={trip.id} open={open} />
-      <p className="mt-5 text-sm text-foreground/65">링크를 가진 사람은 로그인 없이 들어올 수 있어요.</p>
+      <p className="mt-5 text-sm text-foreground/65">{t("링크를 가진 사람은 로그인 없이 들어올 수 있어요.")}</p>
       <div className="mt-3 space-y-3">
         {(Object.keys(META) as Kind[]).map((k) => {
           const { title, body, icon: Icon, tone } = META[k];
@@ -101,8 +103,8 @@ export default function SharePanel({
                   <Icon size={18} />
                 </span>
                 <div className="min-w-0">
-                  <h3 className="font-bold">{title}</h3>
-                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/65">{body}</p>
+                  <h3 className="font-bold">{t(title)}</h3>
+                  <p className="mt-0.5 text-xs leading-relaxed text-foreground/65">{t(body)}</p>
                 </div>
               </div>
               <div className="mt-3 flex items-center gap-2 rounded-xl bg-surface-muted p-1.5 pl-3">
@@ -110,7 +112,7 @@ export default function SharePanel({
                 <button
                   onClick={() => void copy(k)}
                   className="btn btn-primary shrink-0 px-3 py-1.5 text-xs"
-                  aria-label={`${title} 복사`}
+                  aria-label={t("{title} 복사", { title: t(title) })}
                 >
                   <AnimatePresence mode="wait" initial={false}>
                     <motion.span
@@ -121,7 +123,7 @@ export default function SharePanel({
                       className="flex items-center gap-1"
                     >
                       {copied === k ? <Check size={13} /> : <Copy size={13} />}
-                      {copied === k ? "복사됨" : "복사"}
+                      {copied === k ? t("복사됨") : t("복사")}
                     </motion.span>
                   </AnimatePresence>
                 </button>
@@ -131,16 +133,16 @@ export default function SharePanel({
                   onClick={() => void nativeShare(k)}
                   className="inline-flex items-center gap-1 text-xs font-semibold text-primary-strong"
                 >
-                  <Share size={13} /> 보내기
+                  <Share size={13} /> {t("보내기")}
                 </button>
                 {confirming === k ? (
                   <span className="flex items-center gap-2 text-xs">
-                    <span className="text-foreground/65">이전 링크는 바로 막혀요.</span>
+                    <span className="text-foreground/65">{t("이전 링크는 바로 막혀요.")}</span>
                     <button onClick={() => void regenerate(k)} className="font-bold text-accent">
-                      바꾸기
+                      {t("바꾸기")}
                     </button>
                     <button onClick={() => setConfirming(null)} className="text-foreground/68">
-                      취소
+                      {t("취소")}
                     </button>
                   </span>
                 ) : (
@@ -148,7 +150,7 @@ export default function SharePanel({
                     onClick={() => setConfirming(k)}
                     className="inline-flex items-center gap-1 text-xs text-foreground/68 hover:text-foreground"
                   >
-                    <RefreshCw size={12} /> 새 링크로 바꾸기
+                    <RefreshCw size={12} /> {t("새 링크로 바꾸기")}
                   </button>
                 )}
               </div>
@@ -160,9 +162,9 @@ export default function SharePanel({
       {isAdmin && <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle p-4">
         <input type="checkbox" checked={demo} onChange={() => void toggleDemo()} className="mt-1 h-4 w-4 accent-primary" />
         <span>
-          <span className="font-bold">체험 회원에게 공개</span>
+          <span className="font-bold">{t("체험 회원에게 공개")}</span>
           <span className="mt-0.5 block text-xs leading-relaxed text-foreground/65">
-            회원 관리에서 만든 체험 계정이 이 여행을 보기 전용으로 볼 수 있어요.
+            {t("회원 관리에서 만든 체험 계정이 이 여행을 보기 전용으로 볼 수 있어요.")}
           </span>
         </span>
       </label>}
@@ -170,13 +172,13 @@ export default function SharePanel({
       <div className="mt-6 border-t border-border-subtle pt-4">
         {confirming === "delete" ? (
           <div className="flex items-center justify-between gap-3 rounded-2xl bg-accent-soft p-3 text-sm">
-            <span className="text-accent">지도·일정·가계부까지 모두 지워져요.</span>
+            <span className="text-accent">{t("지도·일정·가계부까지 모두 지워져요.")}</span>
             <span className="flex shrink-0 gap-2">
               <button onClick={() => setConfirming(null)} className="btn btn-ghost px-3 py-1.5 text-xs">
-                취소
+                {t("취소")}
               </button>
               <button onClick={() => void remove()} className="btn bg-accent px-3 py-1.5 text-xs text-white">
-                삭제
+                {t("삭제")}
               </button>
             </span>
           </div>
@@ -185,7 +187,7 @@ export default function SharePanel({
             onClick={() => setConfirming("delete")}
             className="inline-flex items-center gap-1.5 text-sm text-foreground/68 transition hover:text-accent"
           >
-            <Trash2 size={14} /> 이 여행 삭제
+            <Trash2 size={14} /> {t("이 여행 삭제")}
           </button>
         )}
       </div>
@@ -195,6 +197,7 @@ export default function SharePanel({
 
 /** 사용 권한 회원을 아이디로 초대하면, 그 회원이 로그인해서 이 여행을 함께 편집한다 */
 function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
+  const t = useT();
   const [people, setPeople] = useState<Collaborator[] | null>(null);
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -217,7 +220,7 @@ function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
       setPeople((list) => [...(list ?? []).filter((x) => x.id !== p.id), p]);
       setUsername("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "초대하지 못했어요.");
+      setError(err instanceof ApiError ? err.message : t("초대하지 못했어요."));
     } finally {
       setSaving(false);
     }
@@ -235,9 +238,9 @@ function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
           <UserPlus size={18} />
         </span>
         <div className="min-w-0">
-          <h3 className="font-bold">회원 초대</h3>
+          <h3 className="font-bold">{t("회원 초대")}</h3>
           <p className="mt-0.5 text-xs leading-relaxed text-foreground/65">
-            사용 권한 회원의 아이디를 넣으면, 그 회원이 로그인해서 같이 편집해요. 바뀐 내용은 서로의 화면에 바로 보여요.
+            {t("사용 권한 회원의 아이디를 넣으면, 그 회원이 로그인해서 같이 편집해요. 바뀐 내용은 서로의 화면에 바로 보여요.")}
           </p>
         </div>
       </div>
@@ -245,7 +248,7 @@ function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="회원 아이디"
+          placeholder={t("회원 아이디")}
           autoComplete="off"
           className="input flex-1"
         />
@@ -254,7 +257,7 @@ function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
           disabled={!username.trim() || saving}
           className="btn btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-50"
         >
-          {saving ? <Loader2 size={15} className="animate-spin" /> : "초대"}
+          {saving ? <Loader2 size={15} className="animate-spin" /> : t("초대")}
         </button>
       </form>
       {error && <p className="mt-2 text-xs font-medium text-accent">{error}</p>}
@@ -267,11 +270,11 @@ function InviteSection({ tripId, open }: { tripId: string; open: boolean }) {
             >
               {p.username}
               {p.kind === "owner" ? (
-                <span className="px-1 text-foreground/68">주인</span>
+                <span className="px-1 text-foreground/68">{t("주인")}</span>
               ) : (
                 <button
                   onClick={() => void uninvite(p)}
-                  aria-label={`${p.username} 초대 취소`}
+                  aria-label={t("{name} 초대 취소", { name: p.username })}
                   className="flex h-5 w-5 items-center justify-center rounded-full text-foreground/68 hover:bg-accent-soft hover:text-accent"
                 >
                   <X size={12} />

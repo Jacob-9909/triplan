@@ -1,4 +1,5 @@
 import type { Continent } from "@/lib/types";
+import { translate } from "@/i18n/translate";
 
 /** 국가별 주요 도시/지역 */
 export interface City {
@@ -908,6 +909,9 @@ export const WORLD: ContinentData[] = [
   },
 ];
 
+/** 영어 이름으로도 검색되게 */
+const en = (name: string) => translate("en", name).toLowerCase();
+
 /** 검색용: 모든 국가/도시를 하나의 리스트로 평탄화 */
 export function searchDestinations(query: string): DestinationSelection[] {
   const q = query.trim().toLowerCase();
@@ -915,11 +919,12 @@ export function searchDestinations(query: string): DestinationSelection[] {
   const results: DestinationSelection[] = [];
   for (const continent of WORLD) {
     for (const country of continent.countries) {
-      const countryMatch = country.name.toLowerCase().includes(q);
+      const countryMatch = country.name.toLowerCase().includes(q) || en(country.name).includes(q);
       for (const city of country.cities) {
         if (
           countryMatch ||
           city.name.toLowerCase().includes(q) ||
+          en(city.name).includes(q) ||
           city.description.includes(query.trim())
         ) {
           results.push({ continent, country, city });

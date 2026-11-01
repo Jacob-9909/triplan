@@ -7,9 +7,13 @@ import { motion } from "framer-motion";
 import { ArrowRight, Loader2, Lock, User } from "lucide-react";
 import { Logo } from "@/features/shell/AppShell";
 import CoverPhoto from "@/features/ui/CoverPhoto";
+import PrefsToggle from "@/i18n/PrefsToggle";
+import { usePrefs } from "@/i18n/I18nProvider";
+import { translateError } from "@/lib/api";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { t, locale } = usePrefs();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +35,7 @@ export default function LoginForm() {
       return;
     }
     const body = await res.json().catch(() => null);
-    setError(body?.error ?? "로그인하지 못했어요.");
+    setError(body?.error ? translateError(locale, body.error) : t("로그인하지 못했어요."));
     setLoading(false);
   }
 
@@ -39,16 +43,17 @@ export default function LoginForm() {
     <main className="grid min-h-dvh md:grid-cols-[1.1fr_1fr]">
       {/* 사진 */}
       <div className="relative h-56 overflow-hidden md:h-auto">
-        <CoverPhoto country="스위스" city="인터라켄" />
-        <div className="absolute inset-x-0 top-0 p-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:p-10">
-          <Link href="/" aria-label="Triplan 소개로" className="inline-block rounded-xl">
+        <CoverPhoto country="스위스" city="인터라켄" /> {/* i18n-ignore: 사진 조회 키 */}
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:p-10">
+          <Link href="/" aria-label={t("Triplan 소개로")} className="inline-block rounded-xl">
             <Logo tone="light" />
           </Link>
+          <PrefsToggle tone="light" />
         </div>
         <p className="absolute bottom-5 left-5 hidden max-w-sm text-3xl font-extrabold leading-tight tracking-tight text-white md:bottom-10 md:left-10 md:block">
-          다음 여행도
+          {t("다음 여행도")}
           <br />
-          지도 위에서 같이 짜요.
+          {t("지도 위에서 같이 짜요.")}
         </p>
       </div>
 
@@ -61,12 +66,12 @@ export default function LoginForm() {
           transition={{ duration: 0.4 }}
           className="w-full max-w-sm"
         >
-          <p className="eyebrow">로그인</p>
-          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight md:text-3xl">다시 떠날 준비, 되셨나요?</h1>
-          <p className="mt-2 text-sm text-foreground/68">관리자는 비밀번호만, 회원은 아이디와 비밀번호를 넣어요.</p>
+          <p className="eyebrow">{t("로그인")}</p>
+          <h1 className="mt-1.5 text-2xl font-extrabold tracking-tight md:text-3xl">{t("다시 떠날 준비, 되셨나요?")}</h1>
+          <p className="mt-2 text-sm text-foreground/68">{t("관리자는 비밀번호만, 회원은 아이디와 비밀번호를 넣어요.")}</p>
 
           <label htmlFor="login-username" className="field-label mt-6">
-            아이디 <span className="font-normal text-foreground/68">(관리자는 비워 두세요)</span>
+            {t("아이디")} <span className="font-normal text-foreground/68">{t("(관리자는 비워 두세요)")}</span>
           </label>
           <div className="relative">
             <User size={16} aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/68" />
@@ -82,7 +87,7 @@ export default function LoginForm() {
           </div>
 
           <label htmlFor="login-password" className="field-label mt-4">
-            비밀번호
+            {t("비밀번호")}
           </label>
           <div className="relative">
             <Lock size={16} aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/68" />
@@ -103,10 +108,10 @@ export default function LoginForm() {
             </p>
           )}
           <button type="submit" disabled={!password || loading} className="btn btn-primary mt-6 w-full py-3 text-sm disabled:opacity-50">
-            {loading ? <Loader2 size={16} className="animate-spin" aria-label="로그인 중" /> : <>들어가기 <ArrowRight size={16} aria-hidden /></>}
+            {loading ? <Loader2 size={16} className="animate-spin" aria-label={t("로그인 중")} /> : <>{t("들어가기")} <ArrowRight size={16} aria-hidden /></>}
           </button>
           <p className="mt-6 rounded-2xl bg-surface-muted px-4 py-3 text-xs leading-relaxed text-foreground/70">
-            공유 링크를 받으셨다면 로그인 없이 그 링크로 바로 들어가면 돼요.
+            {t("공유 링크를 받으셨다면 로그인 없이 그 링크로 바로 들어가면 돼요.")}
           </p>
         </motion.form>
       </div>

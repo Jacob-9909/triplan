@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Map, { Marker, NavigationControl, Popup, Source, Layer } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
 import TripMapCore from "./TripMapCore";
 import type { TripMapCoreProps } from "./TripMapCore";
 import { adaptKitComponent, type MapKit } from "./mapKit";
 import { TRIPOI_LAYER_IDS, TRIPOI_LAYER_PREFIX } from "./poiLayers";
+import { usePrefs } from "@/i18n/I18nProvider";
+import type { Locale } from "@/i18n/translate";
 
 /**
  * 기본 지도: OpenFreeMap Liberty (키·사용량 제한 없음, OpenMapTiles 스키마).
@@ -19,16 +21,15 @@ const LIBERTY_POI_LAYER_IDS = ["poi_r1", "poi_r7", "poi_r20", "poi_transit"];
 /** 예비 지도: Carto Voyager (POI가 적어 라벨 레이어를 보강해서 쓴다) */
 export const MAPLIBRE_VOYAGER_STYLE = "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
-/** 지명을 한국어 이름이 있으면 한국어로, 없으면 현지 이름으로 표시 */
-const KOREAN_NAME = ["coalesce", ["get", "name:ko"], ["get", "name"]];
-
-function localizeToKorean(style: Record<string, unknown>): Record<string, unknown> {
+/** 지명을 화면 언어(한국어/영어) 이름이 있으면 그 이름으로, 없으면 현지 이름으로 표시 */
+function localizeLabels(style: Record<string, unknown>, locale: Locale): Record<string, unknown> {
+  const localName = ["coalesce", ["get", locale === "en" ? "name:en" : "name:ko"], ["get", "name"]];
   const layers = (style.layers as Array<Record<string, unknown>>).map((layer) => {
     const layout = layer.layout as Record<string, unknown> | undefined;
     const field = layout?.["text-field"];
     // 도로 번호·번지 등 이름이 아닌 라벨은 그대로 둔다
     if (!field || !JSON.stringify(field).includes('"name')) return layer;
-    return { ...layer, layout: { ...layout, "text-field": KOREAN_NAME } };
+    return { ...layer, layout: { ...layout, "text-field": localName } };
   });
   return { ...style, layers };
 }
@@ -103,6 +104,8 @@ function poiLabelLayer(
 interface LoadedStyle {
   style: Record<string, unknown>;
   poiLayerIds: string[];
+  /** OpenFreeMap 스타일이면 라벨을 화면 언어로 바꾼다 */
+  localize: boolean;
 }
 
 let stylePromise: Promise<LoadedStyle> | null = null;
@@ -114,11 +117,12 @@ function getStyle(): Promise<LoadedStyle> {
         return res.json();
       })
       .then((style: Record<string, unknown>) => ({
-        style: localizeToKorean(style),
+        style,
         poiLayerIds: LIBERTY_POI_LAYER_IDS,
+        localize: true,
       }))
       // OpenFreeMap이 응답하지 않으면 Carto 지도로 대체
-      .catch(() => getEnrichedVoyager().then((style) => ({ style, poiLayerIds: TRIPOI_LAYER_IDS })));
+      .catch(() => getEnrichedVoyager().then((style) => ({ style, poiLayerIds: TRIPOI_LAYER_IDS, localize: false })));
   }
   return stylePromise;
 }
@@ -161,7 +165,12 @@ const kit: MapKit = {
 
 /** 기본 실행 모드 — 토큰 없이 maplibre + OpenFreeMap Liberty(실패 시 Carto) 스타일로 렌더링 */
 export default function TripMapLibre(props: Omit<TripMapCoreProps, "kit" | "mapStyle" | "accessToken">) {
+  const { locale } = usePrefs();
   const [loaded, setLoaded] = useState<LoadedStyle | null>(null);
+  const mapStyle = useMemo(
+    () => (loaded?.localize ? localizeLabels(loaded.style, locale) : loaded?.style),
+    [loaded, locale]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -173,7 +182,7 @@ export default function TripMapLibre(props: Omit<TripMapCoreProps, "kit" | "mapS
     };
   }, []);
 
-  if (!loaded) return null; // 로딩 중 오버레이는 TripMapCore 상위에서 표시됨
+  if (!loaded || !mapStyle) return null; // 로딩 중 오버레이는 TripMapCore 상위에서 표시됨
 
-  return <TripMapCore {...props} kit={kit} mapStyle={loaded.style} poiLayerIds={loaded.poiLayerIds} translateLabels />;
+  return <TripMapCore {...props} kit={kit} mapStyle={mapStyle} poiLayerIds={loaded.poiLayerIds} translateLabels />;
 }

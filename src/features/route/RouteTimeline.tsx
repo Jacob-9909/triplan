@@ -7,6 +7,7 @@ import type { MapPoint, RouteLeg } from "@/lib/types";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { METHOD_META } from "./meta";
 import { buildSchedule, DEFAULT_STAY, formatDuration, formatTime } from "./schedule";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 export interface RouteTimelineProps {
   /** visit_order 기준으로 정렬된 해당 Day의 포인트 목록 (순서 변경 시 부모에서 갱신) */
@@ -21,6 +22,7 @@ export interface RouteTimelineProps {
 
 /** 하루 타임테이블: 장소별 도착~출발 시각과 그 사이 이동 구간 */
 export default function RouteTimeline({ points, legs, onLegClick, onPointClick }: RouteTimelineProps) {
+  const { t: tr, locale, money } = usePrefs();
   const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
   const legBetween = useMemo(() => {
     const map = new Map<string, RouteLeg>();
@@ -31,7 +33,7 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
   if (points.length === 0) {
     return (
       <div className="card px-4 py-8 text-center text-sm text-foreground/68">
-        타임테이블이 비어 있어요. 지도에서 장소를 추가해 보세요.
+        {tr("타임테이블이 비어 있어요. 지도에서 장소를 추가해 보세요.")}
       </div>
     );
   }
@@ -43,10 +45,10 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
     <div className="card p-4 md:p-5">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-sm font-bold">
-          <Clock size={15} className="text-primary-strong" /> 타임테이블
+          <Clock size={15} className="text-primary-strong" /> {tr("타임테이블")}
         </h3>
         <span className="text-xs font-semibold text-foreground/68">
-          {formatTime(first.arrive)} 시작 · {formatTime(last.leave)} 마무리
+          {tr("{start} 시작 · {end} 마무리", { start: formatTime(first.arrive), end: formatTime(last.leave) })}
         </span>
       </div>
 
@@ -86,12 +88,12 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
                     {point.name}
                   </p>
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-foreground/68">
-                    <span style={{ color }}>{categoryStyle(point.category).label}</span>
+                    <span style={{ color }}>{tr(categoryStyle(point.category).label)}</span>
                     <span className="inline-flex items-center gap-0.5">
-                      <Hourglass size={10} /> {formatDuration(stay)} 머묾
+                      <Hourglass size={10} /> {tr("{time} 머묾", { time: formatDuration(stay, locale) })}
                     </span>
-                    {t.wait > 0 && <span className="text-mint">대기 {formatDuration(t.wait)}</span>}
-                    {t.late > 0 && <span className="text-accent">지정 시각보다 {formatDuration(t.late)} 늦음</span>}
+                    {t.wait > 0 && <span className="text-mint">{tr("대기 {time}", { time: formatDuration(t.wait, locale) })}</span>}
+                    {t.late > 0 && <span className="text-accent">{tr("지정 시각보다 {time} 늦음", { time: formatDuration(t.late, locale) })}</span>}
                   </p>
                 </div>
                 {onPointClick && <PencilLine size={13} className="shrink-0 text-foreground/68" />}
@@ -124,12 +126,12 @@ export default function RouteTimeline({ points, legs, onLegClick, onPointClick }
                         className="inline-flex items-center gap-1.5 rounded-full bg-surface-muted px-3 py-1.5 text-xs font-medium text-foreground/70 transition enabled:hover:bg-primary-soft enabled:hover:text-primary-strong"
                       >
                         <MIcon size={13} className="text-primary-strong" />
-                        {mMeta.label}
+                        {tr(mMeta.label)}
                         <span className="font-bold text-primary-strong">
-                          {leg.duration_min != null ? formatDuration(leg.duration_min) : "시간 정하기"}
+                          {leg.duration_min != null ? formatDuration(leg.duration_min, locale) : tr("시간 정하기")}
                         </span>
                         {leg.cost != null && leg.cost > 0 && (
-                          <span className="text-[11px] text-foreground/68">· {leg.cost.toLocaleString()}원</span>
+                          <span className="text-[11px] text-foreground/68">· {money(leg.cost)}</span>
                         )}
                         {onLegClick && <PencilLine size={11} className="text-foreground/68" />}
                       </button>

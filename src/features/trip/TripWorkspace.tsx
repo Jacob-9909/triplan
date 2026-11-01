@@ -51,6 +51,8 @@ import NowCard from "@/features/route/NowCard";
 import { useForecast } from "@/features/route/weather";
 import SettleCard from "@/features/expenses/SettleCard";
 import LocalInfoCard from "@/features/prep/LocalInfoCard";
+import PrefsToggle from "@/i18n/PrefsToggle";
+import { usePrefs, useT } from "@/i18n/I18nProvider";
 
 type Tab = "plan" | "expenses" | "prep" | "record";
 
@@ -66,6 +68,7 @@ const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
  * mode="edit" | "view": 공유 링크·체험 회원 화면
  */
 export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: Access }) {
+  const { t, locale } = usePrefs();
   const inApp = mode === "admin";
   // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
   if (inApp) setTripToken(null);
@@ -162,7 +165,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
       return null;
     } catch (e) {
-      return e instanceof Error ? e.message : "저장하지 못했어요.";
+      return e instanceof Error ? e.message : t("저장하지 못했어요.");
     }
   }
 
@@ -231,15 +234,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
           <Lock size={26} />
         </div>
-        <h2 className="mt-4 text-lg font-bold">이 여행에 더는 들어올 수 없어요</h2>
+        <h2 className="mt-4 text-lg font-bold">{t("이 여행에 더는 들어올 수 없어요")}</h2>
         <p className="mt-2 text-sm text-foreground/65">
           {inApp
-            ? "초대가 취소되었거나, 여행이 삭제되었거나, 계정 권한이 바뀌었어요."
-            : "링크가 새로 바뀌었거나 여행이 삭제되었어요. 링크를 보낸 사람에게 새 링크를 받아 주세요."}
+            ? t("초대가 취소되었거나, 여행이 삭제되었거나, 계정 권한이 바뀌었어요.")
+            : t("링크가 새로 바뀌었거나 여행이 삭제되었어요. 링크를 보낸 사람에게 새 링크를 받아 주세요.")}
         </p>
         {inApp && (
           <Link href="/" className="btn btn-ghost mt-5 px-5 py-2.5 text-sm">
-            내 여행으로
+            {t("내 여행으로")}
           </Link>
         )}
       </div>
@@ -252,15 +255,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
           <MapPin size={26} />
         </div>
-        <h2 className="mt-4 text-lg font-bold">여행을 열 수 없어요</h2>
+        <h2 className="mt-4 text-lg font-bold">{t("여행을 열 수 없어요")}</h2>
         <p className="mt-2 text-sm text-foreground/65">
           {inApp
-            ? "삭제되었거나 초대가 취소되었을 수 있어요."
-            : "삭제되었거나 링크가 바뀌었을 수 있어요. 링크를 보낸 사람에게 새 링크를 받아 주세요."}
+            ? t("삭제되었거나 초대가 취소되었을 수 있어요.")
+            : t("삭제되었거나 링크가 바뀌었을 수 있어요. 링크를 보낸 사람에게 새 링크를 받아 주세요.")}
         </p>
         {inApp && (
           <Link href="/" className="btn btn-ghost mt-5 px-5 py-2.5 text-sm">
-            내 여행으로
+            {t("내 여행으로")}
           </Link>
         )}
       </div>
@@ -286,7 +289,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const hasRecord = phase.phase === "ongoing" || phase.phase === "past";
   const tabs = hasRecord ? TABS : TABS.filter((t) => t.id !== "record");
   const tab: Tab = pickedTab && tabs.some((t) => t.id === pickedTab) ? pickedTab : phase.phase === "past" ? "record" : "plan";
-  const stay = stayLabel(trip);
+  const stay = stayLabel(trip, locale);
   const mapCenter =
     dayPoints.length > 0
       ? {
@@ -312,7 +315,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
             {inApp ? (
               <Link
                 href="/"
-                aria-label="내 여행으로"
+                aria-label={t("내 여행으로")}
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-black/25 backdrop-blur-md transition hover:bg-black/40"
               >
                 <ArrowLeft size={18} />
@@ -320,42 +323,46 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
                 {mode === "edit" ? <PencilLine size={13} /> : <Eye size={13} />}
-                {mode === "edit" ? "공유받은 여행 · 함께 편집 중" : "공유받은 여행 · 보기 전용"}
+                {mode === "edit" ? t("공유받은 여행 · 함께 편집 중") : t("공유받은 여행 · 보기 전용")}
               </span>
             )}
             <span className="ml-auto flex items-center gap-2">
+              {/* 로그인 화면은 데스크톱 상단 바에 이미 있다 */}
+              <PrefsToggle tone="light" className={inApp ? "md:hidden" : ""} />
               <SyncBadge status={sync} />
               {inApp && canManage && (
                 <button
                   onClick={() => setShareOpen(true)}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-sm font-semibold text-foreground shadow-lift transition active:scale-95"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-surface px-4 py-2 text-sm font-semibold text-foreground shadow-lift transition active:scale-95"
                 >
-                  <Share2 size={15} /> 공유
+                  <Share2 size={15} /> {t("공유")}
                 </button>
               )}
               {inApp && access === "edit" && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
                   <PencilLine size={13} />
-                  {trip.owner_username ? `${trip.owner_username}님의 여행` : "초대받은 여행"} · 함께 편집
+                  {trip.owner_username
+                    ? t("{name}님의 여행 · 함께 편집", { name: trip.owner_username })
+                    : t("초대받은 여행 · 함께 편집")}
                 </span>
               )}
               {inApp && access === "edit" && (
                 leaving === "confirm" ? (
                   <span className="inline-flex items-center gap-2 rounded-full bg-black/45 px-3 py-1.5 text-xs font-semibold backdrop-blur-md">
-                    나갈까요?
+                    {t("나갈까요?")}
                     <button onClick={() => void leaveTrip()} className="font-bold text-orange-300">
-                      나가기
+                      {t("나가기")}
                     </button>
                     <button onClick={() => setLeaving(null)} className="text-white/75">
-                      취소
+                      {t("취소")}
                     </button>
                   </span>
                 ) : (
                   <button
                     onClick={() => setLeaving("confirm")}
                     disabled={leaving === "busy"}
-                    aria-label="이 여행에서 나가기"
-                    title="이 여행에서 나가기"
+                    aria-label={t("이 여행에서 나가기")}
+                    title={t("이 여행에서 나가기")}
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 backdrop-blur-md transition hover:bg-black/40 disabled:opacity-50"
                   >
                     <LogOut size={15} />
@@ -367,19 +374,19 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           <div>
             <span
               className={`inline-block rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                phase.phase === "ongoing" ? "bg-mint text-white" : "bg-white/90 text-foreground"
+                phase.phase === "ongoing" ? "bg-mint text-white" : "bg-surface/90 text-foreground"
               }`}
             >
-              {ddayLabel(trip)}
+              {ddayLabel(trip, locale)}
             </span>
             <h1 className="mt-2 text-3xl font-extrabold tracking-tight md:text-5xl">{trip.title}</h1>
             <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/88">
               <span>
-                <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
+                <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).map((s) => t(s!)).join(" · ")}
               </span>
               <span className="inline-flex items-center gap-1">
                 <CalendarDays size={14} />
-                {formatRange(trip)}
+                {formatRange(trip, locale)}
                 {stay && ` · ${stay}`}
               </span>
             </p>
@@ -401,12 +408,12 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
               {tab === id && (
                 <motion.span
                   layoutId="trip-tab"
-                  className="absolute inset-0 rounded-full bg-foreground"
+                  className="absolute inset-0 rounded-full bg-ink"
                   transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                 />
               )}
               <Icon size={15} className="relative" />
-              <span className="relative">{label}</span>
+              <span className="relative">{t(label)}</span>
             </button>
           ))}
         </nav>
@@ -472,12 +479,12 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                           onOpen={(p) => setDetailId(p.id)}
                         />
                         <p className="flex items-center gap-1.5 px-1 text-xs text-foreground/68">
-                          <MousePointerClick size={13} /> 지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.
+                          <MousePointerClick size={13} /> {t("지도를 누르거나 장소를 검색해 핀을 꽂고, 끌어서 순서를 바꿔요.")}
                         </p>
                       </>
                     )}
                     {canEdit && dayLegs.length > 0 && (
-                      <p className="px-1 text-xs text-foreground/68">구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.</p>
+                      <p className="px-1 text-xs text-foreground/68">{t("구간(이동수단 표시)을 누르면 이동수단·시간·비용을 바꿀 수 있어요. 장소를 누르면 사진·링크를 붙여요.")}</p>
                     )}
                     <RouteTimeline
                       points={dayPoints}
@@ -536,7 +543,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
 
       <PlaceDetail point={detailPoint} canEdit={canEdit} onClose={() => setDetailId(null)} onSave={savePoint} />
 
-      <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title="이동 구간">
+      <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title={t("이동 구간")}>
         {editingLeg && (
           <LegSheetBody
             leg={editingLeg}
@@ -563,6 +570,7 @@ function ExpensesTab({
   trip: Trip;
   onPatchTrip: (patch: Partial<Trip>) => void;
 }) {
+  const t = useT();
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(tripId);
   const [editing, setEditing] = useState<Expense | null>(null);
   const travelers = trip.travelers ?? [];
@@ -597,7 +605,7 @@ function ExpensesTab({
       <div className="space-y-4 lg:col-span-2">
         <ExpenseForm
           key={editing?.id ?? "new"}
-          baseCurrency="KRW"
+          baseCurrency={trip.base_currency || "KRW"}
           travelers={travelers}
           editing={editing}
           onCancelEdit={() => setEditing(null)}
@@ -611,7 +619,9 @@ function ExpensesTab({
           }}
         />
         <p className="px-1 text-xs text-foreground/68">
-          {editing ? `'${editing.title}' 수정 중이에요.` : `새 지출은 지금 보고 있는 Day ${day}에 기록돼요.`}
+          {editing
+            ? t("'{title}' 수정 중이에요.", { title: editing.title })
+            : t("새 지출은 지금 보고 있는 Day {day}에 기록돼요.", { day })}
         </p>
         {settleCard}
       </div>
@@ -647,6 +657,7 @@ function LegSheetBody({
   onChange: (id: string, patch: Partial<RouteLeg>) => void;
   onDone: () => void;
 }) {
+  const { t, locale } = usePrefs();
   const from = points.find((p) => p.id === leg.from_point_id);
   const to = points.find((p) => p.id === leg.to_point_id);
   if (!from || !to) return null;
@@ -663,7 +674,7 @@ function LegSheetBody({
       </p>
 
       <section>
-        <h4 className="mb-2 text-xs font-bold text-foreground/65">이동수단</h4>
+        <h4 className="mb-2 text-xs font-bold text-foreground/65">{t("이동수단")}</h4>
         <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-7">
           {LEG_METHODS.map((m) => {
             const meta = METHOD_META[m];
@@ -684,7 +695,7 @@ function LegSheetBody({
                 }`}
               >
                 <Icon size={18} />
-                {meta.label}
+                {t(meta.label)}
               </motion.button>
             );
           })}
@@ -693,28 +704,28 @@ function LegSheetBody({
 
       <section>
         <h4 className="mb-2 flex items-center justify-between text-xs font-bold text-foreground/65">
-          소요 시간
-          <span className="font-medium text-foreground/68">거리 약 {est.distanceKm}km</span>
+          {t("소요 시간")}
+          <span className="font-medium text-foreground/68">{t("거리 약 {km}km", { km: est.distanceKm })}</span>
         </h4>
         <div className="flex items-center justify-center gap-4">
           <button
             type="button"
             onClick={() => setMinutes(minutes - 5)}
-            aria-label="5분 줄이기"
+            aria-label={t("5분 줄이기")}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-xl font-bold text-foreground/72 active:scale-90"
           >
             −
           </button>
           <div className="min-w-32 text-center">
-            <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes)}</p>
+            <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes, locale)}</p>
             <p className="text-[11px] text-foreground/68">
-              {leg.duration_min == null || leg.duration_min === est.durationMin ? "추정치" : `추정 ${formatDuration(est.durationMin)}`}
+              {leg.duration_min == null || leg.duration_min === est.durationMin ? t("추정치") : t("추정 {time}", { time: formatDuration(est.durationMin, locale) })}
             </p>
           </div>
           <button
             type="button"
             onClick={() => setMinutes(minutes + 5)}
-            aria-label="5분 늘리기"
+            aria-label={t("5분 늘리기")}
             className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-muted text-xl font-bold text-foreground/72 active:scale-90"
           >
             +
@@ -727,10 +738,10 @@ function LegSheetBody({
               type="button"
               onClick={() => setMinutes(m)}
               className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                minutes === m ? "bg-foreground text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+                minutes === m ? "bg-ink text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
               }`}
             >
-              {formatDuration(m)}
+              {formatDuration(m, locale)}
             </button>
           ))}
           {leg.duration_min !== est.durationMin && (
@@ -739,22 +750,22 @@ function LegSheetBody({
               onClick={() => setMinutes(est.durationMin)}
               className="rounded-full px-3 py-1.5 text-xs font-semibold text-primary-strong hover:bg-primary-soft"
             >
-              추정치로
+              {t("추정치로")}
             </button>
           )}
         </div>
       </section>
 
       <section>
-        <h4 className="mb-2 text-xs font-bold text-foreground/65">이동 비용</h4>
+        <h4 className="mb-2 text-xs font-bold text-foreground/65">{t("이동 비용")}</h4>
         <MoneyInput value={leg.cost} onChange={(cost) => onChange(leg.id, { cost })} />
       </section>
 
       <p className="text-xs leading-relaxed text-foreground/68">
-        추정 시간은 직선거리와 이동수단별 평균 속도로 계산해요. 실제와 다르면 직접 맞춰 주세요. 타임테이블과 하루 합계에 바로 반영돼요.
+        {t("추정 시간은 직선거리와 이동수단별 평균 속도로 계산해요. 실제와 다르면 직접 맞춰 주세요. 타임테이블과 하루 합계에 바로 반영돼요.")}
       </p>
       <button onClick={onDone} className="btn btn-primary w-full py-3 text-sm">
-        완료
+        {t("완료")}
       </button>
     </div>
   );
@@ -762,6 +773,7 @@ function LegSheetBody({
 
 /** 실시간 연결 상태. live 면 다른 사람의 변경이 바로, polling 이면 몇 초 안에 반영된다 */
 function SyncBadge({ status }: { status: ReturnType<typeof useSyncStatus> }) {
+  const t = useT();
   const meta = {
     live: { dot: "bg-mint", label: "실시간 반영 중" },
     polling: { dot: "bg-amber-400", label: "몇 초마다 반영" },
@@ -770,11 +782,11 @@ function SyncBadge({ status }: { status: ReturnType<typeof useSyncStatus> }) {
   }[status];
   return (
     <span
-      title={meta.label}
+      title={t(meta.label)}
       className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-1.5 text-[11px] font-semibold backdrop-blur-md"
     >
       <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
-      <span className="hidden sm:inline">{meta.label}</span>
+      <span className="hidden sm:inline">{t(meta.label)}</span>
     </span>
   );
 }

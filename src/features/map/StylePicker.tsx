@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import { CATEGORIES, PALETTE, categoryStyle } from "./pointStyle";
+import { useT } from "@/i18n/I18nProvider";
 
 /** 분류(아이콘)와 핀 색상 고르기. color가 null이면 분류 기본색 */
 export default function StylePicker({
@@ -15,6 +16,7 @@ export default function StylePicker({
   color: string | null;
   onChange: (next: { category: MapPoint["category"]; color: string | null }) => void;
 }) {
+  const t = useT();
   const active = color || categoryStyle(category).color;
   return (
     <div className="space-y-3">
@@ -36,27 +38,27 @@ export default function StylePicker({
               style={on ? { backgroundColor: `${tone}1f`, color: tone, borderColor: tone } : undefined}
             >
               <Icon size={18} style={on ? undefined : { color: c.color }} />
-              {c.label}
+              {t(c.label)}
             </motion.button>
           );
         })}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-1 text-xs font-semibold text-foreground/68">핀 색</span>
+        <span className="mr-1 text-xs font-semibold text-foreground/68">{t("핀 색")}</span>
         <button
           type="button"
           onClick={() => onChange({ category, color: null })}
           className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-            color === null ? "border-foreground bg-foreground text-white" : "border-border-subtle text-foreground/65"
+            color === null ? "border-ink bg-ink text-white" : "border-border-subtle text-foreground/65"
           }`}
         >
-          기본
+          {t("기본")}
         </button>
         {PALETTE.map((hex) => (
           <button
             key={hex}
             type="button"
-            aria-label={`색상 ${hex}`}
+            aria-label={t("색상 {hex}", { hex })}
             onClick={() => onChange({ category, color: hex })}
             className="flex h-7 w-7 items-center justify-center rounded-full ring-offset-2 transition active:scale-90"
             style={{ backgroundColor: hex, boxShadow: color === hex ? `0 0 0 2px var(--surface), 0 0 0 4px ${hex}` : undefined }}

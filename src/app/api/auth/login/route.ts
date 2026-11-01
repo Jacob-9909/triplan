@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   const entry = fails.get(key);
   if (entry && entry.lockedUntil > now) {
     const min = Math.ceil((entry.lockedUntil - now) / 60_000);
-    return jsonError(`로그인을 ${MAX_FAILS}번 틀려서 잠겼어요. ${min}분 뒤에 다시 시도해 주세요.`, 429);
+    return jsonError(`로그인을 ${MAX_FAILS}번 틀려서 잠겼어요. ${min}분 뒤에 다시 시도해 주세요.`, 429); // i18n-ignore
   }
   // 검사 전에 시도를 먼저 기록해, 동시에 몰려온 요청도 5번까지만 비밀번호를 확인한다
   if (fails.size > 10_000) fails.clear(); // 없는 아이디로 메모리를 채우지 못하게
@@ -46,6 +46,6 @@ export async function POST(request: Request) {
   }
   // 무차별 대입 속도를 늦춘다
   await new Promise((r) => setTimeout(r, 600));
-  if (count >= MAX_FAILS) return jsonError(`로그인을 ${MAX_FAILS}번 틀려서 15분 동안 잠겼어요.`, 429);
-  return jsonError(`아이디나 비밀번호가 맞지 않아요. (${count}/${MAX_FAILS})`, 401);
+  if (count >= MAX_FAILS) return jsonError(`로그인을 ${MAX_FAILS}번 틀려서 15분 동안 잠겼어요.`, 429); // i18n-ignore
+  return jsonError(`아이디나 비밀번호가 맞지 않아요. (${count}/${MAX_FAILS})`, 401); // i18n-ignore
 }

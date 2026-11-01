@@ -26,6 +26,7 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Trip journal | Once a trip starts, a **Record** tab adds a daily journal with weather and mood, star ratings and one-line reviews for each stop, and trip stats (places, distance, spending). Finished trips open on this tab |
 | Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
+| Korean / English, home currency, light / dark | Switch language (한/EN), home currency (KRW, USD, EUR, JPY…; defaults to KRW in Korean and USD in English) and theme (system → light → dark) from the header; both are remembered in a cookie. English mode also translates country and city names and shows English map labels. Expenses are still stored in KRW; amounts show roughly converted to the home currency, and an expense in yen gets a small "≈ $8.12" beside it. Dark mode follows the OS by default |
 | Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA |
 
 ## Access Model

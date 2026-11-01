@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, KeyRound, Loader2, Repeat, Trash2, UserPlus } from "lucide-react";
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 interface Member {
   id: string;
@@ -12,7 +13,20 @@ interface Member {
 }
 
 /** 회원 관리: 관리자가 정한 아이디/비밀번호만 로그인할 수 있다. 관리자는 ADMIN_PASSWORD 한 명뿐 */
+/** 문장 속 {role} 자리에 굵은 역할 이름을 넣는다 */
+function withRole(text: string, role: string) {
+  const [before, after] = text.split("{role}");
+  return (
+    <>
+      {before}
+      <b>{role}</b>
+      {after}
+    </>
+  );
+}
+
 export default function Members() {
+  const { t, intl } = usePrefs();
   const [members, setMembers] = useState<Member[] | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +56,7 @@ export default function Members() {
       setPassword("");
       setAsUser(true);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "회원을 만들지 못했어요.");
+      setError(err instanceof ApiError ? err.message : t("회원을 만들지 못했어요."));
     } finally {
       setSaving(false);
     }
@@ -63,11 +77,11 @@ export default function Members() {
     e.preventDefault();
     try {
       await apiPatch(`/api/members/${m.id}`, { password: resetPw });
-      setResetMsg({ id: m.id, text: "바꿨어요. 그 회원의 기존 로그인은 모두 풀렸어요.", ok: true });
+      setResetMsg({ id: m.id, text: t("바꿨어요. 그 회원의 기존 로그인은 모두 풀렸어요."), ok: true });
       setResetId(null);
       setResetPw("");
     } catch (err) {
-      setResetMsg({ id: m.id, text: err instanceof ApiError ? err.message : "바꾸지 못했어요.", ok: false });
+      setResetMsg({ id: m.id, text: err instanceof ApiError ? err.message : t("바꾸지 못했어요."), ok: false });
     }
   }
 
@@ -78,25 +92,24 @@ export default function Members() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 md:px-6">
-      <p className="eyebrow">관리자</p>
-      <h1 className="mt-1 text-2xl font-extrabold tracking-tight">회원 관리</h1>
+      <p className="eyebrow">{t("관리자")}</p>
+      <h1 className="mt-1 text-2xl font-extrabold tracking-tight">{t("회원 관리")}</h1>
       <p className="mt-1 text-sm text-foreground/65">
-        <b>사용</b> 회원은 자기 여행과 가고 싶은 곳을 만들고, 다른 사용 회원을 여행에 초대해 함께 편집해요. 회원 관리는
-        못 해요. <b>체험</b> 회원은 공유 창에서 &lsquo;체험 회원에게 공개&rsquo;를 켠 여행만 보기 전용으로 보고, 장소
-        검색·번역·환율은 못 써요.
+        {withRole(t("{role} 회원은 자기 여행과 가고 싶은 곳을 만들고, 다른 사용 회원을 여행에 초대해 함께 편집해요. 회원 관리는 못 해요."), t("사용"))}{" "}
+        {withRole(t("{role} 회원은 공유 창에서 ‘체험 회원에게 공개’를 켠 여행만 보기 전용으로 보고, 장소 검색·번역·환율은 못 써요."), t("체험"))}
       </p>
 
       <form onSubmit={add} className="card mt-6 grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end md:p-5">
-        <h2 className="font-bold sm:col-span-3">새 회원</h2>
+        <h2 className="font-bold sm:col-span-3">{t("새 회원")}</h2>
         <div>
           <label htmlFor="new-username" className="field-label">
-            아이디
+            {t("아이디")}
           </label>
           <input
             id="new-username"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="영문·숫자 3~32자"
+            placeholder={t("영문·숫자 3~32자")}
             autoComplete="off"
             autoCapitalize="none"
             className="input"
@@ -104,13 +117,13 @@ export default function Members() {
         </div>
         <div>
           <label htmlFor="new-password" className="field-label">
-            비밀번호
+            {t("비밀번호")}
           </label>
           <input
             id="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="6자 이상"
+            placeholder={t("6자 이상")}
             autoComplete="new-password"
             className="input"
           />
@@ -124,7 +137,7 @@ export default function Members() {
             <Loader2 size={16} className="animate-spin" />
           ) : (
             <>
-              <UserPlus size={16} /> 추가
+              <UserPlus size={16} /> {t("추가")}
             </>
           )}
         </button>
@@ -135,17 +148,17 @@ export default function Members() {
             onChange={(e) => setAsUser(e.target.checked)}
             className="h-4 w-4 accent-primary"
           />
-          사용 권한 주기 (끄면 체험 계정)
+          {t("사용 권한 주기 (끄면 체험 계정)")}
         </label>
         {error && <p className="text-xs font-medium text-accent sm:col-span-3">{error}</p>}
       </form>
 
       <h2 className="mt-8 font-bold">
-        회원 <span className="font-mono text-sm text-foreground/68">{members?.length ?? ""}</span>
+        {t("회원")} <span className="font-mono text-sm text-foreground/68">{members?.length ?? ""}</span>
       </h2>
       <ul className="card mt-3 divide-y divide-border-subtle">
-        {members === null && <li className="p-4 text-sm text-foreground/68">불러오는 중…</li>}
-        {members?.length === 0 && <li className="p-4 text-sm text-foreground/68">아직 회원이 없어요.</li>}
+        {members === null && <li className="p-4 text-sm text-foreground/68">{t("불러오는 중…")}</li>}
+        {members?.length === 0 && <li className="p-4 text-sm text-foreground/68">{t("아직 회원이 없어요.")}</li>}
         {members?.map((m) => (
           <li key={m.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div>
@@ -156,10 +169,10 @@ export default function Members() {
                     m.role === "user" ? "bg-primary-soft text-primary-strong" : "bg-surface-muted text-foreground/68"
                   }`}
                 >
-                  {m.role === "user" ? "사용" : "체험"}
+                  {m.role === "user" ? t("사용") : t("체험")}
                 </span>
               </p>
-              <p className="text-xs text-foreground/68">{new Date(m.created_at).toLocaleDateString("ko-KR")} 생성</p>
+              <p className="text-xs text-foreground/68">{t("{date} 생성", { date: new Date(m.created_at).toLocaleDateString(intl) })}</p>
             </div>
             <span className="flex items-center gap-1">
               <button
@@ -170,17 +183,17 @@ export default function Members() {
                 }}
                 className="inline-flex min-h-9 items-center gap-1 rounded-full px-3 py-2 text-xs font-semibold text-foreground/70 transition hover:bg-surface-muted hover:text-foreground"
               >
-                <KeyRound size={13} /> 비밀번호 초기화
+                <KeyRound size={13} /> {t("비밀번호 초기화")}
               </button>
               <button
                 onClick={() => void toggleRole(m)}
                 className="inline-flex min-h-9 items-center gap-1 rounded-full px-3 py-2 text-xs font-semibold text-foreground/70 transition hover:bg-surface-muted hover:text-foreground"
               >
-                <Repeat size={13} /> {m.role === "user" ? "체험으로 바꾸기" : "사용 권한 주기"}
+                <Repeat size={13} /> {m.role === "user" ? t("체험으로 바꾸기") : t("사용 권한 주기")}
               </button>
               <button
                 onClick={() => void remove(m)}
-                aria-label={`${m.username} 삭제`}
+                aria-label={t("{name} 삭제", { name: m.username })}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/68 transition hover:bg-accent-soft hover:text-accent"
               >
                 <Trash2 size={16} />
@@ -191,8 +204,8 @@ export default function Members() {
                 <input
                   value={resetPw}
                   onChange={(e) => setResetPw(e.target.value)}
-                  aria-label="새 비밀번호"
-                  placeholder="새 비밀번호 (6자 이상)"
+                  aria-label={t("새 비밀번호")}
+                  placeholder={t("새 비밀번호 (6자 이상)")}
                   autoComplete="new-password"
                   autoFocus
                   className="input flex-1"
@@ -202,7 +215,7 @@ export default function Members() {
                   disabled={resetPw.length < 6}
                   className="btn btn-primary shrink-0 px-4 py-2 text-sm disabled:opacity-50"
                 >
-                  <Check size={15} /> 바꾸기
+                  <Check size={15} /> {t("바꾸기")}
                 </button>
               </form>
             )}

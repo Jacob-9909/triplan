@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
 import type { PointDraft } from "./AddPointDialog";
+import { useT } from "@/i18n/I18nProvider";
 
 export interface TripMapProps {
   points: MapPoint[];
@@ -37,11 +38,16 @@ export interface TripMapProps {
   labelCountry?: string | null;
 }
 
-const loading = () => (
-  <div className="card flex h-full min-h-[320px] items-center justify-center">
-    <p className="animate-pulse text-sm font-semibold text-foreground/68">지도를 불러오는 중…</p>
-  </div>
-);
+function MapLoading() {
+  const t = useT();
+  return (
+    <div className="card flex h-full min-h-[320px] items-center justify-center">
+      <p className="animate-pulse text-sm font-semibold text-foreground/68">{t("지도를 불러오는 중…")}</p>
+    </div>
+  );
+}
+
+const loading = () => <MapLoading />;
 
 /**
  * 토큰이 있으면 mapbox 클라우드 모드(outdoors-v12), 없으면

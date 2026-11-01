@@ -10,6 +10,7 @@ import CoverPhoto from "@/features/ui/CoverPhoto";
 import CountUp from "@/features/ui/CountUp";
 import TripCard from "@/features/trip/TripCard";
 import { formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
+import { usePrefs, useT } from "@/i18n/I18nProvider";
 
 function greeting() {
   const h = new Date().getHours();
@@ -20,6 +21,7 @@ function greeting() {
 }
 
 export default function Dashboard() {
+  const t = useT();
   const [trips, setTrips] = useState<Trip[] | null>(null);
   const [wishes, setWishes] = useState<WishlistPlace[]>([]);
 
@@ -47,10 +49,10 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         className="mt-3 text-sm font-medium text-foreground/68 md:mt-8"
       >
-        {greeting()}
+        {t(greeting())}
       </motion.p>
       <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">내 여행</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">{t("내 여행")}</h1>
         {trips !== null && trips.length > 0 && (
           <dl className="flex gap-4 text-sm md:gap-6">
             {[
@@ -59,7 +61,7 @@ export default function Dashboard() {
               ["가고 싶은 곳", wishes.length],
             ].map(([label, n]) => (
               <div key={label} className="flex items-baseline gap-1.5">
-                <dt className="text-foreground/68">{label}</dt>
+                <dt className="text-foreground/68">{t(String(label))}</dt>
                 <dd className="font-mono text-base font-bold tabular-nums">{n}</dd>
               </div>
             ))}
@@ -82,7 +84,7 @@ export default function Dashboard() {
       <div className={upcoming.length > 0 ? "lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:gap-10" : ""}>
       {/* 다가오는 여행 */}
       {upcoming.length > 0 && (
-        <Section title="계획 중인 여행" count={upcoming.length}>
+        <Section title={t("계획 중인 여행")} count={upcoming.length}>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-2 xl:grid-cols-3">
             {upcoming.map((t, i) => (
               <TripCard key={t.id} trip={t} index={i} />
@@ -93,11 +95,11 @@ export default function Dashboard() {
 
       {/* 가고 싶은 곳 미리보기 */}
       <Section
-        title="언젠가 가고 싶은 곳"
+        title={t("언젠가 가고 싶은 곳")}
         count={wishes.length}
         action={
           <Link href="/wishlist" className="-my-2 flex items-center gap-0.5 py-2 text-sm font-semibold text-primary-strong">
-            전체 보기 <ChevronRight size={16} />
+            {t("전체 보기")} <ChevronRight size={16} />
           </Link>
         }
       >
@@ -109,7 +111,7 @@ export default function Dashboard() {
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary-strong">
               <Heart size={20} />
             </span>
-            아직 저장한 곳이 없어요. 언젠가 가 보고 싶은 곳을 하나 담아 보세요.
+            {t("아직 저장한 곳이 없어요. 언젠가 가 보고 싶은 곳을 하나 담아 보세요.")}
             <ArrowRight size={16} className="ml-auto shrink-0" />
           </Link>
         ) : (
@@ -134,12 +136,12 @@ export default function Dashboard() {
                 >
                   <CoverPhoto country={w.country} continent={w.continent} city={w.region} title={w.name} zoomOnHover />
                   <div className="absolute inset-x-0 bottom-0 p-3 text-white">
-                                        <p className="mt-1 truncate text-sm font-bold">{w.name}</p>
-                    <p className="truncate text-[11px] text-white/82">{w.country}</p>
+                                        <p className="mt-1 truncate text-sm font-bold">{t(w.name)}</p>
+                    <p className="truncate text-[11px] text-white/82">{w.country && t(w.country)}</p>
                   </div>
                   {w.trip_id && (
                     <span className="absolute right-2 top-2 rounded-full bg-mint px-2 py-0.5 text-[11px] font-bold text-white">
-                      계획 중
+                      {t("계획 중")}
                     </span>
                   )}
                 </Link>
@@ -153,7 +155,7 @@ export default function Dashboard() {
 
       {/* 다녀온 여행 */}
       {past.length > 0 && (
-        <Section title="다녀온 여행" count={past.length}>
+        <Section title={t("다녀온 여행")} count={past.length}>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 md:gap-5 lg:grid-cols-4">
             {past.map((t, i) => (
               <TripCard key={t.id} trip={t} index={i} />
@@ -193,8 +195,9 @@ function Section({
 }
 
 function NextTripHero({ trip }: { trip: Trip }) {
+  const { t, locale } = usePrefs();
   const p = tripPhase(trip);
-  const stay = stayLabel(trip);
+  const stay = stayLabel(trip, locale);
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.98 }}
@@ -210,7 +213,7 @@ function NextTripHero({ trip }: { trip: Trip }) {
         <div className="absolute inset-0 flex flex-col justify-between p-6 text-white md:p-9">
           <div className="flex items-center gap-2 text-sm font-semibold text-white/85">
             <Plane size={16} />
-            {p.phase === "ongoing" ? "지금 여행 중" : "다음 여행"}
+            {p.phase === "ongoing" ? t("지금 여행 중") : t("다음 여행")}
           </div>
           <div>
             <div className="flex items-end gap-3">
@@ -225,15 +228,15 @@ function NextTripHero({ trip }: { trip: Trip }) {
               )}
             </div>
             <p className="mt-4 text-sm font-semibold text-white/88">
-              <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).join(" · ")}
+              <MapPin size={14} className="inline -mt-0.5" /> {[trip.country, trip.region].filter(Boolean).map((s) => t(s!)).join(" · ")}
             </p>
             <h2 className="mt-1 text-2xl font-extrabold tracking-tight md:text-4xl">{trip.title}</h2>
             <p className="mt-2 flex items-center gap-1.5 text-sm text-white/85">
-              <CalendarDays size={14} /> {formatRange(trip)} {stay && `· ${stay}`}
+              <CalendarDays size={14} /> {formatRange(trip, locale)} {stay && `· ${stay}`}
             </p>
           </div>
         </div>
-        <span className="absolute bottom-6 right-6 flex h-12 w-12 items-center justify-center rounded-full bg-white text-foreground shadow-lift transition-transform group-hover:translate-x-1 md:bottom-9 md:right-9">
+        <span className="absolute bottom-6 right-6 flex h-12 w-12 items-center justify-center rounded-full bg-surface text-foreground shadow-lift transition-transform group-hover:translate-x-1 md:bottom-9 md:right-9">
           <ArrowRight size={20} />
         </span>
       </Link>
@@ -242,8 +245,9 @@ function NextTripHero({ trip }: { trip: Trip }) {
 }
 
 function EmptyHero() {
+  const t = useT();
   return (
-    <div className="relative flex h-72 flex-col items-start justify-end overflow-hidden rounded-[1.75rem] bg-foreground p-6 text-white shadow-lift md:h-80 md:p-9">
+    <div className="relative flex h-72 flex-col items-start justify-end overflow-hidden rounded-[1.75rem] bg-ink p-6 text-white shadow-lift md:h-80 md:p-9">
       <div aria-hidden className="topo absolute inset-0 opacity-60 invert" />
       <motion.div
         aria-hidden
@@ -253,12 +257,12 @@ function EmptyHero() {
       >
         <Plane size={180} strokeWidth={1.2} />
       </motion.div>
-      <h2 className="relative text-2xl font-extrabold tracking-tight md:text-3xl">첫 여행을 계획해 볼까요?</h2>
+      <h2 className="relative text-2xl font-extrabold tracking-tight md:text-3xl">{t("첫 여행을 계획해 볼까요?")}</h2>
       <p className="relative mt-2 max-w-sm text-sm text-white/80">
-        목적지와 날짜만 정하면 지도·일정·가계부·준비물이 준비돼요.
+        {t("목적지와 날짜만 정하면 지도·일정·가계부·준비물이 준비돼요.")}
       </p>
       <Link href="/trips/new" className="btn btn-primary relative mt-5 px-5 py-3 text-sm">
-        <Plus size={16} /> 새 여행 만들기
+        <Plus size={16} /> {t("새 여행 만들기")}
       </Link>
     </div>
   );

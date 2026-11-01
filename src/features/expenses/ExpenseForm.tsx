@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
 import type { Expense } from "@/lib/types";
+import { usePrefs } from "@/i18n/I18nProvider";
 import { CATEGORIES } from "./categories";
 import { fetchKrwRate, type ExpenseInput } from "./useExpenses";
 
@@ -25,6 +26,7 @@ export default function ExpenseForm({
   onSubmit,
   onCancelEdit,
 }: ExpenseFormProps) {
+  const { t, currency: home, money } = usePrefs();
   const [title, setTitle] = useState(editing?.title ?? "");
   const [category, setCategory] = useState<Expense["category"]>(
     editing?.category ?? "food",
@@ -42,6 +44,21 @@ export default function ExpenseForm({
   /** 비어 있으면 전원 */
   const [splitWith, setSplitWith] = useState<string[]>(editing?.split_with ?? []);
   const [saving, setSaving] = useState(false);
+  /** 고른 통화 1단위의 원화 값: 입력하는 동안 기본 통화로 대략 얼마인지 보여 준다 */
+  const [preview, setPreview] = useState<{ currency: string; rate: number } | null>(null);
+  useEffect(() => {
+    if (currency === home) return;
+    let alive = true;
+    fetchKrwRate(currency)
+      .then((r) => alive && setPreview({ currency, rate: r.rate }))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [currency, home]);
+  const amountNum = Number(amount);
+  const approx =
+    currency !== home && preview?.currency === currency && amountNum > 0 ? money(amountNum * preview.rate) : null;
   const sharing = travelers.length >= 2;
   // 동행자 목록이 바뀌어 고른 사람이 빠졌으면 첫 사람
   const payer = paidBy && travelers.includes(paidBy) ? paidBy : (travelers[0] ?? null);
@@ -71,8 +88,8 @@ export default function ExpenseForm({
         const rateInfo = await fetchKrwRate(currency, spentAt);
         setRateNote(
           rateInfo.stale
-            ? `최신 환율 조회 실패 — 대략치(1 ${currency} ≈ ₩${rateInfo.rate.toLocaleString()})로 저장합니다.`
-            : `1 ${currency} ≈ ₩${rateInfo.rate.toLocaleString()} 적용`,
+            ? t("최신 환율 조회 실패 — 대략치(1 {currency} ≈ ₩{rate})로 저장합니다.", { currency, rate: rateInfo.rate.toLocaleString() })
+            : t("1 {currency} ≈ ₩{rate} 적용", { currency, rate: rateInfo.rate.toLocaleString() }),
         );
         ok = await onSubmit({
           category,
@@ -99,11 +116,11 @@ export default function ExpenseForm({
       <div className="grid grid-cols-2 gap-3">
         {/* 항목명 */}
         <label className="col-span-2 flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-foreground/68">항목명</span>
+          <span className="text-xs font-semibold text-foreground/68">{t("항목명")}</span>
           <input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="예: 라멘, 기념품"
+            placeholder={t("예: 라멘, 기념품")}
             className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
             required
           />
@@ -112,7 +129,7 @@ export default function ExpenseForm({
         {/* 카테고리 */}
         <div className="col-span-2">
           <span className="mb-1.5 block text-xs font-semibold text-foreground/68">
-            카테고리
+            {t("카테고리")}
           </span>
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
             {CATEGORIES.map(({ value, label, icon: Icon }) => (
@@ -127,7 +144,7 @@ export default function ExpenseForm({
                 }`}
               >
                 <Icon size={18} />
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
@@ -135,7 +152,7 @@ export default function ExpenseForm({
 
         {/* 금액 + 통화 */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-foreground/68">금액</span>
+          <span className="text-xs font-semibold text-foreground/68">{t("금액")}</span>
           <div className="flex gap-1.5">
             <input
               type="number"
@@ -154,7 +171,7 @@ export default function ExpenseForm({
               className="shrink-0 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-2 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
             >
               <option value={baseCurrency}>{baseCurrency}</option>
-              {["KRW", "USD", "JPY", "EUR", "TWD", "THB", "CNY"]
+              {[...new Set([home, "KRW", "USD", "JPY", "EUR", "TWD", "THB", "CNY"])]
                 .filter((c) => c !== baseCurrency)
                 .map((c) => (
                   <option key={c} value={c}>
@@ -163,11 +180,12 @@ export default function ExpenseForm({
                 ))}
             </select>
           </div>
+          {approx && <span className="text-right text-[11px] tabular-nums text-foreground/68">≈ {approx}</span>}
         </label>
 
         {/* 날짜 */}
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs font-semibold text-foreground/68">날짜</span>
+          <span className="text-xs font-semibold text-foreground/68">{t("날짜")}</span>
           <input
             type="date"
             value={spentAt}
@@ -178,7 +196,7 @@ export default function ExpenseForm({
         {sharing && (
           <>
             <div className="col-span-2">
-              <span className="mb-1.5 block text-xs font-semibold text-foreground/68">낸 사람</span>
+              <span className="mb-1.5 block text-xs font-semibold text-foreground/68">{t("낸 사람")}</span>
               <div className="flex flex-wrap gap-1.5">
                 {travelers.map((t) => (
                   <button
@@ -187,7 +205,7 @@ export default function ExpenseForm({
                     aria-pressed={payer === t}
                     onClick={() => setPaidBy(t)}
                     className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      payer === t ? "bg-foreground text-white" : "bg-[var(--surface-muted)] text-foreground/72"
+                      payer === t ? "bg-ink text-white" : "bg-[var(--surface-muted)] text-foreground/72"
                     }`}
                   >
                     {t}
@@ -197,7 +215,7 @@ export default function ExpenseForm({
             </div>
             <div className="col-span-2">
               <span className="mb-1.5 block text-xs font-semibold text-foreground/68">
-                나눌 사람 {splitAll && <span className="font-medium">· 모두</span>}
+                {t("나눌 사람")} {splitAll && <span className="font-medium">· {t("모두")}</span>}
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {travelers.map((t) => {
@@ -240,7 +258,7 @@ export default function ExpenseForm({
             onClick={onCancelEdit}
             className="rounded-xl px-3 py-2 text-sm font-medium text-foreground/68 hover:text-[var(--foreground)]"
           >
-            취소
+            {t("취소")}
           </button>
         )}
         <button
@@ -249,7 +267,7 @@ export default function ExpenseForm({
           className="btn btn-primary px-4 text-sm"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-          {editing ? "수정하기" : "추가하기"}
+          {editing ? t("수정하기") : t("추가하기")}
         </button>
       </div>
     </form>
