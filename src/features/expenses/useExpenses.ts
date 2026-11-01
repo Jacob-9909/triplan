@@ -14,6 +14,8 @@ export interface ExpenseInput {
   amount_local: number;
   currency_code: string;
   spent_at: string | null;
+  paid_by?: string | null;
+  split_with?: string[] | null;
 }
 
 export interface ExchangeRateResult {
@@ -99,6 +101,8 @@ export function useExpenses(tripId: string) {
           exchange_rate_krw: rateInfo.rate,
           amount_krw: Math.round(input.amount_local * rateInfo.rate),
           spent_at: input.spent_at,
+          paid_by: input.paid_by ?? null,
+          split_with: input.split_with ?? null,
         });
         setExpenses((prev) => [...prev, created]);
         return created;

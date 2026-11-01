@@ -85,7 +85,7 @@ export function useTripData(tripId: string) {
       });
   });
 
-  return { trip, points, legs, loading, notConfigured, revoked, setPoints, setLegs, refresh };
+  return { trip, points, legs, loading, notConfigured, revoked, setTrip, setPoints, setLegs, refresh };
 }
 
 /** 순서 변경: visit_order 재정렬 저장 */

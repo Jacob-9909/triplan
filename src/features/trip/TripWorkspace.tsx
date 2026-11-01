@@ -19,7 +19,7 @@ import {
   LogOut,
   Lock,
 } from "lucide-react";
-import type { Access, MapPoint, RouteLeg } from "@/lib/types";
+import type { Access, Expense, MapPoint, RouteLeg, Trip } from "@/lib/types";
 import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
 import { useSyncStatus } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
@@ -47,6 +47,10 @@ import CoverPhoto from "@/features/ui/CoverPhoto";
 import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
 import SharePanel from "./SharePanel";
 import RecordTab from "@/features/archive/RecordTab";
+import NowCard from "@/features/route/NowCard";
+import { useForecast } from "@/features/route/weather";
+import SettleCard from "@/features/expenses/SettleCard";
+import LocalInfoCard from "@/features/prep/LocalInfoCard";
 
 type Tab = "plan" | "expenses" | "prep" | "record";
 
@@ -66,7 +70,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
   if (inApp) setTripToken(null);
 
-  const { trip, points, legs, loading, notConfigured, revoked, setPoints, setLegs } = useTripData(tripId);
+  const { trip, points, legs, loading, notConfigured, revoked, setTrip, setPoints, setLegs } = useTripData(tripId);
   const router = useRouter();
   const [leaving, setLeaving] = useState<"confirm" | "busy" | null>(null);
 
@@ -87,7 +91,13 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const { expenses } = useExpenses(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
   const [pickedTab, setTab] = useState<Tab | null>(null);
-  const [day, setDay] = useState(1);
+  const [pickedDay, setDay] = useState<number | null>(null);
+  // 여행 중이면 오늘 Day 부터 연다
+  const now = trip ? tripPhase(trip) : null;
+  const todayDay = now?.phase === "ongoing" ? (now.dayIndex ?? null) : null;
+  const day = pickedDay ?? todayDay ?? 1;
+  const center = trip ? getTripCenter(trip.country, trip.region) : null;
+  const forecast = useForecast(center?.lat, center?.lng, trip?.start_date ?? null, trip?.end_date ?? null);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
   /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
@@ -153,6 +163,17 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       return null;
     } catch (e) {
       return e instanceof Error ? e.message : "저장하지 못했어요.";
+    }
+  }
+
+  /** 예산·동행자 등 여행 정보: 화면은 바로 바꾸고 저장 실패하면 되돌린다 */
+  async function patchTrip(patch: Partial<Trip>) {
+    const before = trip;
+    setTrip((t) => (t ? { ...t, ...patch } : t));
+    try {
+      await apiPatch(`/api/trips/${tripId}`, patch);
+    } catch {
+      setTrip(before);
     }
   }
 
@@ -367,7 +388,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       </header>
 
       {/* 탭 */}
-      <div className="glass sticky top-0 z-30 border-b border-border-subtle md:top-16 md:border-none md:bg-transparent md:backdrop-blur-none">
+      <div className="glass sticky top-0 z-30 border-b border-border-subtle md:top-16">
         <nav className="mx-auto flex max-w-6xl gap-1 px-4 py-2 md:px-0 md:py-4">
           {tabs.map(({ id, label, icon: Icon }) => (
             <button
@@ -402,7 +423,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           >
             {tab === "plan" && (
               <div className="space-y-4">
-                <DayTabs trip={trip} value={day} onChange={setDay} />
+                <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} />
+                {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
                 <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
                   <div className="space-y-4 lg:col-span-3">
                     <div className="relative overflow-hidden rounded-[var(--radius-card)] shadow-card">
@@ -469,7 +491,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
             )}
 
             {tab === "expenses" && (
-              <ExpensesTab tripId={tripId} day={day} canEdit={canEdit} startDate={trip.start_date} endDate={trip.end_date} />
+              <ExpensesTab tripId={tripId} day={day} canEdit={canEdit} trip={trip} onPatchTrip={patchTrip} />
             )}
 
             {tab === "record" && (
@@ -485,6 +507,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
 
             {tab === "prep" && (
               <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+                <LocalInfoCard country={trip.country} region={trip.region} />
                 <ChecklistPanel tripId={tripId} readOnly={!canEdit} />
                 <DocsPanel tripId={tripId} readOnly={!canEdit} />
               </div>
@@ -531,42 +554,77 @@ function ExpensesTab({
   tripId,
   day,
   canEdit,
-  startDate,
-  endDate,
+  trip,
+  onPatchTrip,
 }: {
   tripId: string;
   day: number;
   canEdit: boolean;
-  startDate: string | null;
-  endDate: string | null;
+  trip: Trip;
+  onPatchTrip: (patch: Partial<Trip>) => void;
 }) {
   const { expenses, addExpense, updateExpense, deleteExpense } = useExpenses(tripId);
+  const [editing, setEditing] = useState<Expense | null>(null);
+  const travelers = trip.travelers ?? [];
+  const summary = (
+    <ExpenseSummary
+      expenses={expenses}
+      startDate={trip.start_date}
+      endDate={trip.end_date}
+      budgetKrw={trip.budget_krw}
+      onBudgetChange={canEdit ? (budget_krw) => onPatchTrip({ budget_krw }) : undefined}
+    />
+  );
+  const settleCard = (
+    <SettleCard
+      travelers={travelers}
+      expenses={expenses}
+      onTravelersChange={canEdit ? (names) => onPatchTrip({ travelers: names }) : undefined}
+    />
+  );
 
   if (!canEdit) {
-    return <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />;
+    return (
+      <div className="space-y-4">
+        {summary}
+        {settleCard}
+      </div>
+    );
   }
 
   return (
     <div className="grid gap-4 lg:grid-cols-5 lg:gap-6">
       <div className="space-y-4 lg:col-span-2">
         <ExpenseForm
+          key={editing?.id ?? "new"}
           baseCurrency="KRW"
+          travelers={travelers}
+          editing={editing}
+          onCancelEdit={() => setEditing(null)}
           onSubmit={async (input) => {
-            const saved = await addExpense({ ...input, day_number: day });
-            return saved !== null;
+            if (!editing) return (await addExpense({ ...input, day_number: day })) !== null;
+            // 바뀐 칸만 보낸다. 금액·통화·날짜가 그대로면 환율도 그대로 둔다
+            const patch = Object.fromEntries(
+              Object.entries(input).filter(([k, v]) => JSON.stringify(v) !== JSON.stringify(editing[k as keyof Expense] ?? null))
+            );
+            return Object.keys(patch).length === 0 || updateExpense(editing.id, patch);
           }}
         />
-        <p className="px-1 text-xs text-foreground/68">새 지출은 지금 보고 있는 Day {day}에 기록돼요.</p>
+        <p className="px-1 text-xs text-foreground/68">
+          {editing ? `'${editing.title}' 수정 중이에요.` : `새 지출은 지금 보고 있는 Day ${day}에 기록돼요.`}
+        </p>
+        {settleCard}
       </div>
       <div className="space-y-4 lg:col-span-3">
-        <ExpenseSummary expenses={expenses} startDate={startDate} endDate={endDate} />
+        {summary}
         <ExpenseList
           expenses={expenses}
           onDelete={async (e) => {
             await deleteExpense(e.id);
           }}
-          onEdit={async (e) => {
-            await updateExpense(e.id, e);
+          onEdit={(e) => {
+            setEditing(e);
+            window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         />
       </div>

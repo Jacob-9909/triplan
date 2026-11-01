@@ -1,5 +1,6 @@
 import { getPool, jsonError, UUID_RE, type Row } from "@/lib/db";
 import { requireTrip, stripTokens } from "@/lib/auth";
+import { isNameList } from "@/lib/crud";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -30,7 +31,11 @@ export async function PATCH(request: Request, { params }: Ctx) {
   if (access instanceof Response) return access;
   try {
     const b = await request.json();
-    const allowed = ["title", "continent", "country", "region", "start_date", "end_date", "base_currency"];
+    if (b?.budget_krw != null && !(typeof b.budget_krw === "number" && b.budget_krw >= 0 && b.budget_krw < 1e12)) {
+      return jsonError("budget_krw must be a positive number", 400);
+    }
+    if (b?.travelers !== undefined && !isNameList(b.travelers)) return jsonError("travelers must be a list of names", 400);
+    const allowed = ["title", "continent", "country", "region", "start_date", "end_date", "base_currency", "budget_krw", "travelers"];
     // 체험 회원 공개 여부는 관리자만 바꾼다
     if (access === "admin") allowed.push("is_demo");
     const sets: string[] = [];

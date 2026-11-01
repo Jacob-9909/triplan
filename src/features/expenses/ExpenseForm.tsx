@@ -8,6 +8,8 @@ import { fetchKrwRate, type ExpenseInput } from "./useExpenses";
 
 interface ExpenseFormProps {
   baseCurrency: string;
+  /** 동행자. 두 명 이상이면 낸 사람·나눌 사람을 고른다 */
+  travelers?: string[];
   /** 수정 모드일 때 기존 항목 */
   editing?: Expense | null;
   onSubmit: (input: ExpenseInput) => Promise<boolean>;
@@ -18,6 +20,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export default function ExpenseForm({
   baseCurrency,
+  travelers = [],
   editing = null,
   onSubmit,
   onCancelEdit,
@@ -33,9 +36,16 @@ export default function ExpenseForm({
     editing?.currency_code ?? baseCurrency,
   );
   const [spentAt, setSpentAt] = useState(
-    editing?.spent_at ?? todayStr(),
+    editing ? (editing.spent_at ?? "") : todayStr(),
   );
+  const [paidBy, setPaidBy] = useState(editing?.paid_by ?? travelers[0] ?? null);
+  /** 비어 있으면 전원 */
+  const [splitWith, setSplitWith] = useState<string[]>(editing?.split_with ?? []);
   const [saving, setSaving] = useState(false);
+  const sharing = travelers.length >= 2;
+  // 동행자 목록이 바뀌어 고른 사람이 빠졌으면 첫 사람
+  const payer = paidBy && travelers.includes(paidBy) ? paidBy : (travelers[0] ?? null);
+  const splitAll = splitWith.length === 0 || travelers.every((t) => splitWith.includes(t));
   const [rateNote, setRateNote] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -55,6 +65,7 @@ export default function ExpenseForm({
           amount_local: amountLocal,
           currency_code: currency,
           spent_at: spentAt || null,
+          ...(sharing && { paid_by: payer, split_with: splitAll ? null : splitWith }),
         });
       } else {
         const rateInfo = await fetchKrwRate(currency, spentAt);
@@ -69,6 +80,7 @@ export default function ExpenseForm({
           amount_local: amountLocal,
           currency_code: currency,
           spent_at: spentAt || null,
+          ...(sharing && { paid_by: payer, split_with: splitAll ? null : splitWith }),
         });
       }
     } finally {
@@ -163,6 +175,58 @@ export default function ExpenseForm({
             className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
           />
         </label>
+        {sharing && (
+          <>
+            <div className="col-span-2">
+              <span className="mb-1.5 block text-xs font-semibold text-foreground/68">낸 사람</span>
+              <div className="flex flex-wrap gap-1.5">
+                {travelers.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    aria-pressed={payer === t}
+                    onClick={() => setPaidBy(t)}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                      payer === t ? "bg-foreground text-white" : "bg-[var(--surface-muted)] text-foreground/72"
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="col-span-2">
+              <span className="mb-1.5 block text-xs font-semibold text-foreground/68">
+                나눌 사람 {splitAll && <span className="font-medium">· 모두</span>}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {travelers.map((t) => {
+                  const on = splitAll || splitWith.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => {
+                        const current = splitAll ? travelers : splitWith;
+                        const next = on ? current.filter((x) => x !== t) : [...current, t];
+                        // 아무도 안 고르면 다시 전원
+                        setSplitWith(next.length === travelers.length ? [] : next);
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                        on
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
+                          : "border-[var(--border-subtle)] text-foreground/60"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {rateNote && (

@@ -9,6 +9,7 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import type { Trip } from "@/lib/types";
+import type { DayForecast } from "./weather";
 
 export interface DayTabsProps {
   trip: Pick<Trip, "start_date" | "end_date">;
@@ -16,6 +17,10 @@ export interface DayTabsProps {
   value?: number | null;
   /** 선택 변경 콜백 */
   onChange?: (dayNumber: number) => void;
+  /** 날짜("yyyy-MM-dd")별 예보 */
+  forecast?: Map<string, DayForecast>;
+  /** 오늘에 해당하는 day_number */
+  today?: number | null;
 }
 
 function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
@@ -26,7 +31,7 @@ function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
   return Array.from({ length: count }, (_, i) => addDays(start, i));
 }
 
-export default function DayTabs({ trip, value = null, onChange }: DayTabsProps) {
+export default function DayTabs({ trip, value = null, onChange, forecast, today = null }: DayTabsProps) {
   const days = getDays(trip);
   const [internalDay, setInternalDay] = useState(1);
 
@@ -54,6 +59,7 @@ export default function DayTabs({ trip, value = null, onChange }: DayTabsProps) 
       {days.map((date, i) => {
         const dayNumber = i + 1;
         const isActive = selected === dayNumber;
+        const fc = forecast?.get(format(date, "yyyy-MM-dd"));
         return (
           <button
             key={dayNumber}
@@ -67,11 +73,19 @@ export default function DayTabs({ trip, value = null, onChange }: DayTabsProps) 
             }`}
           >
             <span className={`text-xs font-semibold ${isActive ? "text-white" : "text-primary-strong"}`}>
-              Day {dayNumber}
+              {dayNumber === today ? "오늘" : `Day ${dayNumber}`}
             </span>
             <span className={`mt-0.5 text-[11px] ${isActive ? "text-white" : "text-foreground/68"}`}>
               {format(date, "M/d(E)", { locale: ko })}
             </span>
+            {fc && (
+              <span
+                title={`${fc.label}${fc.rain != null ? ` · 비 올 확률 ${fc.rain}%` : ""}`}
+                className={`mt-0.5 text-[11px] tabular-nums ${isActive ? "text-white" : "text-foreground/72"}`}
+              >
+                <span role="img" aria-label={fc.label}>{fc.emoji}</span> {fc.max}°/{fc.min}°
+              </span>
+            )}
           </button>
         );
       })}

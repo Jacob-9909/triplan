@@ -18,7 +18,14 @@ export function invalidPointField(b: Record<string, unknown> | null): string | n
     return "rating must be 1-5";
   }
   if (b.review != null && !(typeof b.review === "string" && b.review.length <= 500)) return "review must be 500 chars or less";
+  if (b.paid_by != null && !(typeof b.paid_by === "string" && b.paid_by.length <= 20)) return "paid_by must be a name";
+  if (b.split_with != null && !isNameList(b.split_with)) return "split_with must be a list of names";
   return null;
+}
+
+/** 동행자 이름 목록: 20명까지, 이름은 1~20자 */
+export function isNameList(v: unknown): v is string[] {
+  return Array.isArray(v) && v.length <= 20 && v.every((n) => typeof n === "string" && n.length >= 1 && n.length <= 20);
 }
 
 /** 링크 값은 http(s)만 허용 (빈 값은 링크 삭제) */
