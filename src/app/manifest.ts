@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Triplan",
     short_name: "Triplan",
-    description: "가고 싶은 곳을 모으고 함께 여행을 계획하는 플래너",
+    description: "가고 싶은 곳을 모으고 함께 여행을 계획하는 플래너", // i18n-ignore: 정적 매니페스트
     start_url: "/",
     display: "standalone",
     background_color: "#fbf7f1",

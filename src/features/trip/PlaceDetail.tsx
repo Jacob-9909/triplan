@@ -11,6 +11,7 @@ import { categoryStyle, PointBadge } from "@/features/map/pointStyle";
 import StylePicker from "@/features/map/StylePicker";
 import { DEFAULT_STAY, formatDuration } from "@/features/route/schedule";
 import { directionsUrl } from "@/features/route/directions";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 export type PointPatch = Partial<
   Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min" | "rating" | "review">
@@ -84,6 +85,7 @@ function Body({
   canEdit: boolean;
   onSave: (id: string, patch: PointPatch) => Promise<string | null>;
 }) {
+  const { t, locale } = usePrefs();
   const [photos, setPhotos] = useState<PointPhoto[] | null>(null);
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -121,7 +123,7 @@ function Body({
         const photo = await apiUpload<PointPhoto>("/api/point-photos", form);
         setPhotos((prev) => [...(prev ?? []), photo]);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "사진을 올리지 못했어요.");
+        setError(e instanceof Error ? e.message : t("사진을 올리지 못했어요."));
       } finally {
         setUploading((n) => n - 1);
       }
@@ -152,12 +154,12 @@ function Body({
       {/* 시간 */}
       <section>
         <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
-          시간 {saved === "time" && <span className="text-xs font-medium text-mint">저장됨</span>}
+          {t("시간")} {saved === "time" && <span className="text-xs font-medium text-mint">{t("저장됨")}</span>}
         </h3>
         {canEdit ? (
           <div className="space-y-3">
             <label className="flex items-center gap-3">
-              <span className="w-20 shrink-0 text-xs font-semibold text-foreground/65">도착 시각</span>
+              <span className="w-20 shrink-0 text-xs font-semibold text-foreground/65">{t("도착 시각")}</span>
               <input
                 type="time"
                 value={point.start_time?.slice(0, 5) ?? ""}
@@ -166,14 +168,14 @@ function Body({
               />
               {point.start_time ? (
                 <button onClick={() => void save({ start_time: null }, "time")} className="text-xs text-foreground/68 underline">
-                  자동으로
+                  {t("자동으로")}
                 </button>
               ) : (
-                <span className="text-xs text-foreground/68">비우면 앞 일정에 이어서 자동 계산</span>
+                <span className="text-xs text-foreground/68">{t("비우면 앞 일정에 이어서 자동 계산")}</span>
               )}
             </label>
             <div className="flex items-start gap-3">
-              <span className="w-20 shrink-0 pt-1.5 text-xs font-semibold text-foreground/65">머무는 시간</span>
+              <span className="w-20 shrink-0 pt-1.5 text-xs font-semibold text-foreground/65">{t("머무는 시간")}</span>
               <div className="flex flex-wrap gap-1.5">
                 {STAY_PRESETS.map((m) => {
                   const on = (point.stay_min ?? DEFAULT_STAY) === m && !stayCustom;
@@ -185,10 +187,10 @@ function Body({
                         void save({ stay_min: m }, "time");
                       }}
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                        on ? "bg-foreground text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+                        on ? "bg-ink text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
                       }`}
                     >
-                      {formatDuration(m)}
+                      {formatDuration(m, locale)}
                     </button>
                   );
                 })}
@@ -199,7 +201,7 @@ function Body({
                     max={1440}
                     step={10}
                     defaultValue={STAY_PRESETS.includes(point.stay_min ?? DEFAULT_STAY) ? "" : (point.stay_min ?? "")}
-                    placeholder="직접"
+                    placeholder={t("직접")}
                     onFocus={() => setStayCustom(true)}
                     onBlur={(e) => {
                       const v = Math.round(Number(e.target.value));
@@ -207,15 +209,19 @@ function Body({
                     }}
                     className="w-12 bg-transparent text-right outline-none"
                   />
-                  분
+                  {t("분")}
                 </label>
               </div>
             </div>
           </div>
         ) : (
           <p className="text-sm text-foreground/70">
-            {point.start_time ? `${point.start_time.slice(0, 5)} 도착 · ` : ""}
-            {formatDuration(point.stay_min ?? DEFAULT_STAY)} 머묾
+            {point.start_time
+              ? t("{time} 도착 · {stay} 머묾", {
+                  time: point.start_time.slice(0, 5),
+                  stay: formatDuration(point.stay_min ?? DEFAULT_STAY, locale),
+                })
+              : t("{time} 머묾", { time: formatDuration(point.stay_min ?? DEFAULT_STAY, locale) })}
           </p>
         )}
       </section>
@@ -223,7 +229,7 @@ function Body({
       {/* 분류·핀 색 */}
       <section>
         <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
-          분류 · 핀 색 {saved === "style" && <span className="text-xs font-medium text-mint">저장됨</span>}
+          {t("분류 · 핀 색")} {saved === "style" && <span className="text-xs font-medium text-mint">{t("저장됨")}</span>}
         </h3>
         {canEdit ? (
           <StylePicker
@@ -232,17 +238,17 @@ function Body({
             onChange={(next) => void save({ category: next.category, color: next.color }, "style")}
           />
         ) : (
-          <p className="text-sm text-foreground/70">{categoryStyle(point.category).label}</p>
+          <p className="text-sm text-foreground/70">{t(categoryStyle(point.category).label)}</p>
         )}
       </section>
 
       {/* 사진 */}
       <section>
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-bold">사진 {photos && photos.length > 0 && <span className="text-foreground/68">{photos.length}</span>}</h3>
+          <h3 className="text-sm font-bold">{t("사진")} {photos && photos.length > 0 && <span className="text-foreground/68">{photos.length}</span>}</h3>
           {canEdit && (
             <button onClick={() => fileRef.current?.click()} className="btn btn-ghost px-3 py-1.5 text-xs">
-              <ImagePlus size={14} /> 사진 추가
+              <ImagePlus size={14} /> {t("사진 추가")}
             </button>
           )}
         </div>
@@ -263,10 +269,10 @@ function Body({
               className="flex w-full flex-col items-center gap-1.5 rounded-2xl border-2 border-dashed border-border-subtle py-7 text-sm text-foreground/68 transition hover:border-primary hover:text-primary-strong"
             >
               <ImagePlus size={22} />
-              눌러서 사진을 올려 보세요 (앨범·카메라)
+              {t("눌러서 사진을 올려 보세요 (앨범·카메라)")}
             </button>
           ) : (
-            <p className="rounded-2xl bg-surface-muted py-6 text-center text-sm text-foreground/68">아직 사진이 없어요</p>
+            <p className="rounded-2xl bg-surface-muted py-6 text-center text-sm text-foreground/68">{t("아직 사진이 없어요")}</p>
           )
         ) : (
           <div className="grid grid-cols-3 gap-2">
@@ -294,14 +300,14 @@ function Body({
       {/* 링크 */}
       <section>
         <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
-          링크
+          {t("링크")}
           <a
             href={directionsUrl(point)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-white"
+            className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white"
           >
-            <Navigation size={12} /> 길찾기
+            <Navigation size={12} /> {t("길찾기")}
           </a>
         </h3>
         {canEdit ? (
@@ -311,7 +317,7 @@ function Body({
               <input
                 value={link}
                 onChange={(e) => setLink(e.target.value)}
-                placeholder="예약·후기·공식 사이트 주소 (https://…)"
+                placeholder={t("예약·후기·공식 사이트 주소 (https://…)")}
                 inputMode="url"
                 className="input pl-9"
               />
@@ -321,11 +327,11 @@ function Body({
               disabled={!linkValid || linkTrim === (point.link_url ?? "")}
               className="btn btn-primary shrink-0 px-4 text-sm disabled:opacity-40"
             >
-              {saved === "link" ? "저장됨" : "저장"}
+              {saved === "link" ? t("저장됨") : t("저장")}
             </button>
           </div>
         ) : null}
-        {!linkValid && <p className="mt-1.5 text-xs text-accent">https:// 로 시작하는 주소를 넣어 주세요.</p>}
+        {!linkValid && <p className="mt-1.5 text-xs text-accent">{t("https:// 로 시작하는 주소를 넣어 주세요.")}</p>}
         {point.link_url && (
           <a
             href={point.link_url}
@@ -336,13 +342,13 @@ function Body({
             <ExternalLink size={15} /> {hostOf(point.link_url)}
           </a>
         )}
-        {!canEdit && !point.link_url && <p className="text-sm text-foreground/68">등록된 링크가 없어요</p>}
+        {!canEdit && !point.link_url && <p className="text-sm text-foreground/68">{t("등록된 링크가 없어요")}</p>}
       </section>
 
       {/* 메모 */}
       <section>
         <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
-          메모 {saved === "memo" && <span className="text-xs font-medium text-mint">저장됨</span>}
+          {t("메모")} {saved === "memo" && <span className="text-xs font-medium text-mint">{t("저장됨")}</span>}
         </h3>
         {canEdit ? (
           <textarea
@@ -350,11 +356,11 @@ function Body({
             onChange={(e) => setMemo(e.target.value)}
             onBlur={() => memo !== (point.memo ?? "") && void save({ memo: memo.trim() || null }, "memo")}
             rows={3}
-            placeholder="영업시간, 꼭 먹을 메뉴, 주의할 점…"
+            placeholder={t("영업시간, 꼭 먹을 메뉴, 주의할 점…")}
             className="input resize-none"
           />
         ) : (
-          <p className="whitespace-pre-wrap text-sm text-foreground/70">{point.memo || "메모가 없어요"}</p>
+          <p className="whitespace-pre-wrap text-sm text-foreground/70">{point.memo || t("메모가 없어요")}</p>
         )}
       </section>
 
@@ -386,13 +392,13 @@ function Body({
                     e.stopPropagation();
                     void removePhoto(photos[viewer].id);
                   }}
-                  aria-label="사진 삭제"
+                  aria-label={t("사진 삭제")}
                   className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white"
                 >
                   <Trash2 size={17} />
                 </button>
               )}
-              <button aria-label="닫기" className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white">
+              <button aria-label={t("닫기")} className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-white">
                 <X size={18} />
               </button>
             </div>

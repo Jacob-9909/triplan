@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Plus, Users, X } from "lucide-react";
 import type { Expense } from "@/lib/types";
+import { usePrefs } from "@/i18n/I18nProvider";
 import { settle } from "./settle";
 
 /** 동행자 관리 + 누가 누구에게 얼마 보내면 되는지 */
@@ -16,6 +17,7 @@ export default function SettleCard({
   /** 없으면 보기 전용 */
   onTravelersChange?: (names: string[]) => void;
 }) {
+  const { t: tr, money } = usePrefs();
   const [name, setName] = useState("");
   const result = useMemo(() => settle(expenses, travelers), [expenses, travelers]);
   const trimmed = name.trim();
@@ -32,7 +34,7 @@ export default function SettleCard({
   return (
     <div className="card space-y-4 p-5">
       <h3 className="flex items-center gap-1.5 text-xs font-semibold text-foreground/68">
-        <Users size={14} /> 동행자 정산
+        <Users size={14} /> {tr("동행자 정산")}
       </h3>
 
       <div className="flex flex-wrap gap-1.5">
@@ -43,7 +45,7 @@ export default function SettleCard({
               <button
                 type="button"
                 onClick={() => onTravelersChange(travelers.filter((x) => x !== t))}
-                aria-label={`${t} 빼기`}
+                aria-label={tr("{name} 빼기", { name: t })}
                 className="flex h-5 w-5 items-center justify-center rounded-full text-foreground/60 hover:bg-accent-soft hover:text-accent"
               >
                 <X size={12} />
@@ -57,14 +59,14 @@ export default function SettleCard({
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={20}
-              placeholder="이름 추가"
-              aria-label="동행자 이름"
+              placeholder={tr("이름 추가")}
+              aria-label={tr("동행자 이름")}
               className="w-24 rounded-full border border-border-subtle bg-surface-muted px-3 py-1.5 text-xs outline-none focus:border-primary"
             />
             <button
               type="submit"
               disabled={!trimmed || travelers.includes(trimmed)}
-              aria-label="동행자 추가"
+              aria-label={tr("동행자 추가")}
               className="flex h-7 w-7 items-center justify-center rounded-full bg-primary-soft text-primary-strong disabled:opacity-40"
             >
               <Plus size={14} />
@@ -74,10 +76,10 @@ export default function SettleCard({
       </div>
 
       {travelers.length < 2 ? (
-        <p className="text-xs text-foreground/68">함께 가는 사람을 두 명 이상 넣으면 지출마다 낸 사람을 고르고, 여기서 정산해 드려요.</p>
+        <p className="text-xs text-foreground/68">{tr("함께 가는 사람을 두 명 이상 넣으면 지출마다 낸 사람을 고르고, 여기서 정산해 드려요.")}</p>
       ) : result.transfers.length === 0 ? (
         // 낸 사람이 정해진 지출이 하나도 없으면 아래 안내만
-        result.skipped < expenses.length && <p className="text-sm font-semibold text-mint">보낼 돈이 없어요. 정산 끝!</p>
+        result.skipped < expenses.length && <p className="text-sm font-semibold text-mint">{tr("보낼 돈이 없어요. 정산 끝!")}</p>
       ) : (
         <ul className="space-y-2">
           {result.transfers.map((t) => (
@@ -85,14 +87,14 @@ export default function SettleCard({
               <span className="font-semibold">{t.from}</span>
               <ArrowRight size={14} className="text-foreground/50" />
               <span className="font-semibold">{t.to}</span>
-              <span className="ml-auto font-bold tabular-nums text-primary-strong">₩{t.krw.toLocaleString("ko-KR")}</span>
+              <span className="ml-auto font-bold tabular-nums text-primary-strong">{money(t.krw)}</span>
             </li>
           ))}
         </ul>
       )}
       {travelers.length >= 2 && result.skipped > 0 && (
         <p className="text-xs text-foreground/68">
-          낸 사람이 없는 지출 {result.skipped}건은 빼고 계산했어요.{onTravelersChange && " 연필 버튼으로 낸 사람을 정해 주세요."}
+          {tr("낸 사람이 없는 지출 {n}건은 빼고 계산했어요.", { n: result.skipped })}{onTravelersChange && <>{" "}{tr("연필 버튼으로 낸 사람을 정해 주세요.")}</>}
         </p>
       )}
     </div>

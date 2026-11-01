@@ -22,6 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { ArrowRight, MapPin, Move, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import { categoryStyle, pointColor } from "@/features/map/pointStyle";
+import { useT } from "@/i18n/I18nProvider";
 
 export interface ItineraryListProps {
   /** visit_order 기준으로 정렬된 해당 Day의 포인트 목록 */
@@ -47,6 +48,7 @@ interface ChipProps {
 /** 장소 하나 = 작은 칩. 끌어서 순서를 바꾸고, 누르면 상세가 열린다 */
 function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: point.id });
+  const t = useT();
   const [confirming, setConfirming] = useState(false);
   const color = pointColor(point);
   const Icon = categoryStyle(point.category).icon;
@@ -65,7 +67,7 @@ function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
         {...listeners}
         onClick={() => onOpen?.(point)}
         className="flex min-w-0 cursor-grab items-center gap-1.5 rounded-full py-1.5 pl-1.5 pr-2.5 outline-none focus-visible:ring-2 focus-visible:ring-primary active:cursor-grabbing"
-        aria-label={`${index + 1}번 ${point.name} (끌어서 순서 변경, 눌러서 상세)`}
+        aria-label={t("{n}번 {name} (끌어서 순서 변경, 눌러서 상세)", { n: index + 1, name: point.name })}
       >
         <span
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
@@ -83,12 +85,12 @@ function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
             onClick={() => onDelete(point.id)}
             className="mr-1 shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-white"
           >
-            삭제
+            {t("삭제")}
           </button>
         ) : (
           <button
             type="button"
-            aria-label={`${point.name} 삭제`}
+            aria-label={t("{name} 삭제", { name: point.name })}
             onClick={() => {
               // 실수로 지우지 않게 한 번 더 눌러야 삭제
               setConfirming(true);
@@ -104,6 +106,7 @@ function PointChip({ point, index, onOpen, onDelete, isDeleting }: ChipProps) {
 }
 
 export default function ItineraryList({ points, onReorder, onDelete, onOpen, deletingIds }: ItineraryListProps) {
+  const t = useT();
   // 드래그 중 미리보기 순서
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   // 드래그를 놓을 때 따라오는 click으로 상세가 열리지 않게 잠깐 막는다
@@ -160,8 +163,8 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
         <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary-soft text-primary-strong">
           <MapPin size={20} />
         </span>
-        <p className="text-sm font-medium">이 Day에 추가된 장소가 없어요</p>
-        <p className="text-xs text-foreground/68">지도를 누르거나 장소를 검색해 일정을 만들어 보세요</p>
+        <p className="text-sm font-medium">{t("이 Day에 추가된 장소가 없어요")}</p>
+        <p className="text-xs text-foreground/68">{t("지도를 누르거나 장소를 검색해 일정을 만들어 보세요")}</p>
       </div>
     );
   }
@@ -169,9 +172,9 @@ export default function ItineraryList({ points, onReorder, onDelete, onOpen, del
   return (
     <div className="card p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-bold">방문 순서</h3>
+        <h3 className="text-sm font-bold">{t("방문 순서")}</h3>
         <span className="flex items-center gap-1 text-[11px] text-foreground/68">
-          <Move size={12} /> 끌어서 순서 바꾸기
+          <Move size={12} /> {t("끌어서 순서 바꾸기")}
         </span>
       </div>
       <DndContext

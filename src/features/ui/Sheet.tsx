@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, type ReactNode } from "react";
+import { useT } from "@/i18n/I18nProvider";
 
 /**
  * 모바일에선 아래에서 올라오는 바텀시트, 데스크톱에선 가운데 다이얼로그.
@@ -20,6 +21,7 @@ export default function Sheet({
   children: ReactNode;
   wide?: boolean;
 }) {
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -59,7 +61,7 @@ export default function Sheet({
               <h2 className="text-lg font-bold tracking-tight">{title}</h2>
               <button
                 onClick={onClose}
-                aria-label="닫기"
+                aria-label={t("닫기")}
                 className="flex h-9 w-9 items-center justify-center rounded-full text-foreground/68 transition hover:bg-surface-muted hover:text-foreground"
               >
                 <X size={18} />

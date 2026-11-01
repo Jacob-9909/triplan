@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { PiggyBank, Wallet } from "lucide-react";
 import MoneyInput from "@/features/ui/MoneyInput";
+import { usePrefs } from "@/i18n/I18nProvider";
 import type { Expense } from "@/lib/types";
 import { CATEGORIES, currencySymbol, formatMoney } from "./categories";
 
@@ -24,6 +25,7 @@ export default function ExpenseSummary({
   budgetKrw = null,
   onBudgetChange,
 }: ExpenseSummaryProps) {
+  const { t, money } = usePrefs();
   const { totalKrw, localTotals, byCategory, byDay, avgDaily, daysCount } =
     useMemo(() => {
       const localMap = new Map<string, number>();
@@ -87,13 +89,13 @@ export default function ExpenseSummary({
       <div className="card p-5">
         <div className="flex items-center gap-2 text-xs font-semibold text-foreground/68">
           <Wallet size={14} />
-          총 지출 ({daysCount}일)
+          {t("총 지출 ({n}일)", { n: daysCount })}
         </div>
         <p className="mt-1 text-2xl font-extrabold tabular-nums text-[var(--color-primary-strong)] md:text-3xl">
-          ₩{totalKrw.toLocaleString("ko-KR")}
+          {money(totalKrw)}
         </p>
         <p className="mt-0.5 text-xs tabular-nums text-foreground/68">
-          일평균 ₩{avgDaily.toLocaleString("ko-KR")}
+          {t("일평균 {amount}", { amount: money(avgDaily) })}
           {localTotals.length > 0 && (
             <>
               {" · "}
@@ -116,10 +118,10 @@ export default function ExpenseSummary({
       {/* 카테고리별 지출 막대 */}
       {byCategory.length > 0 && (
         <div className="card space-y-2.5 p-5">
-          <h3 className="text-xs font-semibold text-foreground/68">카테고리별</h3>
+          <h3 className="text-xs font-semibold text-foreground/68">{t("카테고리별")}</h3>
           {byCategory.map(({ value, label, krw, barClass }) => (
             <div key={value} className="flex items-center gap-3">
-              <span className="w-16 shrink-0 text-xs font-medium">{label}</span>
+              <span className="w-16 shrink-0 text-xs font-medium">{t(label)}</span>
               <div className="h-3 flex-1 overflow-hidden rounded-full bg-[var(--surface-muted)]">
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${barClass}`}
@@ -127,7 +129,7 @@ export default function ExpenseSummary({
                 />
               </div>
               <span className="w-24 shrink-0 text-right text-xs tabular-nums text-[var(--foreground)]/70">
-                ₩{krw.toLocaleString("ko-KR")}
+                {money(krw)}
               </span>
             </div>
           ))}
@@ -137,7 +139,7 @@ export default function ExpenseSummary({
       {/* Day별 추이 */}
       {byDay.length > 1 && (
         <div className="card p-5">
-          <h3 className="text-xs font-semibold text-foreground/68">Day별 지출 추이</h3>
+          <h3 className="text-xs font-semibold text-foreground/68">{t("Day별 지출 추이")}</h3>
           <div className="mt-4 flex h-28 items-end gap-1.5 overflow-x-auto pb-1">
             {byDay.map(({ day, krw }) => (
               <div key={day} className="group flex min-w-6 flex-1 flex-col items-center gap-1">
@@ -150,7 +152,7 @@ export default function ExpenseSummary({
                     height: `${Math.max(4, Math.round((krw / maxDayKrw) * 88))}px`,
                     opacity: krw === 0 ? 0.15 : 1,
                   }}
-                  title={`Day ${day}: ₩${krw.toLocaleString("ko-KR")}`}
+                  title={`Day ${day}: ${money(krw)}`}
                 />
                 <span className="text-[10px] tabular-nums text-foreground/68">
                   {day}
@@ -178,17 +180,18 @@ function Budget({
   endDate?: string | null;
   onChange?: (krw: number | null) => void;
 }) {
+  const { t, money } = usePrefs();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<number | null>(budgetKrw);
 
   if (editing && onChange) {
     return (
       <div className="mt-4 space-y-2 border-t border-[var(--border-subtle)] pt-4">
-        <p className="text-xs font-semibold text-foreground/68">여행 예산</p>
-        <MoneyInput value={draft} onChange={setDraft} placeholder="예산" />
+        <p className="text-xs font-semibold text-foreground/68">{t("여행 예산")}</p>
+        <MoneyInput value={draft} onChange={setDraft} placeholder={t("예산")} />
         <div className="flex justify-end gap-2">
           <button type="button" onClick={() => setEditing(false)} className="px-3 py-2 text-sm font-medium text-foreground/68">
-            취소
+            {t("취소")}
           </button>
           <button
             type="button"
@@ -198,7 +201,7 @@ function Budget({
             }}
             className="btn btn-primary px-4 text-sm"
           >
-            저장
+            {t("저장")}
           </button>
         </div>
       </div>
@@ -215,7 +218,7 @@ function Budget({
         }}
         className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--color-primary-strong)]"
       >
-        <PiggyBank size={14} /> 예산 정하기
+        <PiggyBank size={14} /> {t("예산 정하기")}
       </button>
     ) : null;
   }
@@ -234,7 +237,7 @@ function Budget({
     <div className="mt-4 border-t border-[var(--border-subtle)] pt-4">
       <div className="flex items-center justify-between text-xs font-semibold text-foreground/68">
         <span className="inline-flex items-center gap-1.5">
-          <PiggyBank size={14} /> 예산 ₩{budgetKrw.toLocaleString("ko-KR")}
+          <PiggyBank size={14} /> {t("예산 {amount}", { amount: money(budgetKrw) })}
         </span>
         {onChange && (
           <button
@@ -245,13 +248,13 @@ function Budget({
             }}
             className="text-[var(--color-primary-strong)]"
           >
-            바꾸기
+            {t("바꾸기")}
           </button>
         )}
       </div>
       <div
         role="progressbar"
-        aria-label="예산 사용"
+        aria-label={t("예산 사용")}
         aria-valuenow={Math.round(ratio * 100)}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -265,11 +268,11 @@ function Budget({
       <p className="mt-1.5 text-xs tabular-nums text-foreground/72">
         {left >= 0 ? (
           <>
-            ₩{left.toLocaleString("ko-KR")} 남음
-            {days > 0 && ` · 남은 ${days}일 동안 하루 ₩${Math.floor(left / days).toLocaleString("ko-KR")}`}
+            {t("{amount} 남음", { amount: money(left) })}
+            {days > 0 && ` · ${t("남은 {days}일 동안 하루 {amount}", { days, amount: money(Math.floor(left / days)) })}`}
           </>
         ) : (
-          <span className="font-semibold text-[var(--color-accent)]">₩{(-left).toLocaleString("ko-KR")} 초과</span>
+          <span className="font-semibold text-[var(--color-accent)]">{t("{amount} 초과", { amount: money(-left) })}</span>
         )}
       </p>
     </div>

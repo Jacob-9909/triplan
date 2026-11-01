@@ -6,6 +6,7 @@ import { MapPin, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import StylePicker from "./StylePicker";
 import { hasHangul, translateName, withKorean } from "./translateName";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 /** AddPointDialog가 만들어내는 포인트 초안 (id/trip_id/created_at은 상위에서 채움) */
 export interface PointDraft {
@@ -37,8 +38,10 @@ function PointForm({
   onCancel,
   onSave,
 }: Pick<AddPointDialogProps, "latlng" | "prefill" | "country" | "onCancel" | "onSave">) {
+  const { t, locale } = usePrefs();
   const [name, setName] = useState(prefill?.name ?? "");
-  const needsKorean = !!prefill?.name && !hasHangul(prefill.name);
+  // 영어 화면에서는 현지·영문 이름 그대로 쓴다 (한국어 번역 요청 없음)
+  const needsKorean = locale === "ko" && !!prefill?.name && !hasHangul(prefill.name);
   const [translating, setTranslating] = useState(needsKorean);
   const edited = useRef(false);
   const [category, setCategory] = useState<MapPoint["category"]>(prefill?.category ?? "attraction");
@@ -78,7 +81,7 @@ function PointForm({
     <motion.div
       role="dialog"
       aria-modal="true"
-      aria-label="새 포인트 추가"
+      aria-label={t("새 포인트 추가")}
       className="card max-h-[90dvh] w-full max-w-lg overflow-y-auto p-5"
       initial={{ scale: 0.92, y: 24, opacity: 0 }}
       animate={{ scale: 1, y: 0, opacity: 1 }}
@@ -91,12 +94,12 @@ function PointForm({
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft" aria-hidden>
             <MapPin size={16} className="text-primary-strong" />
           </span>
-          장소 추가
+          {t("장소 추가")}
         </h2>
         <button
           type="button"
           onClick={onCancel}
-          aria-label="닫기"
+          aria-label={t("닫기")}
           className="rounded-lg p-1.5 text-foreground/68 transition hover:bg-primary-soft hover:text-primary-strong"
         >
           <X size={18} />
@@ -104,7 +107,7 @@ function PointForm({
       </div>
 
       <label htmlFor="add-point-name" className="mb-1 block text-xs font-semibold text-foreground/72">
-        이름
+        {t("이름")}
       </label>
       <input
         id="add-point-name"
@@ -114,12 +117,12 @@ function PointForm({
           edited.current = true;
           setName(e.target.value);
         }}
-        placeholder="예: 후쿠오카 타워"
+        placeholder={t("예: 후쿠오카 타워")}
         className={`${translating ? "mb-1" : "mb-4"} w-full rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20`}
       />
-      {translating && <p className="mb-4 text-[11px] text-foreground/68">한국어 이름 찾는 중…</p>}
+      {translating && <p className="mb-4 text-[11px] text-foreground/68">{t("한국어 이름 찾는 중…")}</p>}
 
-      <p className="mb-2 text-xs font-semibold text-foreground/72">분류 · 핀 색</p>
+      <p className="mb-2 text-xs font-semibold text-foreground/72">{t("분류 · 핀 색")}</p>
       <div className="mb-4">
         <StylePicker
           category={category}
@@ -132,19 +135,19 @@ function PointForm({
       </div>
 
       <label htmlFor="add-point-memo" className="mb-1 block text-xs font-semibold text-foreground/72">
-        메모
+        {t("메모")}
       </label>
       <textarea
         id="add-point-memo"
         value={memo}
         onChange={(e) => setMemo(e.target.value)}
         rows={2}
-        placeholder="예: 야경 명소, 오후 6시 이후 방문 추천"
+        placeholder={t("예: 야경 명소, 오후 6시 이후 방문 추천")}
         className="mb-1 w-full resize-none rounded-xl border border-border-subtle bg-surface px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
       />
       {latlng && (
         <p className="mb-4 text-[11px] tabular-nums text-foreground/68">
-          위치 확정: {latlng.lat.toFixed(5)}, {latlng.lng.toFixed(5)}
+          {t("위치 확정: {lat}, {lng}", { lat: latlng.lat.toFixed(5), lng: latlng.lng.toFixed(5) })}
         </p>
       )}
 
@@ -154,7 +157,7 @@ function PointForm({
           onClick={onCancel}
           className="flex-1 rounded-xl border border-border-subtle px-4 py-2.5 text-sm font-semibold text-foreground/70 transition hover:bg-primary-soft"
         >
-          취소
+          {t("취소")}
         </button>
         <button
           type="button"
@@ -162,7 +165,7 @@ function PointForm({
           onClick={handleSave}
           className="btn btn-primary flex-1 px-4 text-sm font-bold"
         >
-          추가하기
+          {t("추가하기")}
         </button>
       </div>
     </motion.div>

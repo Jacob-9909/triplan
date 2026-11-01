@@ -11,6 +11,7 @@ import { sortPointsByOrder } from "./sort";
 import { poiCategoryGuess, TRIPOI_LAYER_IDS } from "./poiLayers";
 import { useKoreanLabels } from "./useKoreanLabels";
 import type { MapCameraRef, MapClickEvent, MapKit } from "./mapKit";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 export interface TripMapCoreProps {
   points: MapPoint[];
@@ -76,6 +77,7 @@ export default function TripMapCore({
   labelCountry = null,
 }: TripMapCoreProps) {
   const { Map, Marker, Popup, NavigationControl } = kit;
+  const { t, locale, money } = usePrefs();
   const wrapRef = useRef<HTMLDivElement>(null);
   // MapLibre 는 마커 감싸개 div 에 aria-label="Map marker" 를 붙인다 (역할 없는 div 라 접근성 오류).
   // 안쪽 핀 버튼에 장소 이름이 있으므로 감싸개 쪽 라벨은 지운다
@@ -89,7 +91,8 @@ export default function TripMapCore({
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
 
-  useKoreanLabels(mapRef, mapReady, translateLabels, labelCountry);
+  // 한국어 화면에서만 라벨을 번역한다. 영어 화면은 name:en (없으면 현지 이름)
+  useKoreanLabels(mapRef, mapReady, translateLabels && locale === "ko", labelCountry);
 
   const sortedPoints = useMemo(() => sortPointsByOrder(points), [points]);
   const popupPoint = useMemo(() => points.find((p) => p.id === popupId) ?? null, [points, popupId]);
@@ -158,15 +161,15 @@ export default function TripMapCore({
       if (poi) {
         const props = poi.properties!;
         const [lng, lat] = poi.geometry?.coordinates ?? [latlng.lng, latlng.lat];
-        // 지도에 보이는 것과 같은 이름(한국어가 있으면 한국어)으로 채운다
-        const name = (props["name:ko"] as string | undefined) ?? (props.name as string);
+        // 지도에 보이는 것과 같은 이름(한국어 화면은 한국어, 영어 화면은 영문 이름이 있으면 영문)으로 채운다
+        const name = (props[locale === "en" ? "name:en" : "name:ko"] as string | undefined) ?? (props.name as string);
         onMapClick?.({ lat, lng }, { name, category: poiCategoryGuess(props.class ?? props.kind) });
         return;
       }
 
       onMapClick?.(latlng);
     },
-    [editable, onMapClick, poiLayerIds]
+    [editable, onMapClick, poiLayerIds, locale]
   );
 
   return (
@@ -228,7 +231,7 @@ export default function TripMapCore({
                 className={`max-w-28 truncate rounded-full border px-2 py-0.5 text-[10px] font-semibold shadow-sm transition-colors ${
                   point.id === selectedPointId
                     ? "border-primary bg-primary text-white"
-                    : "border-border-subtle bg-white/95 text-foreground/80 hover:border-primary hover:text-primary-strong"
+                    : "border-border-subtle bg-surface/95 text-foreground/80 hover:border-primary hover:text-primary-strong"
                 }`}
               >
                 {point.name}
@@ -263,7 +266,7 @@ export default function TripMapCore({
                 <button
                   type="button"
                   onClick={() => setPopupId(null)}
-                  aria-label="닫기"
+                  aria-label={t("닫기")}
                   className="-mr-1 -mt-0.5 shrink-0 rounded-full p-1 text-foreground/68 hover:bg-surface-muted hover:text-foreground"
                 >
                   <X size={14} />
@@ -275,7 +278,7 @@ export default function TripMapCore({
                   className="shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
                   style={{ borderColor: pointColor(popupPoint), color: pointColor(popupPoint) }}
                 >
-                  {getCategoryLabel(popupPoint.category)}
+                  {t(getCategoryLabel(popupPoint.category))}
                 </span>
                 {popupPoint.day_number != null && (
                   <span className="rounded-full bg-primary-soft px-2 py-0.5 text-[10px] font-semibold text-primary-strong">
@@ -283,7 +286,7 @@ export default function TripMapCore({
                   </span>
                 )}
                 {popupExpenseTotal > 0 && (
-                  <span className="text-[11px] font-semibold text-foreground/72">지출 {popupExpenseTotal.toLocaleString()}원</span>
+                  <span className="text-[11px] font-semibold text-foreground/72">{t("지출 {amount}", { amount: money(popupExpenseTotal) })}</span>
                 )}
               </div>
               {popupPoint.memo && (
@@ -298,7 +301,7 @@ export default function TripMapCore({
                   }}
                   className="mt-2.5 flex w-full items-center justify-center gap-1 rounded-full bg-primary-soft py-1.5 text-xs font-bold text-primary-strong transition hover:bg-primary hover:text-white"
                 >
-                  사진·링크·메모 보기
+                  {t("사진·링크·메모 보기")}
                 </button>
               )}
               <div className="mt-2.5 flex items-center gap-3 border-t border-border-subtle pt-2 text-[11px] font-semibold text-primary-strong">
@@ -309,7 +312,7 @@ export default function TripMapCore({
                   onClick={(e) => e.stopPropagation()}
                   className="hover:underline"
                 >
-                  네이버지도
+                  {t("네이버지도")}
                 </a>
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${popupPoint.name} ${popupPoint.lat},${popupPoint.lng}`)}`}
@@ -318,7 +321,7 @@ export default function TripMapCore({
                   onClick={(e) => e.stopPropagation()}
                   className="hover:underline"
                 >
-                  구글지도
+                  {t("구글지도")}
                 </a>
               </div>
             </div>
@@ -331,11 +334,11 @@ export default function TripMapCore({
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-surface-muted/80 text-sm text-foreground/72">
           {mapError ? (
             <>
-              <span className="font-semibold text-accent">지도를 표시할 수 없어요</span>
-              <span className="max-w-xs break-words text-center text-xs">{mapError}</span>
+              <span className="font-semibold text-accent">{t("지도를 표시할 수 없어요")}</span>
+              <span className="max-w-xs break-words text-center text-xs">{t(mapError)}</span>
             </>
           ) : (
-            <span>지도를 불러오는 중…</span>
+            <span>{t("지도를 불러오는 중…")}</span>
           )}
         </div>
       )}

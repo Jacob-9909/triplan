@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
 import type { PointDraft } from "./AddPointDialog";
+import { useT } from "@/i18n/I18nProvider";
 
 export interface TripMapProps {
   points: MapPoint[];
@@ -44,12 +45,17 @@ export interface TripMapProps {
  */
 const TripMapClient = dynamic(() => import("./TripMapClient"), {
   ssr: false,
-  loading: () => (
-    <div className="card flex h-full min-h-[320px] items-center justify-center">
-      <p className="animate-pulse text-sm font-semibold text-foreground/68">지도를 불러오는 중…</p>
-    </div>
-  ),
+  loading: () => <MapLoading />,
 });
+
+function MapLoading() {
+  const t = useT();
+  return (
+    <div className="card flex h-full min-h-[320px] items-center justify-center">
+      <p className="animate-pulse text-sm font-semibold text-foreground/68">{t("지도를 불러오는 중…")}</p>
+    </div>
+  );
+}
 
 export default function TripMap(props: TripMapProps) {
   return <TripMapClient {...props} />;

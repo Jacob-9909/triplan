@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       "SELECT count(*)::int AS n FROM triplan.point_photos WHERE point_id = $1",
       [pointId]
     );
-    if (count[0].n >= MAX_PER_POINT) return jsonError(`장소마다 사진은 ${MAX_PER_POINT}장까지예요.`, 400);
+    if (count[0].n >= MAX_PER_POINT) return jsonError(`장소마다 사진은 ${MAX_PER_POINT}장까지예요.`, 400); // i18n-ignore
 
     const toInt = (v: FormDataEntryValue | null) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : null);
     const { rows } = await getPool().query<Row>(

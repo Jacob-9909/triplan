@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, MapPin, Search, X } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import { apiGet } from "@/lib/api";
+import { useT } from "@/i18n/I18nProvider";
 
 /** 카카오 로컬 API 응답 문서 */
 interface KakaoPlace {
@@ -58,6 +59,7 @@ export default function PlaceSearch({
   /** 검색 반경 우선 기준 좌표(선택) */
   center?: { lat: number; lng: number } | null;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KakaoPlace[]>([]);
   const [loading, setLoading] = useState(false);
@@ -92,7 +94,7 @@ export default function PlaceSearch({
         const data = await apiGet<{ documents?: KakaoPlace[] }>(`/api/places/search?${params.toString()}`);
         setResults((data.documents ?? []).slice(0, 8));
       } catch {
-        setError("장소 검색에 실패했어요");
+        setError("장소 검색에 실패했어요"); // 그릴 때 번역
         setResults([]);
       } finally {
         setLoading(false);
@@ -116,13 +118,13 @@ export default function PlaceSearch({
           value={query}
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => setOpen(true)}
-          placeholder="장소 검색 (해외는 영문·현지어)"
-          className="w-full rounded-full border border-border-subtle bg-white/95 py-2 pl-9 pr-8 text-sm shadow-sm outline-none transition focus:border-primary"
+          placeholder={t("장소 검색 (해외는 영문·현지어)")}
+          className="w-full rounded-full border border-border-subtle bg-surface/95 py-2 pl-9 pr-8 text-sm shadow-sm outline-none transition focus:border-primary"
         />
         {query && (
           <button
             type="button"
-            aria-label="검색어 지우기"
+            aria-label={t("검색어 지우기")}
             onClick={() => {
               setQuery("");
               setResults([]);
@@ -136,17 +138,17 @@ export default function PlaceSearch({
       </div>
 
       {(open || loading) && (query.trim() || error) && (
-        <div className="mt-1.5 w-full overflow-hidden rounded-xl border border-border-subtle bg-white/98 shadow-card">
+        <div className="mt-1.5 w-full overflow-hidden rounded-xl border border-border-subtle bg-surface/98 shadow-card">
           {loading && (
             <div className="flex items-center gap-2 px-3 py-2.5 text-xs text-foreground/68">
-              <Loader2 size={14} className="animate-spin" /> 검색 중…
+              <Loader2 size={14} className="animate-spin" /> {t("검색 중…")}
             </div>
           )}
           {!loading && error && (
-            <div className="px-3 py-2.5 text-xs text-accent">{error}</div>
+            <div className="px-3 py-2.5 text-xs text-accent">{t(error)}</div>
           )}
           {!loading && !error && results.length === 0 && (
-            <div className="px-3 py-2.5 text-xs text-foreground/68">검색 결과가 없어요</div>
+            <div className="px-3 py-2.5 text-xs text-foreground/68">{t("검색 결과가 없어요")}</div>
           )}
           {!loading &&
             results.map((r) => (

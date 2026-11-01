@@ -8,7 +8,6 @@ import {
   isWithinInterval,
   parseISO,
 } from "date-fns";
-import { ko } from "date-fns/locale";
 import {
   CalendarDays,
   ExternalLink,
@@ -24,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type { TravelDoc } from "@/lib/types";
+import { usePrefs, useT } from "@/i18n/I18nProvider";
 import { useTravelDocs } from "./useTravelDocs";
 
 const DOC_META: Record<
@@ -97,6 +97,7 @@ export default function DocsPanel({
   /** 보기 전용 링크: 등록·삭제 UI 숨김 (예약번호는 서버에서 이미 제거됨) */
   readOnly?: boolean;
 }) {
+  const tr = useT();
   const { docs, loading, addDoc, removeDoc } = useTravelDocs(tripId);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
@@ -130,69 +131,69 @@ export default function DocsPanel({
         <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
           <Ticket size={18} />
         </span>
-        여행 문서 보관함
+        {tr("여행 문서 보관함")}
       </h2>
 
       {/* 등록 폼 */}
       {!readOnly && (
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface-muted)] p-4 sm:grid-cols-4">
         <select
-          aria-label="종류"
+          aria-label={tr("종류")}
           value={form.type}
           onChange={setField("type")}
-          className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+          className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
         >
           {(Object.keys(DOC_META) as TravelDoc["type"][]).map((t) => (
             <option key={t} value={t}>
-              {DOC_META[t].label}
+              {tr(DOC_META[t].label)}
             </option>
           ))}
         </select>
         <input
-          aria-label="제목"
+          aria-label={tr("제목")}
           value={form.title}
           onChange={setField("title")}
-          placeholder="제목 * (예: 인천→도쿄 편도)"
-          className="col-span-1 rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] sm:col-span-3"
+          placeholder={tr("제목 * (예: 인천→도쿄 편도)")}
+          className="col-span-1 rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] sm:col-span-3"
         />
         <input
-          aria-label="제공사"
+          aria-label={tr("제공사")}
           value={form.provider}
           onChange={setField("provider")}
-          placeholder="제공사 (대한항공)"
-          className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+          placeholder={tr("제공사 (대한항공)")}
+          className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
         />
         <input
-          aria-label="예약번호"
+          aria-label={tr("예약번호")}
           value={form.confirmation_code}
           onChange={setField("confirmation_code")}
-          placeholder="예약번호"
-          className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+          placeholder={tr("예약번호")}
+          className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
         />
         <input
           type="date"
-          aria-label="시작일"
+          aria-label={tr("시작일")}
           value={form.starts_at}
           onChange={setField("starts_at")}
-          className="rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
+          className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
         />
         <div className="relative">
           <input
             type="date"
-            aria-label="종료일"
+            aria-label={tr("종료일")}
           value={form.ends_at}
             min={form.starts_at || undefined}
             onChange={setField("ends_at")}
-            className="w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 pr-8 text-sm outline-none focus:border-[var(--color-primary)]"
+            className="w-full rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 pr-8 text-sm outline-none focus:border-[var(--color-primary)]"
           />
         </div>
         <input
-          aria-label="링크 주소"
+          aria-label={tr("링크 주소")}
           value={form.url}
           onChange={setField("url")}
           type="url"
-          placeholder="링크 URL (https://…)"
-          className="col-span-2 w-full rounded-lg border border-[var(--border-subtle)] bg-white px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] sm:col-span-3"
+          placeholder={tr("링크 URL (https://…)")}
+          className="col-span-2 w-full rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)] sm:col-span-3"
         />
         <button
           onClick={() => void handleSubmit()}
@@ -204,17 +205,17 @@ export default function DocsPanel({
           ) : (
             <Plus size={16} />
           )}
-          등록
+          {tr("등록")}
         </button>
       </div>
       )}
 
       {/* 문서 카드 리스트 */}
       {loading ? (
-        <p className="mt-6 text-center text-sm text-slate-500">불러오는 중…</p>
+        <p className="mt-6 text-center text-sm text-slate-500">{tr("불러오는 중…")}</p>
       ) : docs.length === 0 ? (
         <p className="mt-6 text-center text-sm text-slate-500">
-          등록된 문서가 없어요. 항공권·숙소 바우처를 저장해보세요!
+          {tr("등록된 문서가 없어요. 항공권·숙소 바우처를 저장해보세요!")}
         </p>
       ) : (
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -240,6 +241,7 @@ function DocCard({
   doc: TravelDoc;
   onRemove?: () => void;
 }) {
+  const { t, df } = usePrefs();
   const meta = DOC_META[doc.type];
   const url = safeUrl(doc.url);
   const Icon = meta.icon;
@@ -266,7 +268,7 @@ function DocCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.22 }}
-      className="group relative overflow-hidden rounded-xl bg-white p-4 ring-1 ring-[var(--border-subtle)] transition hover:-translate-y-0.5 hover:shadow-md"
+      className="group relative overflow-hidden rounded-xl bg-surface p-4 ring-1 ring-[var(--border-subtle)] transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <div className={`absolute inset-y-0 left-0 w-1 ${meta.bg}`} />
       <div className="flex items-start gap-3 pl-1">
@@ -278,11 +280,11 @@ function DocCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className={`text-xs font-bold ${meta.text}`}>
-              {meta.label}
+              {t(meta.label)}
             </span>
             {ongoing && (
               <span className="animate-pulse rounded-full bg-teal-soft px-2 py-0.5 text-[10px] font-bold text-mint">
-                진행 중
+                {t("진행 중")}
               </span>
             )}
           </div>
@@ -297,10 +299,10 @@ function DocCard({
           <p className="mt-1 flex items-center gap-1 text-xs text-slate-600">
             <CalendarDays size={12} />
             {doc.starts_at
-              ? format(parseISO(doc.starts_at), "M월 d일 (E)", { locale: ko })
-              : "날짜 미정"}
+              ? format(parseISO(doc.starts_at), t("M월 d일 (E)"), { locale: df })
+              : t("날짜 미정")}
             {doc.ends_at &&
-              ` ~ ${format(parseISO(doc.ends_at), "M월 d일", { locale: ko })}`}
+              ` ~ ${format(parseISO(doc.ends_at), t("M월 d일"), { locale: df })}`}
           </p>
           {dDay !== null && !ongoing && (
             <span
@@ -310,7 +312,7 @@ function DocCard({
                   : "bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]"
               }`}
             >
-              {dDay > 0 ? `D-${dDay}` : dDay === 0 ? "D-DAY" : "종료됨"}
+              {dDay > 0 ? `D-${dDay}` : dDay === 0 ? "D-DAY" : t("종료됨")}
             </span>
           )}
         </div>
@@ -320,7 +322,7 @@ function DocCard({
               href={url}
               target="_blank"
               rel="noopener noreferrer"
-              aria-label={`${doc.title} 링크 열기`}
+              aria-label={t("{title} 링크 열기", { title: doc.title })}
               className="text-slate-400 transition hover:text-[var(--color-primary)]"
             >
               <ExternalLink size={16} />
@@ -329,7 +331,7 @@ function DocCard({
           {onRemove && (
             <button
               onClick={onRemove}
-              aria-label={`${doc.title} 삭제`}
+              aria-label={t("{title} 삭제", { title: doc.title })}
               className="text-slate-400 transition hover:text-[var(--color-accent)]"
             >
               <Trash2 size={16} />

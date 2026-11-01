@@ -1,4 +1,5 @@
 import type { MapPoint, RouteLeg } from "@/lib/types";
+import { makeT, type Locale } from "@/i18n/translate";
 
 /** 첫 장소에 도착 시각이 없을 때 하루 시작 시각 */
 export const DEFAULT_DAY_START = 9 * 60;
@@ -34,11 +35,13 @@ export function formatTime(min: number): string {
   return `${day > 0 ? "+1 " : ""}${hh}:${mm}`;
 }
 
-export function formatDuration(min: number): string {
-  if (min < 60) return `${min}분`;
+/** 언어(usePrefs().locale)를 안 넘기면 한국어 */
+export function formatDuration(min: number, lang: Locale = "ko"): string {
+  const t = makeT(lang);
+  if (min < 60) return t("{m}분", { m: min });
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m > 0 ? `${h}시간 ${m}분` : `${h}시간`;
+  return m > 0 ? t("{h}시간 {m}분", { h, m }) : t("{h}시간", { h });
 }
 
 /** 하루 장소(방문 순서대로)에서 바로 이웃한 장소 사이의 구간만. 순서를 바꾸면 예전 구간은 빠진다 */

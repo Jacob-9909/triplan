@@ -22,7 +22,7 @@ export const CATEGORIES: {
   { value: "transport", label: "교통", icon: Train, barClass: "bg-[#2f5d8a]" },
   { value: "stay", label: "숙박", icon: BedDouble, barClass: "bg-[#6d5bd0]" },
   { value: "activity", label: "액티비티", icon: Ticket, barClass: "bg-[#0d6b63]" },
-  { value: "flight", label: "항공", icon: Plane, barClass: "bg-[#14233b]" },
+  { value: "flight", label: "항공", icon: Plane, barClass: "bg-ink" },
   { value: "etc", label: "기타", icon: MoreHorizontal, barClass: "bg-[#6b665f]" },
 ];
 

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ChevronRight, Search, X } from "lucide-react";
 import type { City } from "@/data/world";
 import CoverPhoto from "@/features/ui/CoverPhoto";
+import { useT } from "@/i18n/I18nProvider";
 import {
   searchDestinations,
   WORLD,
@@ -27,6 +28,7 @@ const stepLabels: Record<Step, string> = {
 };
 
 export default function DestinationSelector({ onComplete }: DestinationSelectorProps) {
+  const t = useT();
   const [step, setStep] = useState<Step>("continent");
   const [continent, setContinent] = useState<ContinentData | null>(null);
   const [country, setCountry] = useState<Country | null>(null);
@@ -63,15 +65,15 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
   }
 
   const breadcrumb = [
-    continent && { label: continent.name, onClick: () => back() },
-    country && step === "city" && { label: country.name, onClick: () => back() },
+    continent && { label: t(continent.name), onClick: () => back() },
+    country && step === "city" && { label: t(country.name), onClick: () => back() },
   ].filter(Boolean) as { label: string; onClick: () => void }[];
 
   return (
     <div className="mx-auto w-full max-w-3xl lg:max-w-5xl xl:max-w-6xl">
       {/* 검색 바 */}
       <label htmlFor="dest-search" className="sr-only">
-        나라나 도시 검색
+        {t("나라나 도시 검색")}
       </label>
       <div className="relative mb-5">
         <Search size={18} aria-hidden className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground/68" />
@@ -79,12 +81,12 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
           id="dest-search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="나라나 도시 이름 (예: 도쿄, 스위스)"
+          placeholder={t("나라나 도시 이름 (예: 도쿄, 스위스)")}
           className="input rounded-full py-3 pl-11 pr-11 shadow-card"
         />
         {searching && (
           <button
-            aria-label="검색 지우기"
+            aria-label={t("검색 지우기")}
             onClick={() => setQuery("")}
             className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-foreground/68 hover:text-foreground"
           >
@@ -95,11 +97,11 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
 
       {/* 단계 표시 */}
       {!searching && (
-        <ol className="mb-5 flex items-center gap-2 text-sm" aria-label="선택 단계">
+        <ol className="mb-5 flex items-center gap-2 text-sm" aria-label={t("선택 단계")}>
           {step !== "continent" && (
             <li>
               <button onClick={back} className="btn btn-ghost mr-1 px-3 text-sm">
-                <ArrowLeft size={14} aria-hidden /> 이전
+                <ArrowLeft size={14} aria-hidden /> {t("이전")}
               </button>
             </li>
           )}
@@ -112,7 +114,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
             </li>
           ))}
           <li aria-current="step" className="font-bold text-foreground">
-            {stepLabels[step]}
+            {t(stepLabels[step])}
           </li>
           <li className="ml-auto flex items-center gap-1.5" aria-hidden>
             {(["continent", "country", "city"] as Step[]).map((s, i) => {
@@ -133,7 +135,7 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-3">
           {results.length === 0 && (
             <p className="col-span-full py-10 text-center text-sm text-foreground/65">
-              &ldquo;{query}&rdquo;에 맞는 곳이 없어요. 나라 이름으로 찾아보세요.
+              {t("“{query}”에 맞는 곳이 없어요. 나라 이름으로 찾아보세요.", { query })}
             </p>
           )}
           {results.slice(0, 24).map(({ continent, country, city }) => (
@@ -152,9 +154,9 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
                 <CoverPhoto country={country.name} continent={continent.name} city={city.name} scrim={false} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate font-bold">{city.name}</span>
+                <span className="block truncate font-bold">{t(city.name)}</span>
                 <span className="block truncate text-xs text-foreground/65">
-                  {country.name} · {city.description}
+                  {t(country.name)} · {t(city.description)}
                 </span>
               </span>
               <ChevronRight size={16} aria-hidden className="shrink-0 text-foreground/40" />
@@ -175,8 +177,8 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
               WORLD.map((c) => (
                 <PhotoTile
                   key={c.id}
-                  title={c.name}
-                  subtitle={`${c.countries.length}개 나라`}
+                  title={t(c.name)}
+                  subtitle={t("{n}개 나라", { n: c.countries.length })}
                   onClick={() => pickContinent(c)}
                   country={c.countries[0]?.name}
                   continentName={c.name}
@@ -187,8 +189,8 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
               continent?.countries.map((c) => (
                 <PhotoTile
                   key={c.name}
-                  title={c.name}
-                  subtitle={`${c.currency} · 도시 ${c.cities.length}곳`}
+                  title={t(c.name)}
+                  subtitle={t("{currency} · 도시 {n}곳", { currency: c.currency, n: c.cities.length })}
                   onClick={() => pickCountry(c)}
                   country={c.name}
                   continentName={continent.name}
@@ -199,8 +201,8 @@ export default function DestinationSelector({ onComplete }: DestinationSelectorP
               country?.cities.map((c) => (
                 <PhotoTile
                   key={c.name}
-                  title={c.name}
-                  subtitle={c.description}
+                  title={t(c.name)}
+                  subtitle={t(c.description)}
                   onClick={() => pickCity(c)}
                   country={country.name}
                   city={c.name}

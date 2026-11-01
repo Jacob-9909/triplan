@@ -3,6 +3,7 @@ import { format, parseISO } from "date-fns";
 import type { Trip } from "@/lib/types";
 import { flagOf } from "@/data/world";
 import { stayLabel } from "@/features/ui/dates";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 /** 지도 핀과 같은 계열의 잉크색 (흰 배경 대비 4.5:1 이상) */
 const INKS = ["#cc4126", "#0d6b63", "#2f5d8a", "#6d5bd0", "#a16207", "#c2417a"];
@@ -18,22 +19,24 @@ type StampTrip = Pick<Trip, "id" | "title" | "country" | "region" | "start_date"
 
 /** 다녀온 여행의 여권 도장 (SVG). 모양·색·기울기는 여행 id 로 정해진다 */
 export default function TripStamp({ trip, className = "" }: { trip: StampTrip; className?: string }) {
+  const { t, locale } = usePrefs();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const name = (s: string | null) => s && t(s);
   const h = seed(trip.id);
   const ink = INKS[h % INKS.length];
   const round = (h >> 3) % 2 === 0;
   const tilt = ((h >> 5) % 19) - 9;
-  const place = trip.region || trip.country || trip.title;
-  const top = (trip.country || trip.title).toUpperCase();
+  const place = name(trip.region) || name(trip.country) || trip.title;
+  const top = (name(trip.country) || trip.title).toUpperCase();
   const date = trip.start_date ? format(parseISO(trip.start_date), "yyyy.MM.dd") : "";
-  const stay = stayLabel(trip) ?? "";
+  const stay = stayLabel(trip, locale) ?? "";
   const flag = flagOf(trip.country);
 
   return (
     <svg
       viewBox="0 0 200 200"
       role="img"
-      aria-label={`${place} 여행 도장 ${date}`}
+      aria-label={t("{place} 여행 도장 {date}", { place, date })}
       className={className}
       style={{ transform: `rotate(${tilt}deg)` }}
     >

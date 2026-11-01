@@ -7,9 +7,9 @@ import {
   format,
   parseISO,
 } from "date-fns";
-import { ko } from "date-fns/locale";
 import type { Trip } from "@/lib/types";
 import type { DayForecast } from "./weather";
+import { usePrefs } from "@/i18n/I18nProvider";
 
 export interface DayTabsProps {
   trip: Pick<Trip, "start_date" | "end_date">;
@@ -32,6 +32,7 @@ function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
 }
 
 export default function DayTabs({ trip, value = null, onChange, forecast, today = null }: DayTabsProps) {
+  const { t, df } = usePrefs();
   const days = getDays(trip);
   const [internalDay, setInternalDay] = useState(1);
 
@@ -45,7 +46,7 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
   if (days.length === 0) {
     return (
       <div className="card px-4 py-3 text-sm text-foreground/72">
-        여행 날짜를 설정하면 Day별 일정이 표시됩니다.
+        {t("여행 날짜를 설정하면 Day별 일정이 표시됩니다.")}
       </div>
     );
   }
@@ -53,7 +54,7 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
   return (
     <div
       role="tablist"
-      aria-label="여행 일차 선택"
+      aria-label={t("여행 일차 선택")}
       className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {days.map((date, i) => {
@@ -73,17 +74,17 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
             }`}
           >
             <span className={`text-xs font-semibold ${isActive ? "text-white" : "text-primary-strong"}`}>
-              {dayNumber === today ? "오늘" : `Day ${dayNumber}`}
+              {dayNumber === today ? t("오늘") : `Day ${dayNumber}`}
             </span>
             <span className={`mt-0.5 text-[11px] ${isActive ? "text-white" : "text-foreground/68"}`}>
-              {format(date, "M/d(E)", { locale: ko })}
+              {format(date, t("M/d(E)"), { locale: df })}
             </span>
             {fc && (
               <span
-                title={`${fc.label}${fc.rain != null ? ` · 비 올 확률 ${fc.rain}%` : ""}`}
+                title={fc.rain != null ? t("{label} · 비 올 확률 {rain}%", { label: t(fc.label), rain: fc.rain }) : t(fc.label)}
                 className={`mt-0.5 text-[11px] tabular-nums ${isActive ? "text-white" : "text-foreground/72"}`}
               >
-                <span role="img" aria-label={fc.label}>{fc.emoji}</span> {fc.max}°/{fc.min}°
+                <span role="img" aria-label={t(fc.label)}>{fc.emoji}</span> {fc.max}°/{fc.min}°
               </span>
             )}
           </button>

@@ -9,7 +9,7 @@ const APPROX_KRW: Record<string, number> = {
   KRW: 1,
   USD: 1380,
   EUR: 1500,
-  JPY: 920,
+  JPY: 9.2,
   CNY: 190,
   TWD: 43,
   HKD: 177,
@@ -30,7 +30,8 @@ function fallbackRate(from: string, to: string): number | null {
   const f = APPROX_KRW[from];
   const t = APPROX_KRW[to];
   if (!f || !t) return null;
-  return t / f;
+  // 1 from = f원, 1 to = t원 → 1 from = f/t to
+  return f / t;
 }
 
 function isValidDate(s: string): boolean {

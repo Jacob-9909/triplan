@@ -3,15 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { addDays, format, parseISO } from "date-fns";
-import { ko } from "date-fns/locale";
 import { Cloud, CloudRain, Coins, Footprints, MapPin, Snowflake, Star, Sun, Wallet, Wind, type LucideIcon } from "lucide-react";
 import type { Expense, MapPoint, Mood, RouteLeg, Trip, TripDay, Weather } from "@/lib/types";
 import { apiGet, apiPost } from "@/lib/api";
 import { useTripChanges } from "@/lib/realtime";
 import { PointBadge } from "@/features/map/pointStyle";
-import { categoryMeta, formatMoney } from "@/features/expenses/categories";
+import { categoryMeta } from "@/features/expenses/categories";
 import { formatRange, nights } from "@/features/ui/dates";
 import type { PointPatch } from "@/features/trip/PlaceDetail";
+import { usePrefs, useT } from "@/i18n/I18nProvider";
 import TripStamp from "./TripStamp";
 import { tripStats } from "./stats";
 
@@ -77,6 +77,7 @@ export default function RecordTab({
   canEdit: boolean;
   onSavePoint: (id: string, patch: PointPatch) => Promise<string | null>;
 }) {
+  const { t, locale, money } = usePrefs();
   const { days, save } = useTripDays(trip.id);
   const n = nights(trip);
   const dayCount = n !== null ? n + 1 : Math.max(1, ...points.map((p) => p.day_number ?? 1));
@@ -94,39 +95,44 @@ export default function RecordTab({
         <section className="card flex flex-col items-center px-5 py-6 text-center">
           <TripStamp trip={trip} className="h-40 w-40" />
           <h2 className="mt-3 text-lg font-bold">{trip.title}</h2>
-          <p className="text-sm text-foreground/65">{formatRange(trip)}</p>
+          <p className="text-sm text-foreground/65">{formatRange(trip, locale)}</p>
         </section>
 
         <section className="card p-4">
-          <h3 className="mb-3 text-sm font-bold">이번 여행 숫자로 보기</h3>
+          <h3 className="mb-3 text-sm font-bold">{t("이번 여행 숫자로 보기")}</h3>
           <dl className="grid grid-cols-2 gap-2">
-            <Tile icon={MapPin} label="방문한 곳" value={`${stats.places}곳`} />
-            <Tile icon={Footprints} label="이동 거리" value={`${stats.distanceKm.toLocaleString()}km`} />
-            <Tile icon={Wallet} label="총 지출" value={`₩${formatMoney(stats.spendKrw, "KRW")}`} />
-            <Tile icon={Coins} label="하루 평균" value={`₩${formatMoney(stats.perDayKrw, "KRW")}`} />
+            <Tile icon={MapPin} label={t("방문한 곳")} value={t("{n}곳", { n: stats.places })} />
+            <Tile icon={Footprints} label={t("이동 거리")} value={`${stats.distanceKm.toLocaleString()}km`} />
+            <Tile icon={Wallet} label={t("총 지출")} value={money(stats.spendKrw)} />
+            <Tile icon={Coins} label={t("하루 평균")} value={money(stats.perDayKrw)} />
           </dl>
           {(stats.topDay || stats.topCategory) && (
             <ul className="mt-3 space-y-1.5 text-sm text-foreground/72">
               {stats.topDay && (
                 <li>
-                  가장 많이 쓴 날은 <b className="text-foreground">Day {stats.topDay.day}</b> (₩{formatMoney(stats.topDay.krw, "KRW")})
+                  <Emphasis
+                    text={t("가장 많이 쓴 날은 {b} ({amount})", { amount: money(stats.topDay.krw) })}
+                    bold={`Day ${stats.topDay.day}`}
+                  />
                 </li>
               )}
               {stats.topCategory && (
                 <li>
-                  가장 많이 쓴 곳은 <b className="text-foreground">{categoryMeta(stats.topCategory.category).label}</b>{" "}
-                  (₩{formatMoney(stats.topCategory.krw, "KRW")})
+                  <Emphasis
+                    text={t("가장 많이 쓴 곳은 {b} ({amount})", { amount: money(stats.topCategory.krw) })}
+                    bold={t(categoryMeta(stats.topCategory.category).label)}
+                  />
                 </li>
               )}
             </ul>
           )}
-          <p className="mt-3 text-[11px] text-foreground/68">이동 거리는 하루 동선의 구간 거리 합이에요. 모르는 구간은 직선거리로 추정해요.</p>
+          <p className="mt-3 text-[11px] text-foreground/68">{t("이동 거리는 하루 동선의 구간 거리 합이에요. 모르는 구간은 직선거리로 추정해요.")}</p>
         </section>
       </div>
 
       <div className="space-y-4 lg:col-span-3">
         {dayList.length === 0 && (
-          <p className="card py-10 text-center text-sm text-foreground/68">아직 남긴 기록이 없어요</p>
+          <p className="card py-10 text-center text-sm text-foreground/68">{t("아직 남긴 기록이 없어요")}</p>
         )}
         {dayList.map((d, i) => (
           <DayCard
@@ -145,6 +151,18 @@ export default function RecordTab({
         ))}
       </div>
     </div>
+  );
+}
+
+/** 번역문의 {b} 자리를 굵게 */
+function Emphasis({ text, bold }: { text: string; bold: string }) {
+  const [before, after] = text.split("{b}");
+  return (
+    <>
+      {before}
+      <b className="text-foreground">{bold}</b>
+      {after}
+    </>
   );
 }
 
@@ -178,6 +196,7 @@ function DayCard({
   onSaveDay: (patch: DayPatch) => void;
   onSavePoint: (id: string, patch: PointPatch) => Promise<string | null>;
 }) {
+  const { t, df } = usePrefs();
   const [note, setNote] = useState(record?.note ?? "");
   // 다른 사람이 고친 일기를 받으면 반영한다 (내가 쓰는 중이 아닐 때)
   const [focused, setFocused] = useState(false);
@@ -197,30 +216,30 @@ function DayCard({
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-base font-bold">
           Day {day}
-          {date && <span className="ml-2 text-sm font-medium text-foreground/65">{format(date, "M월 d일 (E)", { locale: ko })}</span>}
+          {date && <span className="ml-2 text-sm font-medium text-foreground/65">{format(date, t("M월 d일 (E)"), { locale: df })}</span>}
         </h3>
         {!canEdit && (weather || mood) && (
           <span className="flex items-center gap-2 text-sm text-foreground/72">
-            {weather && <weather.icon size={16} aria-label={weather.label} />}
-            {mood && <span aria-label={mood.label}>{mood.emoji}</span>}
+            {weather && <weather.icon size={16} aria-label={t(weather.label)} />}
+            {mood && <span aria-label={t(mood.label)}>{mood.emoji}</span>}
           </span>
         )}
       </header>
 
       {canEdit && (
         <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-          <div role="group" aria-label="날씨" className="flex gap-1">
+          <div role="group" aria-label={t("날씨")} className="flex gap-1">
             {WEATHER.map(({ id, label, icon: Icon }) => {
               const on = record?.weather === id;
               return (
                 <button
                   key={id}
                   aria-pressed={on}
-                  aria-label={label}
-                  title={label}
+                  aria-label={t(label)}
+                  title={t(label)}
                   onClick={() => onSaveDay({ weather: on ? null : id })}
                   className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                    on ? "bg-foreground text-white" : "bg-surface-muted text-foreground/68 hover:bg-primary-soft"
+                    on ? "bg-ink text-white" : "bg-surface-muted text-foreground/68 hover:bg-primary-soft"
                   }`}
                 >
                   <Icon size={16} />
@@ -228,15 +247,15 @@ function DayCard({
               );
             })}
           </div>
-          <div role="group" aria-label="기분" className="flex gap-1">
+          <div role="group" aria-label={t("기분")} className="flex gap-1">
             {MOOD.map(({ id, label, emoji }) => {
               const on = record?.mood === id;
               return (
                 <button
                   key={id}
                   aria-pressed={on}
-                  aria-label={label}
-                  title={label}
+                  aria-label={t(label)}
+                  title={t(label)}
                   onClick={() => onSaveDay({ mood: on ? null : id })}
                   className={`flex h-9 w-9 items-center justify-center rounded-full text-lg transition ${
                     on ? "bg-primary-soft ring-2 ring-primary" : "bg-surface-muted opacity-60 hover:opacity-100"
@@ -252,7 +271,7 @@ function DayCard({
 
       {canEdit ? (
         <textarea
-          aria-label={`Day ${day} 일기`}
+          aria-label={t("Day {day} 일기", { day })}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           onFocus={() => setFocused(true)}
@@ -261,7 +280,7 @@ function DayCard({
             if (note.trim() !== remote) onSaveDay({ note: note.trim() || null });
           }}
           rows={3}
-          placeholder="오늘 있었던 일, 기억하고 싶은 장면…"
+          placeholder={t("오늘 있었던 일, 기억하고 싶은 장면…")}
           className="input mt-3 resize-y"
         />
       ) : (
@@ -288,6 +307,7 @@ function PlaceReview({
   canEdit: boolean;
   onSave: (id: string, patch: PointPatch) => Promise<string | null>;
 }) {
+  const t = useT();
   const [review, setReview] = useState(point.review ?? "");
   const [error, setError] = useState<string | null>(null);
 
@@ -309,8 +329,8 @@ function PlaceReview({
             onChange={(e) => setReview(e.target.value)}
             onBlur={() => review.trim() !== (point.review ?? "") && void save({ review: review.trim() || null })}
             maxLength={500}
-            aria-label={`${point.name} 한줄평`}
-            placeholder="한줄평"
+            aria-label={t("{name} 한줄평", { name: point.name })}
+            placeholder={t("한줄평")}
             className="mt-1 w-full border-b border-transparent bg-transparent py-1 text-sm text-foreground/80 outline-none placeholder:text-foreground/40 focus:border-primary"
           />
         ) : (
@@ -324,10 +344,11 @@ function PlaceReview({
 
 /** 별점. onChange 가 없으면 보기 전용. 같은 별을 다시 누르면 지운다 */
 export function Stars({ value, onChange, size = 16 }: { value: number | null; onChange?: (v: number | null) => void; size?: number }) {
+  const t = useT();
   if (!onChange) {
     if (!value) return null;
     return (
-      <span className="flex text-sand" aria-label={`별점 ${value}점`}>
+      <span className="flex text-sand" aria-label={t("별점 {n}점", { n: value })}>
         {Array.from({ length: 5 }, (_, i) => (
           <Star key={i} size={size} fill={i < value ? "currentColor" : "none"} aria-hidden />
         ))}
@@ -335,13 +356,13 @@ export function Stars({ value, onChange, size = 16 }: { value: number | null; on
     );
   }
   return (
-    <span role="group" aria-label="별점" className="flex">
+    <span role="group" aria-label={t("별점")} className="flex">
       {Array.from({ length: 5 }, (_, i) => {
         const v = i + 1;
         return (
           <button
             key={v}
-            aria-label={`${v}점`}
+            aria-label={t("{n}점", { n: v })}
             aria-pressed={value === v}
             onClick={() => onChange(value === v ? null : v)}
             className="p-0.5 text-sand transition active:scale-90"

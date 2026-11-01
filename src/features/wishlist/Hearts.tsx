@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Heart } from "lucide-react";
+import { useT } from "@/i18n/I18nProvider";
 
 /** 우선순위 1~3을 하트로 표시하고, onChange가 있으면 눌러서 바꾼다 */
 export default function Hearts({
@@ -16,6 +17,7 @@ export default function Hearts({
   /** 사진 위에서 쓰는 흰색 버전 */
   light?: boolean;
 }) {
+  const t = useT();
   return (
     <span className="inline-flex items-center gap-0.5" role={onChange ? "radiogroup" : undefined}>
       {[1, 2, 3].map((n) => {
@@ -34,7 +36,7 @@ export default function Hearts({
             type="button"
             role="radio"
             aria-checked={n === value}
-            aria-label={`우선순위 ${n}`}
+            aria-label={t("우선순위 {n}", { n })}
             whileTap={{ scale: 0.75 }}
             animate={on ? { scale: [1, 1.25, 1] } : { scale: 1 }}
             transition={{ duration: 0.25 }}
