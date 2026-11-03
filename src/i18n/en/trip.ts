@@ -9,6 +9,7 @@ const en: Record<string, string> = {
   "완료": "Done",
   "추가하기": "Add",
   "길찾기": "Directions",
+  "{from}에서 {to}까지 길찾기": "Directions from {from} to {to}",
 
   // 여행 화면 (features/trip/TripWorkspace.tsx)
   "일정": "Plan",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { addDays, format, parseISO } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
@@ -49,6 +50,8 @@ import NowCard from "@/features/route/NowCard";
 import { useForecast } from "@/features/route/weather";
 import SettleCard from "@/features/expenses/SettleCard";
 import LocalInfoCard from "@/features/prep/LocalInfoCard";
+import DayBookings from "@/features/prep/DayBookings";
+import { useTravelDocs } from "@/features/prep/useTravelDocs";
 import PrefsToggle from "@/i18n/PrefsToggle";
 import { usePrefs, useT } from "@/i18n/I18nProvider";
 
@@ -90,6 +93,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const canManage = access === "admin" || access === "owner";
   const sync = useSyncStatus(tripId);
   const { expenses } = useExpenses(tripId);
+  const { docs } = useTravelDocs(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
   const [pickedTab, setTab] = useState<Tab | null>(null);
   const [pickedDay, setDay] = useState<number | null>(null);
@@ -469,6 +473,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
               <div className="space-y-4">
                 <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} bin={canEdit || binCount > 0 ? binCount : undefined} />
                 {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
+                {!inBin && trip.start_date && (
+                  <DayBookings docs={docs} date={format(addDays(parseISO(trip.start_date), day - 1), "yyyy-MM-dd")} />
+                )}
                 <div className="grid gap-4 lg:grid-cols-5 lg:items-start lg:gap-6">
                   {/* 데스크톱: 목록을 내려도 지도는 그 자리에 (상단 바 + 탭 바 아래) */}
                   <div className="lg:sticky lg:top-36 lg:col-span-3">
@@ -513,7 +520,11 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                       points={dayPoints}
                       legs={dayLegs}
                       bin={inBin}
-                      onOpen={(p) => setDetailId(p.id)}
+                      onOpen={(p) => {
+                        setDetailId(p.id);
+                        // 데스크톱에선 옆 지도도 그 장소로 옮겨 간다
+                        setSelectedPointId(p.id);
+                      }}
                       onReorder={canEdit ? handleReorder : undefined}
                       onDelete={canEdit ? handlePointDelete : undefined}
                       onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}

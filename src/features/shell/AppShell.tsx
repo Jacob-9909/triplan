@@ -56,6 +56,8 @@ export default function AppShell({ children, role }: { children: ReactNode; role
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
+    // 오프라인 보기용 저장본(public/sw.js)에 남은 여행 데이터를 지운다
+    if ("caches" in window) for (const key of await caches.keys()) await caches.delete(key);
     router.replace("/");
     router.refresh();
   }

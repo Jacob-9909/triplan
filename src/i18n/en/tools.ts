@@ -118,6 +118,13 @@ const en: Record<string, string> = {
   "M월 d일 (E)": "MMM d (EEE)",
   "종료됨": "Ended",
   "{title} 링크 열기": "Open link for {title}",
+
+  // 그날 예약 (features/prep/DayBookings.tsx)
+  "이날 예약": "Bookings this day",
+  "체크인": "Check-in",
+  "체크아웃": "Check-out",
+  "이용 중": "In use",
+  "마지막 날": "Last day",
   "한국과 같은 시간": "Same time as Korea",
   "한국보다 {h}시간 빨라요": "{h}h ahead of Korea",
   "한국보다 {h}시간 느려요": "{h}h behind Korea",

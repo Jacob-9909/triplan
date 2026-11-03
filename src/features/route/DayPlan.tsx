@@ -13,11 +13,12 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Hourglass, Inbox, MapPin, PencilLine, Route, Undo2, X } from "lucide-react";
+import { GripVertical, Hourglass, Inbox, MapPin, Navigation, PencilLine, Route, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { usePrefs } from "@/i18n/I18nProvider";
 import { METHOD_META } from "./meta";
+import { legDirectionsUrl } from "./directions";
 import { buildSchedule, DEFAULT_STAY, formatDuration, formatTime, type StopTime } from "./schedule";
 
 export interface DayPlanProps {
@@ -160,6 +161,7 @@ export default function DayPlan({ points, legs, bin = false, onReorder, onDelete
                     time={bin ? undefined : schedule.get(point.id)}
                     // 끄는 동안에는 구간이 어긋나므로 숨긴다
                     leg={leg && leg.to_point_id === shown[i + 1].id ? leg : undefined}
+                    next={shown[i + 1]}
                     sortable={!!onReorder}
                     onOpen={() => Date.now() - lastDrag.current > 300 && onOpen(point)}
                     onDelete={onDelete}
@@ -186,6 +188,7 @@ function Stop({
   index,
   time,
   leg,
+  next,
   sortable,
   onOpen,
   onDelete,
@@ -195,6 +198,8 @@ function Stop({
   index: number;
   time?: StopTime;
   leg?: RouteLeg;
+  /** 구간 길찾기의 도착지 */
+  next?: MapPoint;
   sortable: boolean;
   onOpen: () => void;
   onDelete?: (id: string) => void;
@@ -290,21 +295,36 @@ function Stop({
           {(() => {
             const meta = METHOD_META[leg.method];
             const Icon = meta.icon;
+            const nav = next && legDirectionsUrl(point, next, leg.method);
             return (
-              <button
-                type="button"
-                onClick={() => onLegClick?.(leg)}
-                disabled={!onLegClick}
-                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-foreground/70 transition enabled:hover:bg-primary-soft enabled:hover:text-primary-strong"
-              >
-                <Icon size={13} className="text-primary-strong" aria-hidden />
-                {t(meta.label)}
-                <span className="font-bold text-foreground">
-                  {leg.duration_min != null ? formatDuration(leg.duration_min, locale) : t("시간 정하기")}
-                </span>
-                {leg.cost != null && leg.cost > 0 && <span className="text-foreground/68">· {money(leg.cost)}</span>}
-                {onLegClick && <PencilLine size={11} className="text-foreground/50" aria-hidden />}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => onLegClick?.(leg)}
+                  disabled={!onLegClick}
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-foreground/70 transition enabled:hover:bg-primary-soft enabled:hover:text-primary-strong"
+                >
+                  <Icon size={13} className="text-primary-strong" aria-hidden />
+                  {t(meta.label)}
+                  <span className="font-bold text-foreground">
+                    {leg.duration_min != null ? formatDuration(leg.duration_min, locale) : t("시간 정하기")}
+                  </span>
+                  {leg.cost != null && leg.cost > 0 && <span className="text-foreground/68">· {money(leg.cost)}</span>}
+                  {onLegClick && <PencilLine size={11} className="text-foreground/50" aria-hidden />}
+                </button>
+                {nav && (
+                  <a
+                    href={nav}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={t("{from}에서 {to}까지 길찾기", { from: point.name, to: next!.name })}
+                    title={t("길찾기")}
+                    className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary-strong transition hover:bg-primary-soft"
+                  >
+                    <Navigation size={14} aria-hidden />
+                  </a>
+                )}
+              </>
             );
           })()}
         </div>
