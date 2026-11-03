@@ -26,7 +26,7 @@ import type { TravelDoc } from "@/lib/types";
 import { usePrefs, useT } from "@/i18n/I18nProvider";
 import { useTravelDocs } from "./useTravelDocs";
 
-const DOC_META: Record<
+export const DOC_META: Record<
   TravelDoc["type"],
   { label: string; icon: typeof IdCard; bg: string; text: string }
 > = {
@@ -85,7 +85,7 @@ const EMPTY_FORM = {
 };
 
 /** 링크는 http(s)만 연다 (공유 편집자가 javascript: 등을 넣는 것 방지) */
-function safeUrl(url: string | null) {
+export function safeUrl(url: string | null) {
   return url && /^https?:\/\//i.test(url) ? url : null;
 }
 

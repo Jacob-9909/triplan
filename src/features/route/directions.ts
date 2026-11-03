@@ -57,10 +57,32 @@ export function estimateDirections(from: LatLng, to: LatLng, method: LegMethod):
   return { durationMin, distanceKm, source: "estimate" };
 }
 
+const inKorea = (p: LatLng) => p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131;
+
 /** 지도 앱 길찾기 링크: 한국 안은 카카오맵, 밖은 구글 지도. 출발지는 앱이 현재 위치로 잡는다 */
 export function directionsUrl(p: LatLng & { name: string }): string {
-  const inKorea = p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131;
-  return inKorea
+  return inKorea(p)
     ? `https://map.kakao.com/link/to/${encodeURIComponent(p.name)},${p.lat},${p.lng}`
     : `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+}
+
+/** 구글 지도 travelmode. 비행기·배는 지도 앱 길찾기가 없다 */
+const GOOGLE_MODE: Partial<Record<LegMethod, string>> = {
+  walk: "walking",
+  transit: "transit",
+  taxi: "driving",
+  "rental-car": "driving",
+  bike: "bicycling",
+};
+
+/** 구간 길찾기 링크: 출발지와 이동수단까지 넘긴다. 비행기·배면 null */
+export function legDirectionsUrl(from: LatLng & { name: string }, to: LatLng & { name: string }, method: LegMethod): string | null {
+  const mode = GOOGLE_MODE[method];
+  if (!mode) return null;
+  // ponytail: 카카오맵 웹 링크는 이동수단을 못 넘긴다. 앱에서 고르면 된다
+  if (inKorea(from) && inKorea(to)) {
+    const pt = (p: typeof from) => `${encodeURIComponent(p.name)},${p.lat},${p.lng}`;
+    return `https://map.kakao.com/link/from/${pt(from)}/to/${pt(to)}`;
+  }
+  return `https://www.google.com/maps/dir/?api=1&origin=${from.lat},${from.lng}&destination=${to.lat},${to.lng}&travelmode=${mode}`;
 }

@@ -42,3 +42,7 @@ next-env.d.ts
 
 # 예시 환경변수 파일은 커밋한다
 !.env.example
+
+# superpowers brainstorming mockups and design docs (local only)
+.superpowers/
+docs/superpowers/
