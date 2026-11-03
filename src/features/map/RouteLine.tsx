@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import type { ComponentType, ReactNode } from "react";
 import type { MapPoint, RouteLeg, RouteOption } from "@/lib/types";
 import type { KitLayerProps } from "./mapKit";
-import { buildRouteFeatures, ROUTE_COLORS } from "./routeFeatures";
+import { buildRouteFeatures, ROUTE_ATTRIBUTION, ROUTE_COLORS } from "./routeFeatures";
 
 export interface RouteLineKit {
   Source: ComponentType<{ id: string; type: string; data: unknown; attribution?: string; children?: ReactNode }>;
@@ -37,8 +37,6 @@ export default function RouteLine({
 }) {
   const { Source, Layer } = kit;
   const f = useMemo(() => buildRouteFeatures(points, legs, options, selectedLegId), [points, legs, options, selectedLegId]);
-  const usesOdsay = options.some((o) => o.source === "odsay");
-  const attribution = `경로 © OpenStreetMap · FOSSGIS Valhalla${usesOdsay ? " · powered by www.ODsay.com" : ""}`; // i18n-ignore: 출처 표기
 
   return (
     <>
@@ -62,7 +60,7 @@ export default function RouteLine({
         id="trip-route"
         type="geojson"
         data={f.lines}
-        attribution={attribution}
+        attribution={ROUTE_ATTRIBUTION}
       >
         <Layer id="route-casing" type="line" layout={ROUND} paint={{ "line-color": "#ffffff", "line-width": 12, "line-opacity": 0.95 }} />
         <Layer

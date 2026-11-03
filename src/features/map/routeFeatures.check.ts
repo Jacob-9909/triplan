@@ -1,7 +1,7 @@
 // 지도 경로 피처 자체 점검: node src/features/map/routeFeatures.check.ts
 import assert from "node:assert/strict";
 import type { MapPoint, RouteLeg, RouteOption } from "@/lib/types";
-import { buildRouteFeatures } from "./routeFeatures.ts";
+import { altFromHits, buildRouteFeatures, ROUTE_ATTRIBUTION } from "./routeFeatures.ts";
 
 const pt = (id: string, lat: number, lng: number) => ({ id, lat, lng }) as MapPoint;
 const A = pt("a", 37.5663, 126.9779);
@@ -66,5 +66,14 @@ const offset = option("bc", "walk", B, C, {
 });
 const h = buildRouteFeatures(points, legs, [offset], null);
 assert.equal(h.connectors.features.length, 1);
+
+// 지도를 누른 곳에서 맨 위가 흐린 대안일 때만 이동수단을 바꾼다 (진한 선 아래 깔린 대안은 무시)
+assert.deepEqual(altFromHits([{ layer: { id: "route-alt" }, properties: { legId: "ab", method: "taxi" } }]), { legId: "ab", method: "taxi" });
+assert.equal(altFromHits([{ layer: { id: "route-line" }, properties: { legId: "ab" } }, { layer: { id: "route-alt" }, properties: { legId: "ab", method: "taxi" } }]), null);
+assert.equal(altFromHits([]), null);
+
+// 출처 표기는 처음부터 ODsay 를 포함한다 (나중에 바꾸면 지도 출처가 갱신되지 않는다)
+assert.ok(ROUTE_ATTRIBUTION.includes("www.ODsay.com"));
+assert.ok(ROUTE_ATTRIBUTION.includes("OpenStreetMap"));
 
 console.log("routeFeatures ok");

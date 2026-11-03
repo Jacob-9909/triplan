@@ -57,7 +57,9 @@ export function estimateDirections(from: LatLng, to: LatLng, method: LegMethod):
   return { durationMin, distanceKm, source: "estimate" };
 }
 
-export const inKorea = (p: LatLng) => p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131;
+// 상자 남동쪽 귀퉁이(규슈 북부·쓰시마)는 일본이라 뺀다. 그 자리에 한국 땅은 없다
+export const inKorea = (p: LatLng) =>
+  p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131 && !(p.lat < 34.9 && p.lng > 129.1);
 
 /** 지도 앱 길찾기 링크: 한국 안은 카카오맵, 밖은 구글 지도. 출발지는 앱이 현재 위치로 잡는다 */
 export function directionsUrl(p: LatLng & { name: string }): string {

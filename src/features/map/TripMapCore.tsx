@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Expense, MapPoint, RouteLeg, RouteOption } from "@/lib/types";
 import PinMarker from "./PinMarker";
 import RouteLine, { makeArrowImage, ROUTE_ALT_LAYER, ROUTE_ARROW_IMAGE } from "./RouteLine";
+import { altFromHits } from "./routeFeatures";
 import { getCategoryLabel } from "./categories";
 import { pointColor } from "./pointStyle";
 import { sortPointsByOrder } from "./sort";
@@ -194,11 +195,14 @@ export default function TripMapCore({
 
       // 흐린 대안 경로를 누르면 그 이동수단으로 바꾼다
       if (onRouteOptionClick && e.point) {
-        const alt = mapRef.current
-          ?.queryRenderedFeatures?.([e.point.x, e.point.y], { layers: [ROUTE_ALT_LAYER] })
-          ?.find((f) => typeof f.properties?.legId === "string");
+        // 진한 선 아래 깔린 대안은 무시: 맨 위에 보이는 게 흐린 선일 때만
+        const alt = altFromHits(
+          mapRef.current?.queryRenderedFeatures?.([e.point.x, e.point.y], {
+            layers: [ROUTE_ALT_LAYER, "route-casing", "route-line", "route-estimate"],
+          }) ?? []
+        );
         if (alt) {
-          onRouteOptionClick(alt.properties!.legId as string, alt.properties!.method as RouteLeg["method"]);
+          onRouteOptionClick(alt.legId, alt.method);
           return;
         }
       }

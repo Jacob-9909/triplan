@@ -5,7 +5,7 @@ import { ApiError, apiPost } from "@/lib/api";
 import type { MapPoint, RouteLeg, RouteOption } from "@/lib/types";
 import { updateLeg } from "@/features/trip/useTripData";
 import { estimateDirections } from "./directions";
-import { defaultMethod, isStale, providerFor } from "./routeOptions";
+import { autoMethod, isStale, providerFor } from "./routeOptions";
 
 export type RouteStatus = "loading" | "quota" | "failed";
 
@@ -126,11 +126,11 @@ export function useRouteFetcher({
       const e = ends(leg);
       if (!e) continue;
       let method = leg.method;
-      const hasAny = options.some((o) => o.leg_id === leg.id);
-      if (!leg.method_chosen && !hasAny && !defaulted.current.has(leg.id)) {
+      if (!defaulted.current.has(leg.id)) {
         defaulted.current.add(leg.id);
-        method = defaultMethod(e.from, e.to);
-        if (method !== leg.method) {
+        const auto = autoMethod(leg, e.from, e.to);
+        if (auto) {
+          method = auto;
           setLegs((prev) => prev.map((l) => (l.id === leg.id ? { ...l, method } : l)));
           latest.current.legs = latest.current.legs.map((l) => (l.id === leg.id ? { ...l, method } : l));
           void updateLeg(leg.id, { method });

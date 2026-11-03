@@ -20,6 +20,19 @@ export interface RouteFeatures {
   connectors: Collection<LineFeature<Record<string, never>>>;
 }
 
+/** 지도 출처 표기. 처음부터 고정해 둔다 (geojson 소스의 attribution 은 나중에 바꿔도 갱신되지 않는다) */
+export const ROUTE_ATTRIBUTION =
+  'Routes © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · FOSSGIS Valhalla (<a href="https://www.openstreetmap.org/fixthemap">improve this map</a>) · Transit powered by <a href="https://www.odsay.com">www.ODsay.com</a>';
+
+/** 지도를 누른 곳의 피처(맨 위부터)에서, 맨 위가 흐린 대안 경로일 때만 그 구간·이동수단 */
+export function altFromHits(
+  hits: { layer?: { id?: string }; properties?: Record<string, unknown> }[]
+): { legId: string; method: RouteLeg["method"] } | null {
+  const top = hits[0];
+  if (top?.layer?.id !== "route-alt" || typeof top.properties?.legId !== "string") return null;
+  return { legId: top.properties.legId, method: top.properties.method as RouteLeg["method"] };
+}
+
 export const ROUTE_COLORS = {
   walk: "#7a8597",
   drive: "#2f6fdf",

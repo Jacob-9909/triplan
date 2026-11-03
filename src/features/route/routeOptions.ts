@@ -14,7 +14,8 @@ export function providerFor(method: RouteLeg["method"], from: LatLng, to: LatLng
     case "bike":
       return "valhalla-bicycle";
     case "transit":
-      return inKorea(from) && inKorea(to) ? "odsay" : null;
+      // ODsay 는 700m 안쪽은 경로를 주지 않는다 (물어봐야 하루 30건만 줄어든다)
+      return inKorea(from) && inKorea(to) && haversineKm(from, to) >= 0.7 ? "odsay" : null;
     default:
       return null;
   }
@@ -31,8 +32,18 @@ export function defaultMethod(from: LatLng, to: LatLng): "walk" | "transit" {
   return estimateDirections(from, to, "walk").durationMin <= 15 ? "walk" : "transit";
 }
 
-/** 구간 카드에서 비교할 이동수단. 자전거·렌터카로 골라 둔 구간은 그것도 함께 */
+/**
+ * 처음 열 때 바꿀 이동수단. 만들 때 기본값(대중교통)이고 사람이 고른 적 없는 구간만 거리로 정한다.
+ * 비행기·택시처럼 다른 수단은 사람이 고른 것이라 건드리지 않는다. 바꿀 게 없으면 null
+ */
+export function autoMethod(leg: Pick<RouteLeg, "method" | "method_chosen">, from: LatLng, to: LatLng): "walk" | null {
+  if (leg.method_chosen || leg.method !== "transit") return null;
+  return defaultMethod(from, to) === "walk" ? "walk" : null;
+}
+
+/** 구간 카드에서 비교할 이동수단. 자전거·렌터카로 골라 둔 구간은 그것도 함께. 비행기·배는 비교하지 않는다 */
 export function chipMethods(leg: Pick<RouteLeg, "method">): RouteLeg["method"][] {
+  if (leg.method === "plane" || leg.method === "ferry") return [];
   const base: RouteLeg["method"][] = ["transit", "walk", "taxi"];
   return leg.method === "bike" || leg.method === "rental-car" ? [...base, leg.method] : base;
 }
