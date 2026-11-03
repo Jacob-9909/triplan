@@ -69,7 +69,7 @@ export function parseOdsay(json: unknown, from: LatLng, to: LatLng): RouteResult
     if (mode === "walk") return { mode, minutes: s.sectionTime ?? 0, shape: [] };
     const lane = s.lane?.[0] ?? {};
     const stations = s.passStopList?.stations ?? [];
-    const line = mode === "bus" ? (lane.busNo ?? null) : (lane.name?.replace(/^(수도권|부산|대구|광주|대전)\s*/, "") ?? null);
+    const line = mode === "bus" ? (lane.busNo ?? null) : (lane.name?.replace(/^(수도권|부산|대구|광주|대전)\s*/, "") ?? null); // i18n-ignore: ODsay 노선 이름 앞의 지역명
     const color =
       mode === "bus"
         ? (BUS_COLORS[lane.type ?? -1] ?? BUS_DEFAULT)
@@ -126,7 +126,7 @@ export async function odsayTransit(from: LatLng, to: LatLng): Promise<RouteResul
     const json = await res.json();
     const err = (json as { error?: { message?: string }[] | { message?: string } }).error;
     const message = JSON.stringify(err ?? "");
-    if (err && /한도|limit|exceed/i.test(message)) {
+    if (err && /한도|limit|exceed/i.test(message)) { // i18n-ignore: ODsay 오류 문구
       counter.count = ODSAY_DAILY_LIMIT;
       return "quota";
     }
