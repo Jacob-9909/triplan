@@ -48,6 +48,9 @@ const en: Record<string, string> = {
   "5분 늘리기": "5 min more",
   "추정치": "Estimate",
   "추정 {time}": "Est. {time}",
+  "실제 경로 {time}": "Route {time}",
+  "실제 경로 기준": "From the route",
+  "경로 시간으로": "Use route time",
   "추정치로": "Use estimate",
   "이동 비용": "Travel cost",
   "추정 시간은 직선거리와 이동수단별 평균 속도로 계산해요. 실제와 다르면 직접 맞춰 주세요. 타임테이블과 하루 합계에 바로 반영돼요.":

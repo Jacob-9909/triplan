@@ -19,7 +19,7 @@ import {
   LogOut,
   Lock,
 } from "lucide-react";
-import type { Access, Expense, MapPoint, RouteLeg, Trip } from "@/lib/types";
+import type { Access, Expense, MapPoint, RouteLeg, RouteOption, Trip } from "@/lib/types";
 import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
 import { useSyncStatus } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
@@ -28,6 +28,7 @@ import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
 import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
 import { optimizeOrder } from "@/features/route/optimize";
+import { useRouteFetcher } from "@/features/route/useRouteFetcher";
 import DayPlan from "@/features/route/DayPlan";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
@@ -74,7 +75,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
   if (inApp) setTripToken(null);
 
-  const { trip, points, legs, loading, notConfigured, revoked, setTrip, setPoints, setLegs } = useTripData(tripId);
+  const { trip, points, legs, routeOptions: savedRoutes, loading, notConfigured, revoked, setTrip, setPoints, setLegs, setRouteOptions } =
+    useTripData(tripId);
   const router = useRouter();
   const [leaving, setLeaving] = useState<"confirm" | "busy" | null>(null);
 
@@ -127,7 +129,18 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const detailPoint = points.find((p) => p.id === detailId) ?? null;
   const editingLeg = legs.find((l) => l.id === legEditId) ?? null;
 
-  // 시간이 비어 있는 구간은 거리 기반 추정치를 자동으로 채운다
+  // 실제 경로: 다녀온 여행은 새로 받지 않는다
+  const routes = useRouteFetcher({
+    tripId,
+    legs: dayLegs,
+    points,
+    options: savedRoutes,
+    setOptions: setRouteOptions,
+    setLegs,
+    enabled: canEdit && now?.phase !== "past",
+  });
+
+  // 시간이 비어 있는 구간은 우선 거리 기반 추정치로 채운다 (실제 경로가 오면 그 시간으로 바뀐다)
   const estimated = useRef(new Set<string>());
   useEffect(() => {
     if (!canEdit) return;
@@ -601,7 +614,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           <LegSheetBody
             leg={editingLeg}
             points={points}
+            route={routes.options.find((o) => o.leg_id === editingLeg.id && o.method === editingLeg.method)}
             onChange={changeLeg}
+            onChoose={routes.choose}
             onDone={() => setLegEditId(null)}
           />
         )}
@@ -702,12 +717,17 @@ const MINUTE_PRESETS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 function LegSheetBody({
   leg,
   points,
+  route,
   onChange,
+  onChoose,
   onDone,
 }: {
   leg: RouteLeg;
   points: MapPoint[];
+  /** 지금 이동수단의 실제 경로 (있으면 이 시간이 기준) */
+  route?: RouteOption;
   onChange: (id: string, patch: Partial<RouteLeg>) => void;
+  onChoose: (id: string, method: RouteLeg["method"]) => void;
   onDone: () => void;
 }) {
   const { t, locale } = usePrefs();
@@ -715,8 +735,12 @@ function LegSheetBody({
   const to = points.find((p) => p.id === leg.to_point_id);
   if (!from || !to) return null;
   const est = estimateDirections(from, to, leg.method);
-  const minutes = leg.duration_min ?? est.durationMin;
-  const setMinutes = (m: number) => onChange(leg.id, { duration_min: Math.max(0, Math.min(24 * 60, Math.round(m))) });
+  /** 직접 고치기 전의 기준 시간: 실제 경로가 있으면 그 시간, 없으면 추정치 */
+  const baseline = route?.duration_min ?? est.durationMin;
+  const minutes = leg.duration_min ?? baseline;
+  // 직접 고친 시간은 경로를 다시 받아도 덮어쓰지 않는다
+  const setMinutes = (m: number) =>
+    onChange(leg.id, { duration_min: Math.max(0, Math.min(24 * 60, Math.round(m))), duration_manual: true });
 
   return (
     <div className="space-y-5">
@@ -738,11 +762,8 @@ function LegSheetBody({
                 key={m}
                 type="button"
                 whileTap={{ scale: 0.92 }}
-                onClick={() => {
-                  // 이동수단을 바꾸면 그 수단 기준 추정 시간으로 다시 채운다 (이후 직접 조정 가능)
-                  const e = estimateDirections(from, to, m);
-                  onChange(leg.id, { method: m, duration_min: e.durationMin, distance_km: e.distanceKm });
-                }}
+                // 이동수단을 바꾸면 그 수단의 실제 경로(없으면 추정) 시간으로 다시 채운다 (이후 직접 조정 가능)
+                onClick={() => onChoose(leg.id, m)}
                 className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 text-[11px] font-semibold transition ${
                   on ? "border-primary bg-primary text-white shadow-sm" : "border-border-subtle text-foreground/72 hover:border-primary/40"
                 }`}
@@ -772,7 +793,9 @@ function LegSheetBody({
           <div className="min-w-32 text-center">
             <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes, locale)}</p>
             <p className="text-[11px] text-foreground/68">
-              {leg.duration_min == null || leg.duration_min === est.durationMin ? t("추정치") : t("추정 {time}", { time: formatDuration(est.durationMin, locale) })}
+              {leg.duration_manual
+                ? t(route ? "실제 경로 {time}" : "추정 {time}", { time: formatDuration(baseline, locale) })
+                : t(route ? "실제 경로 기준" : "추정치")}
             </p>
           </div>
           <button
@@ -797,13 +820,13 @@ function LegSheetBody({
               {formatDuration(m, locale)}
             </button>
           ))}
-          {leg.duration_min !== est.durationMin && (
+          {leg.duration_manual && (
             <button
               type="button"
-              onClick={() => setMinutes(est.durationMin)}
+              onClick={() => onChange(leg.id, { duration_min: baseline, duration_manual: false })}
               className="rounded-full px-3 py-1.5 text-xs font-semibold text-primary-strong hover:bg-primary-soft"
             >
-              {t("추정치로")}
+              {t(route ? "경로 시간으로" : "추정치로")}
             </button>
           )}
         </div>
