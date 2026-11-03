@@ -18,6 +18,7 @@ export default function AreaGroups({
   groups,
   loose,
   names,
+  error,
   days,
   busy,
   onMove,
@@ -27,7 +28,9 @@ export default function AreaGroups({
   groups: AreaGroup[];
   loose: LoosePlace[];
   /** 구역 이름. 아직 짓는 중이면 undefined, 못 지었으면 null */
-  names?: (string | null)[];
+  names: (string | null | undefined)[];
+  /** 구역 옮기기 실패 메시지 */
+  error?: string | null;
   /** 고를 수 있는 Day: 번호와 표시 이름 */
   days: { day: number; label: string }[];
   /** 옮기는 중인 구역 */
@@ -37,7 +40,7 @@ export default function AreaGroups({
   onClose: () => void;
 }) {
   const { t, locale } = usePrefs();
-  const nameOf = (i: number) => names?.[i] ?? t("구역 {n}", { n: i + 1 });
+  const nameOf = (i: number) => names[i] ?? t("구역 {n}", { n: i + 1 });
 
   return (
     <section className="card overflow-hidden">
@@ -56,13 +59,18 @@ export default function AreaGroups({
       </header>
 
       <div className="space-y-2.5 p-3 md:p-4">
+        {error && (
+          <p role="alert" className="rounded-xl bg-accent-soft px-3 py-2 text-xs font-semibold text-accent">
+            {error}
+          </p>
+        )}
         {groups.length === 0 && <p className="px-1 py-4 text-center text-sm text-foreground/68">{t("묶을 만큼 가까운 곳이 없어요")}</p>}
         {groups.map((g, i) => (
           <article key={g.points[0].id} className="rounded-2xl border border-border-subtle bg-surface p-3.5">
             <h4 className="flex items-center gap-2 text-[15px] font-extrabold">
               <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: AREA_COLORS[i % AREA_COLORS.length] }} aria-hidden />
               <span className="truncate">{nameOf(i)}</span>
-              {!names && <span className="text-xs font-medium text-foreground/50">{t("이름 짓는 중…")}</span>}
+              {names[i] === undefined && <span className="text-xs font-medium text-foreground/50">{t("이름 짓는 중…")}</span>}
               <span className="text-xs font-semibold text-foreground/60">{t("{n}곳", { n: g.points.length })}</span>
             </h4>
             <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-foreground/68">

@@ -20,7 +20,7 @@ import {
   Lock,
 } from "lucide-react";
 import type { Access, Expense, MapPoint, RouteLeg, RouteOption, Trip, TripDay } from "@/lib/types";
-import { apiDelete, apiGet, apiPatch, apiPost, setTripToken } from "@/lib/api";
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost, setTripToken } from "@/lib/api";
 import { useSyncStatus, useTripChanges } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
@@ -33,7 +33,7 @@ import DayPlan from "@/features/route/DayPlan";
 import LegCard from "@/features/route/LegCard";
 import AreaGroups, { AREA_COLORS, LOOSE_COLOR } from "@/features/route/AreaGroups";
 import { groupAreas } from "@/features/route/areas";
-import { mergeArea } from "@/features/route/areaName";
+import { groupKey, mergeArea, missingKeys, namesFor } from "@/features/route/areaName";
 import { chipMethods } from "@/features/route/routeOptions";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
@@ -155,21 +155,31 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 후보함 구역 제안: 묶기는 여기서 계산하고, 이름만 서버(NIM)에 묻는다
   const [areaOpen, setAreaOpen] = useState(false);
   const areas = useMemo(() => (areaOpen && inBin ? groupAreas(dayPoints) : null), [areaOpen, inBin, dayPoints]);
-  const areaKey = areas?.groups.map((g) => g.points.map((p) => p.id).join(",")).join("|") ?? "";
-  const [areaNames, setAreaNames] = useState<{ key: string; names: (string | null)[] }>({ key: "", names: [] });
+  // 구역 이름은 구역(장소 묶음)마다 기억한다. 한 구역을 옮겨도 남은 구역 이름은 그대로고, 새로 생긴 구역만 묻는다
+  const groupKeys = useMemo(() => areas?.groups.map((g) => groupKey(g.points.map((p) => p.id))) ?? [], [areas]);
+  const [areaNameCache, setAreaNameCache] = useState<Record<string, string | null>>({});
+  const namingKeys = useRef(new Set<string>());
   const [movingArea, setMovingArea] = useState<number | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
   useEffect(() => {
-    if (!areas || areas.groups.length === 0 || areaNames.key === areaKey) return;
-    const key = areaKey;
+    if (!areas) return;
+    const missing = missingKeys(groupKeys, areaNameCache, namingKeys.current);
+    if (missing.length === 0) return;
+    missing.forEach((k) => namingKeys.current.add(k));
+    const groups = missing.map((k) => areas.groups[groupKeys.indexOf(k)]);
+    const done = (names: (string | null)[]) => {
+      missing.forEach((k) => namingKeys.current.delete(k));
+      setAreaNameCache((prev) => ({ ...prev, ...Object.fromEntries(missing.map((k, i) => [k, names[i] ?? null])) }));
+    };
     void apiPost<{ names: (string | null)[] }>("/api/areas/name", {
       trip_id: tripId,
       locale,
       region: [trip?.country, trip?.region].filter(Boolean).join(" "),
-      groups: areas.groups.map((g) => ({ places: g.points.map((p) => p.name), lat: g.center.lat, lng: g.center.lng })),
+      groups: groups.map((g) => ({ places: g.points.map((p) => p.name), lat: g.center.lat, lng: g.center.lng })),
     })
-      .then((r) => setAreaNames({ key, names: r.names }))
-      .catch(() => setAreaNames({ key, names: [] }));
-  }, [areaKey]); // eslint-disable-line react-hooks/exhaustive-deps
+      .then((r) => done(r.names))
+      .catch(() => done([]));
+  }, [groupKeys.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
   const pinColors = useMemo(() => {
     if (!areas) return undefined;
     const out: Record<string, string> = {};
@@ -182,10 +192,11 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   async function moveGroup(ids: string[], target: number) {
     const dest = pointsOf(target);
     const base = Math.max(0, ...dest.map((x) => x.visit_order ?? 0));
-    for (const [i, id] of ids.entries()) await apiPatch(`/api/map-points/${id}`, { day_number: target, visit_order: base + i + 1 });
-    setPoints((prev) =>
-      prev.map((p) => (ids.includes(p.id) ? { ...p, day_number: target, visit_order: base + ids.indexOf(p.id) + 1 } : p))
-    );
+    // 하나씩 저장하고 저장된 것만 화면에 반영한다. 중간에 실패하면 남은 곳은 후보함에 그대로 있다
+    for (const [i, id] of ids.entries()) {
+      await apiPatch(`/api/map-points/${id}`, { day_number: target, visit_order: base + i + 1 });
+      setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, day_number: target, visit_order: base + i + 1 } : p)));
+    }
     const chain = [...(dest.length ? [dest[dest.length - 1].id] : []), ...ids];
     for (let i = 0; i < chain.length - 1; i++) {
       const leg = await ensureLeg(tripId, chain[i], chain[i + 1]);
@@ -625,7 +636,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                       <AreaGroups
                         groups={areas.groups}
                         loose={areas.loose}
-                        names={areaNames.key === areaKey ? areaNames.names : undefined}
+                        names={namesFor(groupKeys, areaNameCache)}
+                        error={moveError}
                         days={Array.from({ length: tripDays }, (_, i) => ({
                           day: i + 1,
                           label: trip.start_date
@@ -635,12 +647,16 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         busy={movingArea}
                         onMove={async (gi, target) => {
                           setMovingArea(gi);
+                          setMoveError(null);
                           // 옮기면 구역이 다시 계산되므로 이름을 먼저 잡아 둔다. 대체 이름("구역 N")은 저장하지 않는다
-                          const name = areaNames.key === areaKey ? (areaNames.names[gi] ?? null) : null;
+                          const ids = areas.groups[gi].points.map((p) => p.id);
+                          const name = areaNameCache[groupKey(ids)] ?? null;
                           try {
-                            await moveGroup(areas.groups[gi].points.map((p) => p.id), target);
+                            await moveGroup(ids, target);
                             const merged = mergeArea(areaByDay[target], name);
                             if (merged !== (areaByDay[target] ?? null)) await saveArea(target, merged);
+                          } catch (e) {
+                            setMoveError(e instanceof ApiError ? e.message : t("저장하지 못했어요."));
                           } finally {
                             setMovingArea(null);
                           }

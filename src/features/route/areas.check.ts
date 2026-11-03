@@ -46,6 +46,13 @@ assert.ok(r4.groups.length >= 2);
 const total = r4.groups.reduce((s, g) => s + g.points.length, 0) + r4.loose.length;
 assert.equal(total, 8);
 
+// (d2) 0.6km 간격으로 줄지어 선 9곳(도보 10분씩): 하루보다 길면 둘 이상으로 나누되, 한 곳씩 흩어지면 안 된다
+const line = Array.from({ length: 9 }, (_, i) => P(`l${i}`, 37.57, 126.95 + i * 0.0068));
+const r6 = groupAreas(line);
+assert.ok(r6.groups.length >= 2, `groups ${r6.groups.length}`);
+assert.equal(r6.loose.length, 0);
+for (const g of r6.groups) assert.ok(g.dayMin <= 540 || g.tooLong);
+
 // (e) 입력 순서를 바꿔도 결과가 같다
 const shuffled = [...dense].reverse();
 assert.deepEqual(ids(groupAreas(shuffled)), ids(r4));

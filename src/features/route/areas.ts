@@ -64,7 +64,8 @@ function splitLong(points: MapPoint[], radiusIdx: number): MapPoint[][] {
   if (points.length <= 2 || dayMinOf(points) <= MAX_DAY_MIN) return [points];
   for (let r = radiusIdx + 1; r < RADII.length; r++) {
     const parts = components(points, RADII[r]);
-    if (parts.length > 1) return parts.flatMap((part) => splitLong(part, r));
+    // 한 곳씩 떨어져 나가면 걸어 다닐 만한 곳이 "애매한 곳" 이 되므로, 모든 조각이 2곳 이상일 때만 받는다
+    if (parts.length > 1 && parts.every((part) => part.length >= 2)) return parts.flatMap((part) => splitLong(part, r));
   }
   let [a, b, best] = [points[0], points[1], -1];
   for (let i = 0; i < points.length; i++)
