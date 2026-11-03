@@ -3,7 +3,6 @@ export type { TripMapProps } from "./TripMap";
 export { default as PinMarker } from "./PinMarker";
 export type { PinMarkerProps } from "./PinMarker";
 export { default as RouteLine } from "./RouteLine";
-export { buildLegsGeoJSON, computeLegArrows } from "./RouteLine";
 export { default as AddPointDialog } from "./AddPointDialog";
 export type { AddPointDialogProps, PointDraft } from "./AddPointDialog";
 export { default as PointListMini } from "./PointListMini";

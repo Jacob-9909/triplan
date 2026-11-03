@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
-import type { MapPoint, RouteLeg, Trip } from "@/lib/types";
+import type { MapPoint, RouteLeg, RouteOption, Trip } from "@/lib/types";
 import { useTripChanges } from "@/lib/realtime";
 
 export function useTripData(tripId: string) {
@@ -85,7 +85,21 @@ export function useTripData(tripId: string) {
       });
   });
 
-  return { trip, points, legs, loading, notConfigured, revoked, setTrip, setPoints, setLegs, refresh };
+  // 실제 경로 저장본. 못 불러와도 여행 화면은 그대로 열린다 (직선 추정으로 그림)
+  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
+  const loadRouteOptions = useCallback(
+    () =>
+      apiGet<RouteOption[]>(`/api/route-options?trip_id=${tripId}`)
+        .then(setRouteOptions)
+        .catch(() => {}),
+    [tripId]
+  );
+  useEffect(() => {
+    void loadRouteOptions();
+  }, [loadRouteOptions]);
+  useTripChanges(tripId, ["route_options"], () => void loadRouteOptions());
+
+  return { trip, points, legs, routeOptions, loading, notConfigured, revoked, setTrip, setPoints, setLegs, setRouteOptions, refresh };
 }
 
 /** 순서 변경: visit_order 재정렬 저장 */

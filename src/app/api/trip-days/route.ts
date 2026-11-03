@@ -37,3 +37,29 @@ export async function POST(request: Request) {
     return jsonError("하루 기록을 저장하지 못했어요.");
   }
 }
+
+/** 구역 이름만 저장한다 (일기 칸은 건드리지 않는다). 빈 값이면 지운다 */
+export async function PATCH(request: Request) {
+  try {
+    const b = await request.json();
+    const denied = await requireEditBody(request, b?.trip_id);
+    if (denied) return denied;
+    if (!(Number.isInteger(b.day_number) && b.day_number >= 1 && b.day_number <= 365)) {
+      return jsonError("day_number must be 1-365", 400);
+    }
+    if (b.area != null && typeof b.area !== "string") return jsonError("area must be a string", 400);
+    const area = typeof b.area === "string" ? b.area.trim().slice(0, 60) || null : null;
+    const { rows } = await getPool().query<Row>(
+      `INSERT INTO triplan.trip_days (trip_id, day_number, area)
+       VALUES ($1,$2,$3)
+       ON CONFLICT (trip_id, day_number)
+       DO UPDATE SET area = $3, updated_at = now()
+       RETURNING *`,
+      [b.trip_id, b.day_number, area]
+    );
+    return Response.json(rows[0]);
+  } catch (err) {
+    console.error("PATCH /api/trip-days failed:", err);
+    return jsonError("하루 기록을 저장하지 못했어요.");
+  }
+}

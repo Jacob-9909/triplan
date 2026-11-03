@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
+import type { Expense, MapPoint, RouteLeg, RouteOption } from "@/lib/types";
 import type { PointDraft } from "./AddPointDialog";
 import { useT } from "@/i18n/I18nProvider";
 
@@ -9,6 +9,14 @@ export interface TripMapProps {
   points: MapPoint[];
   /** 경로선 그리기용 이동 구간 */
   legs?: RouteLeg[];
+  /** 구간별 실제 경로 (저장본 + 이 화면에서 받은 대중교통) */
+  routeOptions?: RouteOption[];
+  /** 펼친 구간: 지도를 그 구간에 맞추고 다른 이동수단 경로를 흐리게 보여 준다 */
+  selectedLegId?: string | null;
+  /** 흐린 대안 경로를 누르면 그 이동수단으로 */
+  onRouteOptionClick?: (legId: string, method: RouteLeg["method"]) => void;
+  /** 핀 색 덮어쓰기 (후보함 구역 보기: 장소 id → 구역 색) */
+  pinColors?: Record<string, string>;
   /** 포인트에 연결된 지출 (팝업 정보 카드용) */
   expenses?: Expense[];
   selectedPointId?: string | null;

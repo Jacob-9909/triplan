@@ -2,9 +2,10 @@
 
 import { X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
+import type { Expense, MapPoint, RouteLeg, RouteOption } from "@/lib/types";
 import PinMarker from "./PinMarker";
-import RouteLine from "./RouteLine";
+import RouteLine, { makeArrowImage, ROUTE_ALT_LAYER, ROUTE_ARROW_IMAGE } from "./RouteLine";
+import { altFromHits } from "./routeFeatures";
 import { getCategoryLabel } from "./categories";
 import { pointColor } from "./pointStyle";
 import { sortPointsByOrder } from "./sort";
@@ -17,6 +18,14 @@ export interface TripMapCoreProps {
   points: MapPoint[];
   /** 경로선 그리기용 이동 구간 */
   legs?: RouteLeg[];
+  /** 구간별 실제 경로 (저장본 + 이 화면에서 받은 대중교통) */
+  routeOptions?: RouteOption[];
+  /** 펼친 구간: 지도를 그 구간에 맞추고 다른 이동수단 경로를 흐리게 보여 준다 */
+  selectedLegId?: string | null;
+  /** 흐린 대안 경로를 누르면 그 이동수단으로 */
+  onRouteOptionClick?: (legId: string, method: RouteLeg["method"]) => void;
+  /** 핀 색 덮어쓰기 (후보함 구역 보기: 장소 id → 구역 색) */
+  pinColors?: Record<string, string>;
   /** 포인트에 연결된 지출 (팝업 정보 카드에 합계 표시용) */
   expenses?: Expense[];
   selectedPointId?: string | null;
@@ -58,6 +67,11 @@ const DEFAULT_VIEW = { latitude: 20, longitude: 0, zoom: 2 };
 
 export default function TripMapCore({
   points,
+  legs = [],
+  routeOptions = [],
+  selectedLegId = null,
+  onRouteOptionClick,
+  pinColors,
   expenses = [],
   selectedPointId = null,
   focusPointId = null,
@@ -135,6 +149,41 @@ export default function TripMapCore({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 핀 id 구성이 바뀔 때만 맞춤
   }, [mapReady, pointsKey, showRoute]);
 
+  // 선 안 화살표 이미지: 스타일을 바꾸면 지도 이미지가 지워지므로 없다고 할 때마다 다시 등록한다
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map?.addImage) return;
+    const add = () => {
+      const img = makeArrowImage();
+      if (img && !map.hasImage?.(ROUTE_ARROW_IMAGE)) map.addImage!(ROUTE_ARROW_IMAGE, img, { pixelRatio: 2 });
+    };
+    add();
+    const onMissing = (e: { id?: string }) => e.id === ROUTE_ARROW_IMAGE && add();
+    map.on?.("styleimagemissing", onMissing);
+    return () => map.off?.("styleimagemissing", onMissing);
+  }, [mapReady]);
+
+  // 구간을 펼치면 그 구간 경로(대안 포함)가 다 보이게 맞춘다
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !selectedLegId) return;
+    const leg = legs.find((l) => l.id === selectedLegId);
+    if (!leg) return;
+    const coords: [number, number][] = routeOptions.filter((o) => o.leg_id === leg.id).flatMap((o) => o.shape);
+    for (const p of points) if (p.id === leg.from_point_id || p.id === leg.to_point_id) coords.push([p.lng, p.lat]);
+    if (coords.length < 2) return;
+    const lngs = coords.map((c) => c[0]);
+    const lats = coords.map((c) => c[1]);
+    map.fitBounds?.(
+      [
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)],
+      ],
+      { padding: 60, maxZoom: 16, duration: 600 }
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 펼친 구간이 바뀌거나 그 구간 경로가 새로 올 때만
+  }, [mapReady, selectedLegId, routeOptions.filter((o) => o.leg_id === selectedLegId).length]);
+
   // 개발 환경 CDP 검증용
   useEffect(() => {
     if (process.env.NODE_ENV === "development") {
@@ -146,6 +195,20 @@ export default function TripMapCore({
     (e: MapClickEvent) => {
       const latlng = { lat: e.lngLat.lat, lng: e.lngLat.lng };
       setPopupId(null);
+
+      // 흐린 대안 경로를 누르면 그 이동수단으로 바꾼다
+      if (onRouteOptionClick && e.point) {
+        // 진한 선 아래 깔린 대안은 무시: 맨 위에 보이는 게 흐린 선일 때만
+        const alt = altFromHits(
+          mapRef.current?.queryRenderedFeatures?.([e.point.x, e.point.y], {
+            layers: [ROUTE_ALT_LAYER, "route-casing", "route-line", "route-estimate"],
+          }) ?? []
+        );
+        if (alt) {
+          onRouteOptionClick(alt.legId, alt.method);
+          return;
+        }
+      }
       if (!editable) {
         onMapClick?.(latlng);
         return;
@@ -169,7 +232,7 @@ export default function TripMapCore({
 
       onMapClick?.(latlng);
     },
-    [editable, onMapClick, poiLayerIds, locale]
+    [editable, onMapClick, onRouteOptionClick, poiLayerIds, locale]
   );
 
   return (
@@ -204,14 +267,14 @@ export default function TripMapCore({
       >
         <NavigationControl position="top-right" showCompass={false} />
 
-        {showRoute && <RouteLine points={sortedPoints} kit={kit} />}
+        {showRoute && <RouteLine points={sortedPoints} legs={legs} options={routeOptions} selectedLegId={selectedLegId} kit={kit} />}
 
         {sortedPoints.map((point, i) => (
           <Marker key={point.id} latitude={point.lat} longitude={point.lng} anchor="bottom" offset={[0, 6]}>
             <div className="pin-drop flex cursor-pointer flex-col items-center gap-1" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
               <PinMarker
                 category={point.category}
-                color={point.color}
+                color={pinColors?.[point.id] ?? point.color}
                 label={numbered ? i + 1 : undefined}
                 name={point.name}
                 selected={point.id === selectedPointId}

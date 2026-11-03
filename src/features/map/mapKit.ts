@@ -14,6 +14,11 @@ export interface MapCameraRef {
     bounds: [[number, number], [number, number]],
     options?: { padding?: number; maxZoom?: number; duration?: number }
   ): void;
+  /** 경로 화살표 같은 지도 이미지 등록 (스타일이 바뀌면 다시 등록해야 한다) */
+  addImage?(id: string, image: ImageData, options?: { pixelRatio?: number }): void;
+  hasImage?(id: string): boolean;
+  on?(type: string, listener: (e: { id?: string }) => void): void;
+  off?(type: string, listener: (e: { id?: string }) => void): void;
   /** 클릭 좌표의 렌더링된 피처 조회 (POI 클릭 감지용) */
   queryRenderedFeatures?(
     point: [number, number],
@@ -78,12 +83,14 @@ export interface KitSourceProps {
   id: string;
   type: string;
   data: unknown;
+  attribution?: string;
   children?: ReactNode;
 }
 
 export interface KitLayerProps {
   id?: string;
   type?: string;
+  filter?: unknown[];
   layout?: Record<string, unknown>;
   paint?: Record<string, unknown>;
 }

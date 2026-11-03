@@ -24,6 +24,8 @@ export interface DayTabsProps {
   today?: number | null;
   /** 있으면 맨 끝에 후보함 탭(값 BIN_DAY)을 붙인다. 숫자는 담긴 장소 수 */
   bin?: number;
+  /** Day 번호별 구역 이름 (후보함에서 구역째 옮긴 날) */
+  areas?: Record<number, string>;
 }
 
 /** 아직 Day 를 정하지 않은 장소(day_number 없음)를 모아 보는 탭의 값 */
@@ -37,7 +39,7 @@ function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
   return Array.from({ length: count }, (_, i) => addDays(start, i));
 }
 
-export default function DayTabs({ trip, value = null, onChange, forecast, today = null, bin }: DayTabsProps) {
+export default function DayTabs({ trip, value = null, onChange, forecast, today = null, bin, areas }: DayTabsProps) {
   const { t, df } = usePrefs();
   const days = getDays(trip);
   const [internalDay, setInternalDay] = useState(1);
@@ -91,6 +93,11 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
                 className={`mt-0.5 text-[11px] tabular-nums ${isActive ? "text-white" : "text-foreground/72"}`}
               >
                 <span role="img" aria-label={t(fc.label)}>{fc.emoji}</span> {fc.max}°/{fc.min}°
+              </span>
+            )}
+            {areas?.[dayNumber] && (
+              <span className={`mt-0.5 max-w-28 truncate text-[11px] font-bold ${isActive ? "text-white" : "text-primary-strong"}`}>
+                {areas[dayNumber]}
               </span>
             )}
           </button>

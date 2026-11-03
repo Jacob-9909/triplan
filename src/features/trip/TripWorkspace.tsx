@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,16 +19,22 @@ import {
   LogOut,
   Lock,
 } from "lucide-react";
-import type { Access, Expense, MapPoint, RouteLeg, Trip } from "@/lib/types";
-import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
-import { useSyncStatus } from "@/lib/realtime";
+import type { Access, Expense, MapPoint, RouteLeg, RouteOption, Trip, TripDay } from "@/lib/types";
+import { ApiError, apiDelete, apiGet, apiPatch, apiPost, setTripToken } from "@/lib/api";
+import { useSyncStatus, useTripChanges } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
 import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
 import { optimizeOrder } from "@/features/route/optimize";
+import { useRouteFetcher } from "@/features/route/useRouteFetcher";
 import DayPlan from "@/features/route/DayPlan";
+import LegCard from "@/features/route/LegCard";
+import AreaGroups, { AREA_COLORS, LOOSE_COLOR } from "@/features/route/AreaGroups";
+import { groupAreas } from "@/features/route/areas";
+import { groupKey, mergeArea, missingKeys, namesFor } from "@/features/route/areaName";
+import { chipMethods } from "@/features/route/routeOptions";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
 import { METHOD_META } from "@/features/route/meta";
@@ -69,12 +75,13 @@ const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
  * mode="edit" | "view": 공유 링크·체험 회원 화면
  */
 export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: Access }) {
-  const { t, locale } = usePrefs();
+  const { t, locale, df } = usePrefs();
   const inApp = mode === "admin";
   // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
   if (inApp) setTripToken(null);
 
-  const { trip, points, legs, loading, notConfigured, revoked, setTrip, setPoints, setLegs } = useTripData(tripId);
+  const { trip, points, legs, routeOptions: savedRoutes, loading, notConfigured, revoked, setTrip, setPoints, setLegs, setRouteOptions } =
+    useTripData(tripId);
   const router = useRouter();
   const [leaving, setLeaving] = useState<"confirm" | "busy" | null>(null);
 
@@ -92,6 +99,31 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const canEdit = access !== "view";
   const canManage = access === "admin" || access === "owner";
   const sync = useSyncStatus(tripId);
+  // Day 별 구역 이름 (trip_days.area). 일기 칸은 기록 탭이 따로 다룬다
+  const [dayRecords, setDayRecords] = useState<TripDay[]>([]);
+  const loadDays = useCallback(
+    () =>
+      apiGet<TripDay[]>(`/api/trip-days?trip_id=${tripId}`)
+        .then(setDayRecords)
+        .catch(() => {}),
+    [tripId]
+  );
+  useEffect(() => {
+    void loadDays();
+  }, [loadDays]);
+  useTripChanges(tripId, ["trip_days"], () => void loadDays());
+  const areaByDay = useMemo(
+    () => Object.fromEntries(dayRecords.filter((d) => d.area).map((d) => [d.day_number, d.area!])) as Record<number, string>,
+    [dayRecords]
+  );
+  async function saveArea(day: number, area: string | null) {
+    setDayRecords((prev) =>
+      prev.some((d) => d.day_number === day)
+        ? prev.map((d) => (d.day_number === day ? { ...d, area } : d))
+        : [...prev, { id: `local-${day}`, trip_id: tripId, day_number: day, weather: null, mood: null, note: null, area }]
+    );
+    await apiPatch("/api/trip-days", { trip_id: tripId, day_number: day, area }).catch(() => void loadDays());
+  }
   const { expenses } = useExpenses(tripId);
   const { docs } = useTravelDocs(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
@@ -104,6 +136,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const center = trip ? getTripCenter(trip.country, trip.region) : null;
   const forecast = useForecast(center?.lat, center?.lng, trip?.start_date ?? null, trip?.end_date ?? null);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  /** 펼친 구간: 지도에 다른 이동수단 경로를 흐리게 보여 준다 */
+  const [selectedLegId, setSelectedLegId] = useState<string | null>(null);
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
   /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
@@ -117,6 +151,58 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 후보함은 순서가 없으니 이동 구간도 없다
   const dayLegs = useMemo(() => (inBin ? [] : adjacentLegs(dayPoints, legs)), [legs, dayPoints, inBin]);
   const binCount = points.filter((p) => p.day_number == null).length;
+
+  // 후보함 구역 제안: 묶기는 여기서 계산하고, 이름만 서버(NIM)에 묻는다
+  const [areaOpen, setAreaOpen] = useState(false);
+  const areas = useMemo(() => (areaOpen && inBin ? groupAreas(dayPoints) : null), [areaOpen, inBin, dayPoints]);
+  // 구역 이름은 구역(장소 묶음)마다 기억한다. 한 구역을 옮겨도 남은 구역 이름은 그대로고, 새로 생긴 구역만 묻는다
+  const groupKeys = useMemo(() => areas?.groups.map((g) => groupKey(g.points.map((p) => p.id))) ?? [], [areas]);
+  const [areaNameCache, setAreaNameCache] = useState<Record<string, string | null>>({});
+  const namingKeys = useRef(new Set<string>());
+  const [movingArea, setMovingArea] = useState<number | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!areas) return;
+    const missing = missingKeys(groupKeys, areaNameCache, namingKeys.current);
+    if (missing.length === 0) return;
+    missing.forEach((k) => namingKeys.current.add(k));
+    const groups = missing.map((k) => areas.groups[groupKeys.indexOf(k)]);
+    const done = (names: (string | null)[]) => {
+      missing.forEach((k) => namingKeys.current.delete(k));
+      setAreaNameCache((prev) => ({ ...prev, ...Object.fromEntries(missing.map((k, i) => [k, names[i] ?? null])) }));
+    };
+    void apiPost<{ names: (string | null)[] }>("/api/areas/name", {
+      trip_id: tripId,
+      locale,
+      region: [trip?.country, trip?.region].filter(Boolean).join(" "),
+      groups: groups.map((g) => ({ places: g.points.map((p) => p.name), lat: g.center.lat, lng: g.center.lng })),
+    })
+      .then((r) => done(r.names))
+      .catch(() => done([]));
+  }, [groupKeys.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pinColors = useMemo(() => {
+    if (!areas) return undefined;
+    const out: Record<string, string> = {};
+    areas.groups.forEach((g, i) => g.points.forEach((p) => (out[p.id] = AREA_COLORS[i % AREA_COLORS.length])));
+    for (const l of areas.loose) out[l.point.id] = LOOSE_COLOR;
+    return out;
+  }, [areas]);
+
+  /** 구역째 Day 로: 그날 마지막 장소 뒤에 순서대로 붙이고 구간을 잇는다 (경로는 그날을 열 때 받는다) */
+  async function moveGroup(ids: string[], target: number) {
+    const dest = pointsOf(target);
+    const base = Math.max(0, ...dest.map((x) => x.visit_order ?? 0));
+    // 하나씩 저장하고 저장된 것만 화면에 반영한다. 중간에 실패하면 남은 곳은 후보함에 그대로 있다
+    for (const [i, id] of ids.entries()) {
+      await apiPatch(`/api/map-points/${id}`, { day_number: target, visit_order: base + i + 1 });
+      setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, day_number: target, visit_order: base + i + 1 } : p)));
+    }
+    const chain = [...(dest.length ? [dest[dest.length - 1].id] : []), ...ids];
+    for (let i = 0; i < chain.length - 1; i++) {
+      const leg = await ensureLeg(tripId, chain[i], chain[i + 1]);
+      if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+    }
+  }
   const tripDays = trip ? (nights(trip) ?? -1) + 1 : 0;
   /** 동선 정리 직후 되돌리기용: 정리 전·후 순서 */
   const [undo, setUndo] = useState<{ day: number; before: string[]; after: string[] } | null>(null);
@@ -127,7 +213,25 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const detailPoint = points.find((p) => p.id === detailId) ?? null;
   const editingLeg = legs.find((l) => l.id === legEditId) ?? null;
 
-  // 시간이 비어 있는 구간은 거리 기반 추정치를 자동으로 채운다
+  // 실제 경로: 다녀온 여행은 새로 받지 않는다
+  const routes = useRouteFetcher({
+    tripId,
+    legs: dayLegs,
+    points,
+    options: savedRoutes,
+    setOptions: setRouteOptions,
+    setLegs,
+    enabled: canEdit && now?.phase !== "past",
+  });
+
+  // 구간을 펼치면 비교할 이동수단 경로를 받는다 (한국 대중교통은 이때만)
+  const openLeg = dayLegs.find((l) => l.id === selectedLegId);
+  useEffect(() => {
+    if (!openLeg) return;
+    for (const m of chipMethods(openLeg)) routes.ensure(openLeg.id, m);
+  }, [openLeg?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 시간이 비어 있는 구간은 우선 거리 기반 추정치로 채운다 (실제 경로가 오면 그 시간으로 바뀐다)
   const estimated = useRef(new Set<string>());
   useEffect(() => {
     if (!canEdit) return;
@@ -471,7 +575,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           >
             {tab === "plan" && (
               <div className="space-y-4">
-                <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} bin={canEdit || binCount > 0 ? binCount : undefined} />
+                <DayTabs
+                  trip={trip}
+                  value={day}
+                  onChange={setDay}
+                  forecast={forecast}
+                  today={todayDay}
+                  bin={canEdit || binCount > 0 ? binCount : undefined}
+                  areas={areaByDay}
+                />
                 {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
                 {!inBin && trip.start_date && (
                   <DayBookings docs={docs} date={format(addDays(parseISO(trip.start_date), day - 1), "yyyy-MM-dd")} />
@@ -494,6 +606,10 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                       <TripMap
                         points={dayPoints}
                         legs={dayLegs}
+                        routeOptions={routes.options}
+                        selectedLegId={selectedLegId}
+                        onRouteOptionClick={canEdit ? routes.choose : undefined}
+                        pinColors={pinColors}
                         expenses={expenses}
                         defaultCenter={getTripCenter(trip.country, trip.region)}
                         labelCountry={trip.country}
@@ -516,28 +632,77 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                     </div>
                   </div>
                   <div className="lg:col-span-2">
-                    <DayPlan
-                      points={dayPoints}
-                      legs={dayLegs}
-                      bin={inBin}
-                      onOpen={(p) => {
-                        setDetailId(p.id);
-                        // 데스크톱에선 옆 지도도 그 장소로 옮겨 간다
-                        setSelectedPointId(p.id);
-                      }}
-                      onReorder={canEdit ? handleReorder : undefined}
-                      onDelete={canEdit ? handlePointDelete : undefined}
-                      onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}
-                      onOptimize={canEdit ? handleOptimize : undefined}
-                      onUndo={
-                        canUndo && undo
-                          ? () => {
-                              void handleReorder(undo.before);
-                              setUndo(null);
-                            }
-                          : undefined
-                      }
-                    />
+                    {areas ? (
+                      <AreaGroups
+                        groups={areas.groups}
+                        loose={areas.loose}
+                        names={namesFor(groupKeys, areaNameCache)}
+                        error={moveError}
+                        days={Array.from({ length: tripDays }, (_, i) => ({
+                          day: i + 1,
+                          label: trip.start_date
+                            ? `Day ${i + 1} · ${format(addDays(parseISO(trip.start_date), i), t("M/d(E)"), { locale: df })}`
+                            : `Day ${i + 1}`,
+                        }))}
+                        busy={movingArea}
+                        onMove={async (gi, target) => {
+                          setMovingArea(gi);
+                          setMoveError(null);
+                          // 옮기면 구역이 다시 계산되므로 이름을 먼저 잡아 둔다. 대체 이름("구역 N")은 저장하지 않는다
+                          const ids = areas.groups[gi].points.map((p) => p.id);
+                          const name = areaNameCache[groupKey(ids)] ?? null;
+                          try {
+                            await moveGroup(ids, target);
+                            const merged = mergeArea(areaByDay[target], name);
+                            if (merged !== (areaByDay[target] ?? null)) await saveArea(target, merged);
+                          } catch (e) {
+                            setMoveError(e instanceof ApiError ? e.message : t("저장하지 못했어요."));
+                          } finally {
+                            setMovingArea(null);
+                          }
+                        }}
+                        onOpen={(p) => setDetailId(p.id)}
+                        onClose={() => setAreaOpen(false)}
+                      />
+                    ) : (
+                      <DayPlan
+                        points={dayPoints}
+                        legs={dayLegs}
+                        bin={inBin}
+                        onOpen={(p) => {
+                          setDetailId(p.id);
+                          // 데스크톱에선 옆 지도도 그 장소로 옮겨 간다
+                          setSelectedPointId(p.id);
+                        }}
+                        onReorder={canEdit ? handleReorder : undefined}
+                        onDelete={canEdit ? handlePointDelete : undefined}
+                        renderLeg={(leg, from, to) => (
+                          <LegCard
+                            leg={leg}
+                            from={from}
+                            to={to}
+                            options={routes.options.filter((o) => o.leg_id === leg.id)}
+                            status={routes.status}
+                            open={selectedLegId === leg.id}
+                            onToggle={() => setSelectedLegId((cur) => (cur === leg.id ? null : leg.id))}
+                            onChoose={canEdit ? (m) => routes.choose(leg.id, m) : undefined}
+                            onEdit={canEdit ? () => setLegEditId(leg.id) : undefined}
+                          />
+                        )}
+                        onOptimize={canEdit ? handleOptimize : undefined}
+                        onUndo={
+                          canUndo && undo
+                            ? () => {
+                                void handleReorder(undo.before);
+                                setUndo(null);
+                              }
+                            : undefined
+                        }
+                        onGroup={canEdit ? () => setAreaOpen(true) : undefined}
+                      area={inBin ? null : areaByDay[day]}
+                      onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -601,7 +766,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           <LegSheetBody
             leg={editingLeg}
             points={points}
+            route={routes.options.find((o) => o.leg_id === editingLeg.id && o.method === editingLeg.method)}
             onChange={changeLeg}
+            onChoose={routes.choose}
             onDone={() => setLegEditId(null)}
           />
         )}
@@ -702,12 +869,17 @@ const MINUTE_PRESETS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 function LegSheetBody({
   leg,
   points,
+  route,
   onChange,
+  onChoose,
   onDone,
 }: {
   leg: RouteLeg;
   points: MapPoint[];
+  /** 지금 이동수단의 실제 경로 (있으면 이 시간이 기준) */
+  route?: RouteOption;
   onChange: (id: string, patch: Partial<RouteLeg>) => void;
+  onChoose: (id: string, method: RouteLeg["method"]) => void;
   onDone: () => void;
 }) {
   const { t, locale } = usePrefs();
@@ -715,8 +887,12 @@ function LegSheetBody({
   const to = points.find((p) => p.id === leg.to_point_id);
   if (!from || !to) return null;
   const est = estimateDirections(from, to, leg.method);
-  const minutes = leg.duration_min ?? est.durationMin;
-  const setMinutes = (m: number) => onChange(leg.id, { duration_min: Math.max(0, Math.min(24 * 60, Math.round(m))) });
+  /** 직접 고치기 전의 기준 시간: 실제 경로가 있으면 그 시간, 없으면 추정치 */
+  const baseline = route?.duration_min ?? est.durationMin;
+  const minutes = leg.duration_min ?? baseline;
+  // 직접 고친 시간은 경로를 다시 받아도 덮어쓰지 않는다
+  const setMinutes = (m: number) =>
+    onChange(leg.id, { duration_min: Math.max(0, Math.min(24 * 60, Math.round(m))), duration_manual: true });
 
   return (
     <div className="space-y-5">
@@ -738,11 +914,8 @@ function LegSheetBody({
                 key={m}
                 type="button"
                 whileTap={{ scale: 0.92 }}
-                onClick={() => {
-                  // 이동수단을 바꾸면 그 수단 기준 추정 시간으로 다시 채운다 (이후 직접 조정 가능)
-                  const e = estimateDirections(from, to, m);
-                  onChange(leg.id, { method: m, duration_min: e.durationMin, distance_km: e.distanceKm });
-                }}
+                // 이동수단을 바꾸면 그 수단의 실제 경로(없으면 추정) 시간으로 다시 채운다 (이후 직접 조정 가능)
+                onClick={() => onChoose(leg.id, m)}
                 className={`flex flex-col items-center gap-1 rounded-xl border px-1 py-2.5 text-[11px] font-semibold transition ${
                   on ? "border-primary bg-primary text-white shadow-sm" : "border-border-subtle text-foreground/72 hover:border-primary/40"
                 }`}
@@ -772,7 +945,9 @@ function LegSheetBody({
           <div className="min-w-32 text-center">
             <p className="text-3xl font-extrabold tabular-nums">{formatDuration(minutes, locale)}</p>
             <p className="text-[11px] text-foreground/68">
-              {leg.duration_min == null || leg.duration_min === est.durationMin ? t("추정치") : t("추정 {time}", { time: formatDuration(est.durationMin, locale) })}
+              {leg.duration_manual
+                ? t(route ? "실제 경로 {time}" : "추정 {time}", { time: formatDuration(baseline, locale) })
+                : t(route ? "실제 경로 기준" : "추정치")}
             </p>
           </div>
           <button
@@ -797,13 +972,13 @@ function LegSheetBody({
               {formatDuration(m, locale)}
             </button>
           ))}
-          {leg.duration_min !== est.durationMin && (
+          {leg.duration_manual && (
             <button
               type="button"
-              onClick={() => setMinutes(est.durationMin)}
+              onClick={() => onChange(leg.id, { duration_min: baseline, duration_manual: false })}
               className="rounded-full px-3 py-1.5 text-xs font-semibold text-primary-strong hover:bg-primary-soft"
             >
-              {t("추정치로")}
+              {t(route ? "경로 시간으로" : "추정치로")}
             </button>
           )}
         </div>
