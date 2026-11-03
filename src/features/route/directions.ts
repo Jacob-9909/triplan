@@ -57,7 +57,7 @@ export function estimateDirections(from: LatLng, to: LatLng, method: LegMethod):
   return { durationMin, distanceKm, source: "estimate" };
 }
 
-const inKorea = (p: LatLng) => p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131;
+export const inKorea = (p: LatLng) => p.lat > 33 && p.lat < 38.7 && p.lng > 124.5 && p.lng < 131;
 
 /** 지도 앱 길찾기 링크: 한국 안은 카카오맵, 밖은 구글 지도. 출발지는 앱이 현재 위치로 잡는다 */
 export function directionsUrl(p: LatLng & { name: string }): string {
