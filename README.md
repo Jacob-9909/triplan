@@ -13,16 +13,17 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Feature | Description |
 |---|---|
 | Wishlist | Save countries and cities you want to visit with a priority, memo, and tags. Pins on a world map. Turn any of them into a trip in one tap |
-| Day-by-day map | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins. The map opens at the city you picked, and the route is drawn as a line with direction arrows |
+| Day-by-day map | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins. The map opens at the city you picked, and each leg is drawn along real streets with arrows inside the line |
 | Visit order | Stops appear as chips joined by arrows (① → ② → ③). Drag a chip to reorder, tap it to open details |
 | Place details | Pick an icon (sight, restaurant, cafe, shopping, heritage, nature, stay, transport) and pin color, and attach photos, a link, and a memo to each stop |
 | Route tools | **Optimize route** reorders a day's stops to shorten the trip (the first stop stays put) with one-tap undo. A **Maybe list** tab holds places you haven't scheduled yet; open a place to move it to any day |
 | Timetable | Set arrival time and stay length per stop and travel mode and minutes per leg; the day becomes a timetable with arrival and departure times |
+| Real routes | Walking, taxi/car and bike legs follow real streets (FOSSGIS Valhalla, OpenStreetMap). Open a leg to compare transit, walking and taxi side by side: the chosen route stays bold on the map and the others show faded; tap a card or a faded line to switch, and the timetable follows. In Korea, transit shows each step (walk, line, stops, fare) from ODsay, looked up live when you open the leg (never stored, per ODsay's terms; 30 lookups a day on the free plan). Japan transit shows an estimate with a link to Google Maps. Times you edit by hand are kept when routes are refetched |
 | Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
 | Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
 | Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges. Each day's plan shows that day's bookings on top (check-in, check-out, flights, tickets) with the confirmation number |
 | Splitting costs and budget | Add travel companions, pick who paid and who shares each expense, and get the fewest transfers that settle up ("A sends B ₩32,000"). Set a trip budget to see what's left and how much you can spend per remaining day |
-| Today mode | During a trip, the plan opens on today. A card shows where you should be now or the next stop with its ETA, and a **Directions** button opens Kakao Map in Korea or Google Maps elsewhere. Every leg in the plan also has its own directions button that passes the start, the end, and the travel mode |
+| Today mode | During a trip, the plan opens on today. A card shows where you should be now or the next stop with its ETA, and a **Directions** button opens Kakao Map in Korea or Google Maps elsewhere. Each leg card can also open the leg in a maps app with the start, the end, and the travel mode |
 | Weather and local info | Day tabs show the Open-Meteo forecast (no API key) from 16 days out. The prep tab shows the time difference and local time, plug type and voltage (with an adapter warning), emergency numbers, and tipping customs |
 | Trip journal | Once a trip starts, a **Record** tab adds a daily journal with weather and mood, star ratings and one-line reviews for each stop, and trip stats (places, distance, spending). Finished trips open on this tab |
 | Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
@@ -59,6 +60,7 @@ The free limit is about 5,000 characters a day, or 50,000 with `MYMEMORY_EMAIL` 
 - PostgreSQL 17 via `pg` (tables in the `triplan` schema), self-hosted on an Oracle Cloud VM
 - MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
 - MyMemory translation API (free, no key)
+- Routes: FOSSGIS Valhalla (free, no key) and ODsay LAB (Korea transit, free key)
 
 ## Getting Started
 
@@ -92,6 +94,7 @@ Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
 | `MYMEMORY_EMAIL` | No | Raises the free translation limit |
 | `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
+| `ODSAY_API_KEY` | No | Korea transit routes (ODsay LAB free key, bound to the server IP). Without it transit shows an estimate |
 
 ### 3. Deploy (Oracle Cloud VM)
 
