@@ -173,6 +173,7 @@ const en: Record<string, string> = {
   "체험 계정에서는 쓸 수 없어요.": "Not available for demo accounts.",
   "오늘 대중교통 조회 한도를 다 썼어요.": "Today's transit lookup limit is used up.",
   "경로를 찾지 못했어요.": "Couldn't find a route.",
+  "구역 이름을 짓지 못했어요.": "Couldn't name the areas.",
   "문서 추가에 실패했어요.": "Couldn't add the document.",
   "하루 기록을 저장하지 못했어요.": "Couldn't save the daily journal.",
   "아이디를 입력해 주세요.": "Enter a username.",
