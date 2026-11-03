@@ -247,6 +247,8 @@ const en: Record<string, string> = {
   "{place} 근처 (도보 {time})": "Near {place} ({time} walk)",
   "이름 짓는 중…": "Naming…",
   "구역 이름 지우기": "Clear area name",
+  "지도 크게 보기": "Larger map",
+  "지도 작게 보기": "Smaller map",
   "다른 곳과 멀어요": "Far from the others",
   "장소를 눌러 직접 Day로 옮기세요": "Tap a place to move it to a day yourself",
   "{name} 순서 바꾸기": "Reorder {name}",
