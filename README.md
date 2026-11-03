@@ -18,6 +18,7 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Place details | Pick an icon (sight, restaurant, cafe, shopping, heritage, nature, stay, transport) and pin color, and attach photos, a link, and a memo to each stop |
 | Route tools | **Optimize route** reorders a day's stops to shorten the trip (the first stop stays put) with one-tap undo. A **Maybe list** tab holds places you haven't scheduled yet; open a place to move it to any day |
 | Timetable | Set arrival time and stay length per stop and travel mode and minutes per leg; the day becomes a timetable with arrival and departure times |
+| Area grouping | In the Maybe list, **Group into areas** groups places you can walk between (about 1.2 km apart), shows each area's average walk between places and roughly how long it takes as a day, and splits areas longer than 9 hours. Places that fit no area are listed with the nearest place and walk time. Pick a day on an area to move all of its places there; the day tab then shows the area name (named by NVIDIA NIM, or the district from OpenStreetMap). Grouping is computed, not generated |
 | Real routes | Walking, taxi/car and bike legs follow real streets (FOSSGIS Valhalla, OpenStreetMap). Open a leg to compare transit, walking and taxi side by side: the chosen route stays bold on the map and the others show faded; tap a card or a faded line to switch, and the timetable follows. In Korea, transit shows each step (walk, line, stops, fare) from ODsay, looked up live when you open the leg (never stored, per ODsay's terms; 30 lookups a day on the free plan). Japan transit shows an estimate with a link to Google Maps. Times you edit by hand are kept when routes are refetched |
 | Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
 | Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
@@ -94,6 +95,7 @@ Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
 | `MYMEMORY_EMAIL` | No | Raises the free translation limit |
 | `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
+| `NVIDIA_API_KEY` | No | Area names in the Maybe list (NVIDIA NIM). Without it, district names from OpenStreetMap are used |
 | `ODSAY_API_KEY` | No | Korea transit routes (ODsay LAB free key, bound to the server IP). Without it transit shows an estimate |
 
 ### 3. Deploy (Oracle Cloud VM)
