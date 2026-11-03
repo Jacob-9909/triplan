@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -19,9 +19,9 @@ import {
   LogOut,
   Lock,
 } from "lucide-react";
-import type { Access, Expense, MapPoint, RouteLeg, RouteOption, Trip } from "@/lib/types";
-import { apiDelete, apiPatch, apiPost, setTripToken } from "@/lib/api";
-import { useSyncStatus } from "@/lib/realtime";
+import type { Access, Expense, MapPoint, RouteLeg, RouteOption, Trip, TripDay } from "@/lib/types";
+import { apiDelete, apiGet, apiPatch, apiPost, setTripToken } from "@/lib/api";
+import { useSyncStatus, useTripChanges } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
@@ -33,6 +33,7 @@ import DayPlan from "@/features/route/DayPlan";
 import LegCard from "@/features/route/LegCard";
 import AreaGroups, { AREA_COLORS, LOOSE_COLOR } from "@/features/route/AreaGroups";
 import { groupAreas } from "@/features/route/areas";
+import { mergeArea } from "@/features/route/areaName";
 import { chipMethods } from "@/features/route/routeOptions";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
@@ -98,6 +99,31 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const canEdit = access !== "view";
   const canManage = access === "admin" || access === "owner";
   const sync = useSyncStatus(tripId);
+  // Day 별 구역 이름 (trip_days.area). 일기 칸은 기록 탭이 따로 다룬다
+  const [dayRecords, setDayRecords] = useState<TripDay[]>([]);
+  const loadDays = useCallback(
+    () =>
+      apiGet<TripDay[]>(`/api/trip-days?trip_id=${tripId}`)
+        .then(setDayRecords)
+        .catch(() => {}),
+    [tripId]
+  );
+  useEffect(() => {
+    void loadDays();
+  }, [loadDays]);
+  useTripChanges(tripId, ["trip_days"], () => void loadDays());
+  const areaByDay = useMemo(
+    () => Object.fromEntries(dayRecords.filter((d) => d.area).map((d) => [d.day_number, d.area!])) as Record<number, string>,
+    [dayRecords]
+  );
+  async function saveArea(day: number, area: string | null) {
+    setDayRecords((prev) =>
+      prev.some((d) => d.day_number === day)
+        ? prev.map((d) => (d.day_number === day ? { ...d, area } : d))
+        : [...prev, { id: `local-${day}`, trip_id: tripId, day_number: day, weather: null, mood: null, note: null, area }]
+    );
+    await apiPatch("/api/trip-days", { trip_id: tripId, day_number: day, area }).catch(() => void loadDays());
+  }
   const { expenses } = useExpenses(tripId);
   const { docs } = useTravelDocs(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
@@ -538,7 +564,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           >
             {tab === "plan" && (
               <div className="space-y-4">
-                <DayTabs trip={trip} value={day} onChange={setDay} forecast={forecast} today={todayDay} bin={canEdit || binCount > 0 ? binCount : undefined} />
+                <DayTabs
+                  trip={trip}
+                  value={day}
+                  onChange={setDay}
+                  forecast={forecast}
+                  today={todayDay}
+                  bin={canEdit || binCount > 0 ? binCount : undefined}
+                  areas={areaByDay}
+                />
                 {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
                 {!inBin && trip.start_date && (
                   <DayBookings docs={docs} date={format(addDays(parseISO(trip.start_date), day - 1), "yyyy-MM-dd")} />
@@ -601,8 +635,12 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         busy={movingArea}
                         onMove={async (gi, target) => {
                           setMovingArea(gi);
+                          // 옮기면 구역이 다시 계산되므로 이름을 먼저 잡아 둔다. 대체 이름("구역 N")은 저장하지 않는다
+                          const name = areaNames.key === areaKey ? (areaNames.names[gi] ?? null) : null;
                           try {
                             await moveGroup(areas.groups[gi].points.map((p) => p.id), target);
+                            const merged = mergeArea(areaByDay[target], name);
+                            if (merged !== (areaByDay[target] ?? null)) await saveArea(target, merged);
                           } finally {
                             setMovingArea(null);
                           }
@@ -645,6 +683,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                             : undefined
                         }
                         onGroup={canEdit ? () => setAreaOpen(true) : undefined}
+                      area={inBin ? null : areaByDay[day]}
+                      onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
                       />
                     )}
                   </div>

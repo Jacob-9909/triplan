@@ -33,6 +33,9 @@ export interface DayPlanProps {
   renderLeg: (leg: RouteLeg, from: MapPoint, to: MapPoint) => ReactNode;
   /** 동선 정리. 순서가 바뀌었으면 true */
   onOptimize?: () => boolean;
+  /** 이 Day 에 넣은 구역 이름과, 지우기 (편집 권한만) */
+  area?: string | null;
+  onClearArea?: () => void;
   /** 후보함을 걸어서 다닐 만한 구역으로 묶어 보기 */
   onGroup?: () => void;
   /** 정리 직후 되돌리기 */
@@ -44,7 +47,7 @@ export interface DayPlanProps {
  * 하루 일정 한 장: 머리(요약·동선 정리) + 장소 카드와 그 사이 이동 구간.
  * 카드를 누르면 상세, 손잡이를 끌면 순서 변경(키보드도 됨).
  */
-export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, renderLeg, onOptimize, onGroup, onUndo, onOpen }: DayPlanProps) {
+export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, renderLeg, onOptimize, onGroup, onUndo, onOpen, area, onClearArea }: DayPlanProps) {
   const { t, locale, money } = usePrefs();
   const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
   const legAfter = useMemo(() => new Map(legs.map((l) => [l.from_point_id, l])), [legs]);
@@ -94,6 +97,16 @@ export default function DayPlan({ points, legs, bin = false, onReorder, onDelete
             )}
           </h3>
           {points.length > 0 && <p className="mt-0.5 text-xs text-foreground/68">{summary.join(" · ")}</p>}
+          {!bin && area && (
+            <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary-strong">
+              {area}
+              {onClearArea && (
+                <button type="button" onClick={onClearArea} aria-label={t("구역 이름 지우기")} className="rounded-full hover:text-accent">
+                  <X size={12} aria-hidden />
+                </button>
+              )}
+            </span>
+          )}
         </div>
         {onUndo ? (
           <button
