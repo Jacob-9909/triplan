@@ -30,6 +30,8 @@ import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
 import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
 import DayPlan from "@/features/route/DayPlan";
+import LegCard from "@/features/route/LegCard";
+import { chipMethods } from "@/features/route/routeOptions";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
 import { METHOD_META } from "@/features/route/meta";
@@ -141,6 +143,13 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     setLegs,
     enabled: canEdit && now?.phase !== "past",
   });
+
+  // 구간을 펼치면 비교할 이동수단 경로를 받는다 (한국 대중교통은 이때만)
+  const openLeg = dayLegs.find((l) => l.id === selectedLegId);
+  useEffect(() => {
+    if (!openLeg) return;
+    for (const m of chipMethods(openLeg)) routes.ensure(openLeg.id, m);
+  }, [openLeg?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 시간이 비어 있는 구간은 우선 거리 기반 추정치로 채운다 (실제 경로가 오면 그 시간으로 바뀐다)
   const estimated = useRef(new Set<string>());
@@ -545,7 +554,19 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                       }}
                       onReorder={canEdit ? handleReorder : undefined}
                       onDelete={canEdit ? handlePointDelete : undefined}
-                      onLegClick={canEdit ? (leg) => setLegEditId(leg.id) : undefined}
+                      renderLeg={(leg, from, to) => (
+                        <LegCard
+                          leg={leg}
+                          from={from}
+                          to={to}
+                          options={routes.options.filter((o) => o.leg_id === leg.id)}
+                          status={routes.status}
+                          open={selectedLegId === leg.id}
+                          onToggle={() => setSelectedLegId((cur) => (cur === leg.id ? null : leg.id))}
+                          onChoose={canEdit ? (m) => routes.choose(leg.id, m) : undefined}
+                          onEdit={canEdit ? () => setLegEditId(leg.id) : undefined}
+                        />
+                      )}
                       onOptimize={canEdit ? handleOptimize : undefined}
                       onUndo={
                         canUndo && undo

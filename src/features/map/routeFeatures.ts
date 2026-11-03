@@ -21,11 +21,11 @@ export interface RouteFeatures {
 }
 
 export const ROUTE_COLORS = {
-  walk: "#8a94a6",
+  walk: "#7a8597",
   drive: "#2f6fdf",
   bike: "#2a9d6a",
   estimate: "#8a94a6",
-  alternative: "#b4bcc8",
+  alternative: "#c3c9d2",
 } as const;
 const VEHICLE_DEFAULT: Record<RouteStep["mode"], string> = {
   walk: ROUTE_COLORS.walk,

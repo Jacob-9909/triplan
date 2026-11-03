@@ -214,7 +214,20 @@ const en: Record<string, string> = {
   "동선 정리": "Optimize route",
   "어느 날 갈까요": "Which day?",
   "이동 {time}": "{time} travel",
-  "손잡이를 끌어 순서를 바꾸고, 구간을 누르면 이동수단·시간·비용을 바꿔요.": "Drag the handle to reorder. Tap a leg to change mode, time, or cost.",
+  "손잡이를 끌어 순서를 바꾸고, 구간을 누르면 이동수단을 비교하고 바꿔요.": "Drag the handle to reorder. Tap a leg to compare and change how you get there.",
+
+  // 구간 카드 (features/route/LegCard.tsx)
+  "지하철": "Subway",
+  "버스": "Bus",
+  "기차": "Train",
+  "추정": "Est.",
+  "찾는 중…": "Finding…",
+  "오늘 한도 초과": "Limit reached today",
+  "경로 없음": "No route",
+  "{n}정거장": "{n} stops",
+  "구글 지도에서 대중교통 보기": "Transit in Google Maps",
+  "지도 앱에서 열기": "Open in maps app",
+  "시간·비용 고치기": "Edit time & cost",
   "{name} 순서 바꾸기": "Reorder {name}",
 };
 

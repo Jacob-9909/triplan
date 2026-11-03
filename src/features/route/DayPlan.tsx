@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -13,12 +13,10 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Hourglass, Inbox, MapPin, Navigation, PencilLine, Route, Undo2, X } from "lucide-react";
+import { GripVertical, Hourglass, Inbox, MapPin, Route, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { usePrefs } from "@/i18n/I18nProvider";
-import { METHOD_META } from "./meta";
-import { legDirectionsUrl } from "./directions";
 import { buildSchedule, DEFAULT_STAY, formatDuration, formatTime, type StopTime } from "./schedule";
 
 export interface DayPlanProps {
@@ -31,7 +29,8 @@ export interface DayPlanProps {
   /** 편집 콜백. 없으면 읽기 전용 */
   onReorder?: (ids: string[]) => void;
   onDelete?: (id: string) => void;
-  onLegClick?: (leg: RouteLeg) => void;
+  /** 장소 사이 구간 카드 (이동수단 비교·길찾기) */
+  renderLeg: (leg: RouteLeg, from: MapPoint, to: MapPoint) => ReactNode;
   /** 동선 정리. 순서가 바뀌었으면 true */
   onOptimize?: () => boolean;
   /** 정리 직후 되돌리기 */
@@ -43,7 +42,7 @@ export interface DayPlanProps {
  * 하루 일정 한 장: 머리(요약·동선 정리) + 장소 카드와 그 사이 이동 구간.
  * 카드를 누르면 상세, 손잡이를 끌면 순서 변경(키보드도 됨).
  */
-export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, onLegClick, onOptimize, onUndo, onOpen }: DayPlanProps) {
+export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, renderLeg, onOptimize, onUndo, onOpen }: DayPlanProps) {
   const { t, locale, money } = usePrefs();
   const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
   const legAfter = useMemo(() => new Map(legs.map((l) => [l.from_point_id, l])), [legs]);
@@ -160,12 +159,10 @@ export default function DayPlan({ points, legs, bin = false, onReorder, onDelete
                     index={i}
                     time={bin ? undefined : schedule.get(point.id)}
                     // 끄는 동안에는 구간이 어긋나므로 숨긴다
-                    leg={leg && leg.to_point_id === shown[i + 1].id ? leg : undefined}
-                    next={shown[i + 1]}
+                    legView={leg && leg.to_point_id === shown[i + 1].id ? renderLeg(leg, point, shown[i + 1]) : undefined}
                     sortable={!!onReorder}
                     onOpen={() => Date.now() - lastDrag.current > 300 && onOpen(point)}
                     onDelete={onDelete}
-                    onLegClick={onLegClick}
                   />
                 );
               })}
@@ -176,7 +173,7 @@ export default function DayPlan({ points, legs, bin = false, onReorder, onDelete
 
       {onReorder && points.length > 0 && !bin && (
         <p className="border-t border-border-subtle px-4 py-2.5 text-[11px] text-foreground/68 md:px-5">
-          {t("손잡이를 끌어 순서를 바꾸고, 구간을 누르면 이동수단·시간·비용을 바꿔요.")}
+          {t("손잡이를 끌어 순서를 바꾸고, 구간을 누르면 이동수단을 비교하고 바꿔요.")}
         </p>
       )}
     </section>
@@ -187,25 +184,21 @@ function Stop({
   point,
   index,
   time,
-  leg,
-  next,
+  legView,
   sortable,
   onOpen,
   onDelete,
-  onLegClick,
 }: {
   point: MapPoint;
   index: number;
   time?: StopTime;
-  leg?: RouteLeg;
-  /** 구간 길찾기의 도착지 */
-  next?: MapPoint;
+  /** 다음 장소로 가는 구간 카드 */
+  legView?: ReactNode;
   sortable: boolean;
   onOpen: () => void;
   onDelete?: (id: string) => void;
-  onLegClick?: (leg: RouteLeg) => void;
 }) {
-  const { t, locale, money } = usePrefs();
+  const { t, locale } = usePrefs();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
     id: point.id,
     disabled: !sortable,
@@ -288,45 +281,11 @@ function Stop({
         </div>
       </div>
 
-      {leg ? (
-        <div className="flex items-center gap-2.5 py-1">
+      {legView ? (
+        <div className="flex items-start gap-2.5 py-1">
           <span className="w-11 shrink-0" />
-          <span className="ml-3 h-7 border-l-2 border-dashed border-border-subtle" aria-hidden />
-          {(() => {
-            const meta = METHOD_META[leg.method];
-            const Icon = meta.icon;
-            const nav = next && legDirectionsUrl(point, next, leg.method);
-            return (
-              <>
-                <button
-                  type="button"
-                  onClick={() => onLegClick?.(leg)}
-                  disabled={!onLegClick}
-                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-foreground/70 transition enabled:hover:bg-primary-soft enabled:hover:text-primary-strong"
-                >
-                  <Icon size={13} className="text-primary-strong" aria-hidden />
-                  {t(meta.label)}
-                  <span className="font-bold text-foreground">
-                    {leg.duration_min != null ? formatDuration(leg.duration_min, locale) : t("시간 정하기")}
-                  </span>
-                  {leg.cost != null && leg.cost > 0 && <span className="text-foreground/68">· {money(leg.cost)}</span>}
-                  {onLegClick && <PencilLine size={11} className="text-foreground/50" aria-hidden />}
-                </button>
-                {nav && (
-                  <a
-                    href={nav}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={t("{from}에서 {to}까지 길찾기", { from: point.name, to: next!.name })}
-                    title={t("길찾기")}
-                    className="ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-primary-strong transition hover:bg-primary-soft"
-                  >
-                    <Navigation size={14} aria-hidden />
-                  </a>
-                )}
-              </>
-            );
-          })()}
+          <span className="ml-3 min-h-9 self-stretch border-l-2 border-dashed border-border-subtle" aria-hidden />
+          {legView}
         </div>
       ) : (
         <div className="h-2" />
