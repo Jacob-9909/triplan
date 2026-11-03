@@ -106,6 +106,8 @@ export interface TripDay {
   weather: Weather | null;
   mood: Mood | null;
   note: string | null;
+  /** 후보함에서 이 Day 로 옮긴 구역 이름 (예: 아사쿠사·우에노) */
+  area?: string | null;
 }
 
 /** 장소 사진 (본문은 /api/point-photos/[id]) */
