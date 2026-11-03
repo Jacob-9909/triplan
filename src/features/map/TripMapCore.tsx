@@ -104,6 +104,8 @@ export default function TripMapCore({
   const [popupId, setPopupId] = useState<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  /** 지도 크기가 바뀐 뒤 화면 맞추기를 한 번 더 부르는 신호 */
+  const [fit, setFit] = useState(0);
 
   // 한국어 화면에서만 라벨을 번역한다. 영어 화면은 name:en (없으면 현지 이름)
   useKoreanLabels(mapRef, mapReady, translateLabels && locale === "ko", labelCountry);
@@ -127,11 +129,18 @@ export default function TripMapCore({
     mapRef.current.flyTo({ center: [target.lng, target.lat], zoom: Math.max(mapRef.current.getZoom(), 14), duration: 900 });
   }, [focusPointId, points]);
 
-  // 핀 구성이 바뀌면(Day 전환 등) 전체 핀이 보이게 화면을 맞춘다
+  // 핀 구성이 바뀌거나(Day 전환 등) 지도 크기가 바뀌면 전체 핀이 보이게 화면을 맞춘다
   const pointsKey = sortedPoints.map((p) => p.id).join(",");
+  const lastHeight = useRef(heightClass);
   useEffect(() => {
     const map = mapRef.current;
     if (!mapReady || !map || sortedPoints.length === 0) return;
+    // 크기가 바뀐 직후에는 지도가 아직 예전 크기라, 다시 그린 뒤에 맞춘다
+    if (lastHeight.current !== heightClass) {
+      lastHeight.current = heightClass;
+      const id = setTimeout(() => setFit((n) => n + 1), 120);
+      return () => clearTimeout(id);
+    }
     if (sortedPoints.length === 1) {
       const p = sortedPoints[0];
       map.flyTo({ center: [p.lng, p.lat], zoom: showRoute ? 13 : 3, duration: 600 });
@@ -146,8 +155,8 @@ export default function TripMapCore({
       ],
       { padding: showRoute ? 70 : 60, maxZoom: showRoute ? 15 : 4, duration: 600 }
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 핀 id 구성이 바뀔 때만 맞춤
-  }, [mapReady, pointsKey, showRoute]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 핀 id 구성이나 지도 크기가 바뀔 때만 맞춤
+  }, [mapReady, pointsKey, showRoute, heightClass, fit]);
 
   // 선 안 화살표 이미지: 스타일을 바꾸면 지도 이미지가 지워지므로 없다고 할 때마다 다시 등록한다
   useEffect(() => {

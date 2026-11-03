@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  Maximize2,
+  Minimize2,
   Banknote,
   CalendarDays,
   Eye,
@@ -142,6 +144,23 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  /** 지도 크게 보기: 일정은 지도 아래로. 이 기기에만 기억한다 */
+  // ponytail: 서버 렌더는 비행기 로딩 화면만 그리므로 첫 값을 바로 localStorage 에서 읽어도 화면이 어긋나지 않는다
+  const [mapBig, setMapBig] = useState(() => {
+    try {
+      return typeof window !== "undefined" && localStorage.getItem("triplan:mapBig") === "1";
+    } catch {
+      return false;
+    }
+  });
+  function toggleMapBig() {
+    setMapBig((big) => {
+      try {
+        localStorage.setItem("triplan:mapBig", big ? "0" : "1");
+      } catch {}
+      return !big;
+    });
+  }
 
   /** 후보함(BIN_DAY)이면 아직 Day 를 정하지 않은 장소 */
   const inBin = day === BIN_DAY;
@@ -588,9 +607,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                 {!inBin && trip.start_date && (
                   <DayBookings docs={docs} date={format(addDays(parseISO(trip.start_date), day - 1), "yyyy-MM-dd")} />
                 )}
-                <div className="grid gap-4 lg:grid-cols-5 lg:items-start lg:gap-6">
-                  {/* 데스크톱: 목록을 내려도 지도는 그 자리에 (상단 바 + 탭 바 아래) */}
-                  <div className="lg:sticky lg:top-36 lg:col-span-3">
+                <div className={`grid gap-4 lg:gap-6 ${mapBig ? "" : "lg:grid-cols-5 lg:items-start"}`}>
+                  {/* 데스크톱: 목록을 내려도 지도는 그 자리에 (상단 바 + 탭 바 아래). 크게 보기면 지도가 가로 전체, 일정은 아래 */}
+                  <div className={mapBig ? "" : "lg:sticky lg:top-36 lg:col-span-3"}>
                     <div className="relative overflow-hidden rounded-[var(--radius-card)] shadow-card">
                       {canEdit && (
                         <div className="absolute left-3 right-14 top-3 z-10 sm:right-auto">
@@ -627,11 +646,25 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         onPointOpen={(id: string) => setDetailId(id)}
                         editable={canEdit}
                         // 휴대폰에서는 지도를 낮춰 일정 목록이 첫 화면에 보이게
-                        heightClass="h-[300px] sm:h-[420px] lg:h-[520px]"
+                        // 크게 보기는 창이 낮아도 늘 원래보다 크다 (화면 높이 비율과 최소 높이 중 큰 쪽)
+                        heightClass={
+                          mapBig
+                            ? "h-[max(70dvh,460px)] sm:h-[max(72dvh,560px)] lg:h-[max(76dvh,680px)]"
+                            : "h-[300px] sm:h-[420px] lg:h-[520px]"
+                        }
                       />
+                      <button
+                        type="button"
+                        onClick={toggleMapBig}
+                        aria-pressed={mapBig}
+                        className="absolute bottom-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-surface/95 px-3 py-2 text-xs font-semibold text-foreground shadow-lift backdrop-blur transition hover:bg-surface"
+                      >
+                        {mapBig ? <Minimize2 size={14} aria-hidden /> : <Maximize2 size={14} aria-hidden />}
+                        {mapBig ? t("지도 작게 보기") : t("지도 크게 보기")}
+                      </button>
                     </div>
                   </div>
-                  <div className="lg:col-span-2">
+                  <div className={mapBig ? "" : "lg:col-span-2"}>
                     {areas ? (
                       <AreaGroups
                         groups={areas.groups}
