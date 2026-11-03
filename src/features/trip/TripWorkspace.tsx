@@ -106,6 +106,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const center = trip ? getTripCenter(trip.country, trip.region) : null;
   const forecast = useForecast(center?.lat, center?.lng, trip?.start_date ?? null, trip?.end_date ?? null);
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  /** 펼친 구간: 지도에 다른 이동수단 경로를 흐리게 보여 준다 */
+  const [selectedLegId, setSelectedLegId] = useState<string | null>(null);
   const [pendingLatLng, setPendingLatLng] = useState<{ lat: number; lng: number } | null>(null);
   /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
@@ -507,6 +509,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                       <TripMap
                         points={dayPoints}
                         legs={dayLegs}
+                        routeOptions={routes.options}
+                        selectedLegId={selectedLegId}
+                        onRouteOptionClick={canEdit ? routes.choose : undefined}
                         expenses={expenses}
                         defaultCenter={getTripCenter(trip.country, trip.region)}
                         labelCountry={trip.country}
