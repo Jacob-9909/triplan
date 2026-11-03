@@ -24,6 +24,8 @@ export interface TripMapCoreProps {
   selectedLegId?: string | null;
   /** 흐린 대안 경로를 누르면 그 이동수단으로 */
   onRouteOptionClick?: (legId: string, method: RouteLeg["method"]) => void;
+  /** 핀 색 덮어쓰기 (후보함 구역 보기: 장소 id → 구역 색) */
+  pinColors?: Record<string, string>;
   /** 포인트에 연결된 지출 (팝업 정보 카드에 합계 표시용) */
   expenses?: Expense[];
   selectedPointId?: string | null;
@@ -69,6 +71,7 @@ export default function TripMapCore({
   routeOptions = [],
   selectedLegId = null,
   onRouteOptionClick,
+  pinColors,
   expenses = [],
   selectedPointId = null,
   focusPointId = null,
@@ -271,7 +274,7 @@ export default function TripMapCore({
             <div className="pin-drop flex cursor-pointer flex-col items-center gap-1" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
               <PinMarker
                 category={point.category}
-                color={point.color}
+                color={pinColors?.[point.id] ?? point.color}
                 label={numbered ? i + 1 : undefined}
                 name={point.name}
                 selected={point.id === selectedPointId}
