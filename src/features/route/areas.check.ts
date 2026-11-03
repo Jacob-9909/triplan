@@ -30,6 +30,14 @@ const r3 = groupAreas([P("p", 37.5, 127.0), P("q", 37.59, 127.0)]);
 assert.equal(r3.groups.length, 0);
 assert.deepEqual(r3.loose.map((l) => l.nearestGroup), [null, null]);
 
+// (c2) 1.6km 떨어진 두 곳은 구역은 아니지만, 서로가 가장 가까운 곳으로 이유에 나온다
+const r5 = groupAreas([P("s1", 37.5446, 127.0557), P("s2", 37.5444, 127.0374)]);
+assert.equal(r5.groups.length, 0);
+assert.deepEqual(r5.loose.map((l) => l.nearestPlace?.id), ["s2", "s1"]);
+assert.ok((r5.loose[0].walkMin ?? 0) > 0);
+// 10km 떨어지면 가장 가까운 곳도 없다
+assert.deepEqual(r3.loose.map((l) => l.nearestPlace), [null, null]);
+
 // (d) 1km 안쪽 8곳, 각 2시간 → 구역마다 9시간 이하이거나 "하루보다 김", 장소는 하나도 빠지지 않는다
 const dense = Array.from({ length: 8 }, (_, i) => P(`d${i}`, 37.57 + (i % 4) * 0.002, 126.98 + Math.floor(i / 4) * 0.003, 120));
 const r4 = groupAreas(dense);

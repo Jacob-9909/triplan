@@ -15,10 +15,14 @@ export interface AreaGroup {
   center: { lat: number; lng: number };
 }
 
-/** 어느 구역에도 넣지 않은 곳. nearestGroup 이 null 이면 다른 곳과 멀다 */
+/** 어느 구역에도 넣지 않은 곳. nearestPlace 가 null 이면 3km 안에 다른 곳이 없다 */
 export interface LoosePlace {
   point: MapPoint;
+  /** 가장 가까운 장소 (구역 안이든 아니든) */
+  nearestPlace: MapPoint | null;
+  /** 그 장소가 든 구역 */
   nearestGroup: number | null;
+  /** 그 장소까지 추정 도보(분) */
   walkMin: number | null;
 }
 
@@ -106,16 +110,19 @@ export function groupAreas(input: MapPoint[]): { groups: AreaGroup[]; loose: Loo
   const loose: LoosePlace[] = parts
     .filter((part) => part.length === 1)
     .map(([point]) => {
-      let nearestGroup: number | null = null;
       let nearest: MapPoint | null = null;
       let best = FAR_KM;
-      groups.forEach((g, gi) =>
-        g.points.forEach((p) => {
-          const d = haversineKm(point, p);
-          if (d <= best) [best, nearestGroup, nearest] = [d, gi, p];
-        })
-      );
-      return { point, nearestGroup, walkMin: nearest ? estimateDirections(point, nearest, "walk").durationMin : null };
+      for (const p of points) {
+        const d = haversineKm(point, p);
+        if (p !== point && d <= best) [best, nearest] = [d, p];
+      }
+      const gi = nearest ? groups.findIndex((g) => g.points.includes(nearest!)) : -1;
+      return {
+        point,
+        nearestPlace: nearest,
+        nearestGroup: gi >= 0 ? gi : null,
+        walkMin: nearest ? estimateDirections(point, nearest, "walk").durationMin : null,
+      };
     })
     .sort((x, y) => x.point.id.localeCompare(y.point.id));
 

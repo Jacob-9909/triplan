@@ -228,6 +228,26 @@ const en: Record<string, string> = {
   "구글 지도에서 대중교통 보기": "Transit in Google Maps",
   "지도 앱에서 열기": "Open in maps app",
   "시간·비용 고치기": "Edit time & cost",
+
+  // 후보함 구역 제안 (features/route/AreaGroups.tsx)
+  "구역으로 묶기": "Group into areas",
+  "구역 {n}": "Area {n}",
+  "구역 제안": "Suggested areas",
+  "걸어서 다닐 만한 곳끼리 묶었어요. Day를 고르면 구역째 옮겨요": "Places you can walk between are grouped. Pick a day to move a whole area.",
+  "목록으로": "Back to list",
+  "묶을 만큼 가까운 곳이 없어요": "No places are close enough to group",
+  "장소 사이 평균 도보": "avg. walk between places",
+  "약 {time}": "~{time}",
+  "머무는 시간 포함 하루 분량": "for the day incl. stays",
+  "하루보다 길어요": "Longer than a day",
+  "{area}을(를) 옮길 Day": "Day to move {area} to",
+  "옮기는 중…": "Moving…",
+  "Day 고르기": "Pick a day",
+  "애매한 곳": "Doesn't fit an area",
+  "{place} 근처 (도보 {time})": "Near {place} ({time} walk)",
+  "이름 짓는 중…": "Naming…",
+  "다른 곳과 멀어요": "Far from the others",
+  "장소를 눌러 직접 Day로 옮기세요": "Tap a place to move it to a day yourself",
   "{name} 순서 바꾸기": "Reorder {name}",
 };
 

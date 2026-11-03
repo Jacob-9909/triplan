@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Hourglass, Inbox, MapPin, Route, Undo2, X } from "lucide-react";
+import { GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { usePrefs } from "@/i18n/I18nProvider";
@@ -33,6 +33,8 @@ export interface DayPlanProps {
   renderLeg: (leg: RouteLeg, from: MapPoint, to: MapPoint) => ReactNode;
   /** 동선 정리. 순서가 바뀌었으면 true */
   onOptimize?: () => boolean;
+  /** 후보함을 걸어서 다닐 만한 구역으로 묶어 보기 */
+  onGroup?: () => void;
   /** 정리 직후 되돌리기 */
   onUndo?: () => void;
   onOpen: (point: MapPoint) => void;
@@ -42,7 +44,7 @@ export interface DayPlanProps {
  * 하루 일정 한 장: 머리(요약·동선 정리) + 장소 카드와 그 사이 이동 구간.
  * 카드를 누르면 상세, 손잡이를 끌면 순서 변경(키보드도 됨).
  */
-export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, renderLeg, onOptimize, onUndo, onOpen }: DayPlanProps) {
+export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, renderLeg, onOptimize, onGroup, onUndo, onOpen }: DayPlanProps) {
   const { t, locale, money } = usePrefs();
   const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
   const legAfter = useMemo(() => new Map(legs.map((l) => [l.from_point_id, l])), [legs]);
@@ -118,6 +120,15 @@ export default function DayPlan({ points, legs, bin = false, onReorder, onDelete
               <Route size={14} aria-hidden /> {already ? t("이미 가장 짧은 순서예요") : t("동선 정리")}
             </button>
           )
+        )}
+        {bin && onGroup && points.length >= 3 && (
+          <button
+            type="button"
+            onClick={onGroup}
+            className="flex shrink-0 items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary-strong transition hover:bg-primary hover:text-white"
+          >
+            <LayoutGrid size={14} aria-hidden /> {t("구역으로 묶기")}
+          </button>
         )}
       </header>
 

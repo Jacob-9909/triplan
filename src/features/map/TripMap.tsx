@@ -15,6 +15,8 @@ export interface TripMapProps {
   selectedLegId?: string | null;
   /** 흐린 대안 경로를 누르면 그 이동수단으로 */
   onRouteOptionClick?: (legId: string, method: RouteLeg["method"]) => void;
+  /** 핀 색 덮어쓰기 (후보함 구역 보기: 장소 id → 구역 색) */
+  pinColors?: Record<string, string>;
   /** 포인트에 연결된 지출 (팝업 정보 카드용) */
   expenses?: Expense[];
   selectedPointId?: string | null;

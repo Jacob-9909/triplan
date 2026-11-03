@@ -4,7 +4,7 @@
  */
 
 const URL_CHAT = "https://integrate.api.nvidia.com/v1/chat/completions";
-// 2026-11 기준 빠르고(약 2초) JSON 을 잘 지키는 모델. glm-5.3-flash 는 생각 단계 때문에 20~40초 걸린다
+// 2026-11 기준 JSON 을 잘 지키는 빠른 편 모델. glm-5.3-flash 는 생각 단계 때문에 20~40초 걸린다
 const MODEL = "minimaxai/minimax-m3.1-flash";
 const MAX_NAME = 30;
 
@@ -61,7 +61,8 @@ export async function nimAreaNames(
           },
         },
       }),
-      signal: AbortSignal.timeout(10_000),
+      // 무료 엔드포인트라 응답이 5~25초로 들쭉날쭉하다. 화면은 기다리는 동안 "이름 짓는 중" 을 보여 준다
+      signal: AbortSignal.timeout(20_000),
       cache: "no-store",
     });
     return res.ok ? parseNimNames(await res.json(), groups.length) : null;

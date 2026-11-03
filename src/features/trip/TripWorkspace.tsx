@@ -20,7 +20,7 @@ import {
   Lock,
 } from "lucide-react";
 import type { Access, Expense, MapPoint, RouteLeg, RouteOption, Trip } from "@/lib/types";
-import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
+import { apiDelete, apiPatch, apiPost, setTripToken } from "@/lib/api";
 import { useSyncStatus } from "@/lib/realtime";
 import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg } from "./useTripData";
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
@@ -31,6 +31,8 @@ import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
 import DayPlan from "@/features/route/DayPlan";
 import LegCard from "@/features/route/LegCard";
+import AreaGroups, { AREA_COLORS, LOOSE_COLOR } from "@/features/route/AreaGroups";
+import { groupAreas } from "@/features/route/areas";
 import { chipMethods } from "@/features/route/routeOptions";
 import { estimateDirections, fetchDirections } from "@/features/route/directions";
 import { adjacentLegs, formatDuration } from "@/features/route/schedule";
@@ -72,7 +74,7 @@ const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
  * mode="edit" | "view": 공유 링크·체험 회원 화면
  */
 export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: Access }) {
-  const { t, locale } = usePrefs();
+  const { t, locale, df } = usePrefs();
   const inApp = mode === "admin";
   // 로그인 화면에서는 이전에 열었던 공유 링크 토큰을 쓰지 않는다
   if (inApp) setTripToken(null);
@@ -123,6 +125,47 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 후보함은 순서가 없으니 이동 구간도 없다
   const dayLegs = useMemo(() => (inBin ? [] : adjacentLegs(dayPoints, legs)), [legs, dayPoints, inBin]);
   const binCount = points.filter((p) => p.day_number == null).length;
+
+  // 후보함 구역 제안: 묶기는 여기서 계산하고, 이름만 서버(NIM)에 묻는다
+  const [areaOpen, setAreaOpen] = useState(false);
+  const areas = useMemo(() => (areaOpen && inBin ? groupAreas(dayPoints) : null), [areaOpen, inBin, dayPoints]);
+  const areaKey = areas?.groups.map((g) => g.points.map((p) => p.id).join(",")).join("|") ?? "";
+  const [areaNames, setAreaNames] = useState<{ key: string; names: (string | null)[] }>({ key: "", names: [] });
+  const [movingArea, setMovingArea] = useState<number | null>(null);
+  useEffect(() => {
+    if (!areas || areas.groups.length === 0 || areaNames.key === areaKey) return;
+    const key = areaKey;
+    void apiPost<{ names: (string | null)[] }>("/api/areas/name", {
+      trip_id: tripId,
+      locale,
+      region: [trip?.country, trip?.region].filter(Boolean).join(" "),
+      groups: areas.groups.map((g) => ({ places: g.points.map((p) => p.name), lat: g.center.lat, lng: g.center.lng })),
+    })
+      .then((r) => setAreaNames({ key, names: r.names }))
+      .catch(() => setAreaNames({ key, names: [] }));
+  }, [areaKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pinColors = useMemo(() => {
+    if (!areas) return undefined;
+    const out: Record<string, string> = {};
+    areas.groups.forEach((g, i) => g.points.forEach((p) => (out[p.id] = AREA_COLORS[i % AREA_COLORS.length])));
+    for (const l of areas.loose) out[l.point.id] = LOOSE_COLOR;
+    return out;
+  }, [areas]);
+
+  /** 구역째 Day 로: 그날 마지막 장소 뒤에 순서대로 붙이고 구간을 잇는다 (경로는 그날을 열 때 받는다) */
+  async function moveGroup(ids: string[], target: number) {
+    const dest = pointsOf(target);
+    const base = Math.max(0, ...dest.map((x) => x.visit_order ?? 0));
+    for (const [i, id] of ids.entries()) await apiPatch(`/api/map-points/${id}`, { day_number: target, visit_order: base + i + 1 });
+    setPoints((prev) =>
+      prev.map((p) => (ids.includes(p.id) ? { ...p, day_number: target, visit_order: base + ids.indexOf(p.id) + 1 } : p))
+    );
+    const chain = [...(dest.length ? [dest[dest.length - 1].id] : []), ...ids];
+    for (let i = 0; i < chain.length - 1; i++) {
+      const leg = await ensureLeg(tripId, chain[i], chain[i + 1]);
+      if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+    }
+  }
   const tripDays = trip ? (nights(trip) ?? -1) + 1 : 0;
   /** 동선 정리 직후 되돌리기용: 정리 전·후 순서 */
   const [undo, setUndo] = useState<{ day: number; before: string[]; after: string[] } | null>(null);
@@ -521,6 +564,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         routeOptions={routes.options}
                         selectedLegId={selectedLegId}
                         onRouteOptionClick={canEdit ? routes.choose : undefined}
+                        pinColors={pinColors}
                         expenses={expenses}
                         defaultCenter={getTripCenter(trip.country, trip.region)}
                         labelCountry={trip.country}
@@ -543,40 +587,66 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                     </div>
                   </div>
                   <div className="lg:col-span-2">
-                    <DayPlan
-                      points={dayPoints}
-                      legs={dayLegs}
-                      bin={inBin}
-                      onOpen={(p) => {
-                        setDetailId(p.id);
-                        // 데스크톱에선 옆 지도도 그 장소로 옮겨 간다
-                        setSelectedPointId(p.id);
-                      }}
-                      onReorder={canEdit ? handleReorder : undefined}
-                      onDelete={canEdit ? handlePointDelete : undefined}
-                      renderLeg={(leg, from, to) => (
-                        <LegCard
-                          leg={leg}
-                          from={from}
-                          to={to}
-                          options={routes.options.filter((o) => o.leg_id === leg.id)}
-                          status={routes.status}
-                          open={selectedLegId === leg.id}
-                          onToggle={() => setSelectedLegId((cur) => (cur === leg.id ? null : leg.id))}
-                          onChoose={canEdit ? (m) => routes.choose(leg.id, m) : undefined}
-                          onEdit={canEdit ? () => setLegEditId(leg.id) : undefined}
-                        />
-                      )}
-                      onOptimize={canEdit ? handleOptimize : undefined}
-                      onUndo={
-                        canUndo && undo
-                          ? () => {
-                              void handleReorder(undo.before);
-                              setUndo(null);
-                            }
-                          : undefined
-                      }
-                    />
+                    {areas ? (
+                      <AreaGroups
+                        groups={areas.groups}
+                        loose={areas.loose}
+                        names={areaNames.key === areaKey ? areaNames.names : undefined}
+                        days={Array.from({ length: tripDays }, (_, i) => ({
+                          day: i + 1,
+                          label: trip.start_date
+                            ? `Day ${i + 1} · ${format(addDays(parseISO(trip.start_date), i), t("M/d(E)"), { locale: df })}`
+                            : `Day ${i + 1}`,
+                        }))}
+                        busy={movingArea}
+                        onMove={async (gi, target) => {
+                          setMovingArea(gi);
+                          try {
+                            await moveGroup(areas.groups[gi].points.map((p) => p.id), target);
+                          } finally {
+                            setMovingArea(null);
+                          }
+                        }}
+                        onOpen={(p) => setDetailId(p.id)}
+                        onClose={() => setAreaOpen(false)}
+                      />
+                    ) : (
+                      <DayPlan
+                        points={dayPoints}
+                        legs={dayLegs}
+                        bin={inBin}
+                        onOpen={(p) => {
+                          setDetailId(p.id);
+                          // 데스크톱에선 옆 지도도 그 장소로 옮겨 간다
+                          setSelectedPointId(p.id);
+                        }}
+                        onReorder={canEdit ? handleReorder : undefined}
+                        onDelete={canEdit ? handlePointDelete : undefined}
+                        renderLeg={(leg, from, to) => (
+                          <LegCard
+                            leg={leg}
+                            from={from}
+                            to={to}
+                            options={routes.options.filter((o) => o.leg_id === leg.id)}
+                            status={routes.status}
+                            open={selectedLegId === leg.id}
+                            onToggle={() => setSelectedLegId((cur) => (cur === leg.id ? null : leg.id))}
+                            onChoose={canEdit ? (m) => routes.choose(leg.id, m) : undefined}
+                            onEdit={canEdit ? () => setLegEditId(leg.id) : undefined}
+                          />
+                        )}
+                        onOptimize={canEdit ? handleOptimize : undefined}
+                        onUndo={
+                          canUndo && undo
+                            ? () => {
+                                void handleReorder(undo.before);
+                                setUndo(null);
+                              }
+                            : undefined
+                        }
+                        onGroup={canEdit ? () => setAreaOpen(true) : undefined}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
