@@ -126,7 +126,48 @@ export interface RouteLeg {
   duration_min: number | null; // 예상 이동시간(분)
   distance_km: number | null;
   cost: number | null;
+  /** 사람이 이동수단을 직접 골랐는지. false 면 거리로 정한 기본값 */
+  method_chosen?: boolean;
+  /** 사람이 시간을 직접 고쳤는지. true 면 경로를 다시 받아도 덮어쓰지 않는다 */
+  duration_manual?: boolean;
   created_at: string;
+}
+
+/** 대중교통 경로의 한 단계 (걷기 또는 탈것) */
+export interface RouteStep {
+  mode: "walk" | "subway" | "bus" | "rail" | "other";
+  minutes: number;
+  /** 노선 이름 (예: 2호선, 472) */
+  line?: string | null;
+  /** 노선 색 #rrggbb */
+  color?: string | null;
+  stops?: number | null;
+  /** 타는 곳·내리는 곳 이름 */
+  from?: string | null;
+  to?: string | null;
+  /** [lng, lat] */
+  shape: [number, number][];
+}
+
+/** 구간·이동수단마다 한 번 받아 저장해 두는 실제 경로 */
+export interface RouteOption {
+  id: string;
+  trip_id: string;
+  leg_id: string;
+  method: RouteLeg["method"];
+  source: "valhalla" | "odsay";
+  duration_min: number;
+  distance_km: number;
+  fare_krw: number | null;
+  /** [lng, lat] */
+  shape: [number, number][];
+  steps: RouteStep[] | null;
+  /** 받을 때의 양 끝 좌표 (핀이 옮겨지면 다시 받는다) */
+  from_lat: number;
+  from_lng: number;
+  to_lat: number;
+  to_lng: number;
+  fetched_at: string;
 }
 
 /** 가계부 항목 */
