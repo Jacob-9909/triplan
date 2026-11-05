@@ -57,11 +57,11 @@ const en: Record<string, string> = {
   "아직 공개된 여행이 없어요.": "No trips shared yet.",
 
   // 랜딩
-  "산토리니 · 그리스": "Santorini · Greece",
-  "교토 · 일본": "Kyoto · Japan",
-  "베네치아 · 이탈리아": "Venice · Italy",
-  "인터라켄 · 스위스": "Interlaken · Switzerland",
-  "시드니 · 호주": "Sydney · Australia",
+  "산토리니, 그리스": "Santorini, Greece",
+  "교토, 일본": "Kyoto, Japan",
+  "베네치아, 이탈리아": "Venice, Italy",
+  "인터라켄, 스위스": "Interlaken, Switzerland",
+  "시드니, 호주": "Sydney, Australia",
   "가고 싶은 곳을 모아 두기": "Collect places you want to go",
   "언젠가 가 보고 싶은 나라와 도시를 세계지도에 핀으로 저장해요. 마음이 정해지면 바로 여행으로 바꿔요.":
     "Pin the countries and cities you want to visit someday on a world map. When you're ready, turn one into a trip.",
@@ -77,10 +77,27 @@ const en: Record<string, string> = {
   "꿈꾸던 여행지를 모아 두고, 지도 위에서 하루씩 계획하고, 링크 하나로 동행자와 나눠요.":
     "Collect dream destinations, plan each day on a map, and share with your travel buddies through one link.",
   "내 여행 열기": "Open my trips",
-  "이렇게 써요": "How it works",
   "여행 준비의 처음부터 끝까지, 한 화면에서": "Trip planning from start to finish, on one screen",
-  "Triplan · 가고 싶은 곳을 모으고 함께 계획하는 여행 플래너":
-    "Triplan · A travel planner for collecting dream places and planning together",
+  "가고 싶은 곳을 모으고 함께 계획하는 여행 플래너": "A travel planner for collecting dream places and planning together",
+  "교토, 1일차": "Kyoto, day 1",
+  "기요미즈데라": "Kiyomizu-dera",
+  "니넨자카": "Ninenzaka",
+  "기온 거리": "Gion",
+  "가모가와 강변": "Kamo riverside",
+  "충전기": "Charger",
+  "우산": "Umbrella",
+  "교통카드": "Transit card",
+  "챙김": "packed",
+  "장소를 검색해 핀을 꽂고, 드래그로 동선을 정리해요.": "Search places, drop pins, and drag to arrange your route.",
+  "식비": "Food",
+  "합계": "Total",
+  "준비물": "Packing",
+  "편집 링크": "Edit link",
+  "보기 링크": "View link",
+  "일정 탭: 지도 위 핀과 하루 동선": "Plan tab: pins on the map and the day's route",
+  "가계부 탭: 항목별 지출": "Budget tab: spending by category",
+  "준비물 탭: 체크리스트": "Packing tab: checklist",
+  "공유 창: 편집 링크와 보기 링크": "Share dialog: edit link and view link",
 
   // 로그인
   "로그인하지 못했어요.": "Couldn't log in.",

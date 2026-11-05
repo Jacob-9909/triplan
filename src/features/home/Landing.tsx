@@ -1,157 +1,207 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Heart, Map, MapPin, Users } from "lucide-react";
+import { Check } from "lucide-react";
 import { Logo } from "@/features/shell/AppShell";
 import CoverPhoto from "@/features/ui/CoverPhoto";
 import PrefsToggle from "@/i18n/PrefsToggle";
 import { useT } from "@/i18n/I18nProvider";
+import "./landing.css";
 
-const SLIDES = [
-  { country: "그리스", city: undefined, caption: "산토리니 · 그리스" }, // i18n-ignore: country·city 는 사진 조회 키
-  { country: "일본", city: "교토", caption: "교토 · 일본" }, // i18n-ignore: country·city 는 사진 조회 키
-  { country: "이탈리아", city: "베네치아", caption: "베네치아 · 이탈리아" }, // i18n-ignore: country·city 는 사진 조회 키
-  { country: "스위스", city: "인터라켄", caption: "인터라켄 · 스위스" }, // i18n-ignore: country·city 는 사진 조회 키
-  { country: "호주", city: "시드니", caption: "시드니 · 호주" }, // i18n-ignore: country·city 는 사진 조회 키
+const PLACES = [
+  { country: "그리스", city: undefined, caption: "산토리니, 그리스" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "일본", city: "교토", caption: "교토, 일본" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "이탈리아", city: "베네치아", caption: "베네치아, 이탈리아" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "스위스", city: "인터라켄", caption: "인터라켄, 스위스" }, // i18n-ignore: country·city 는 사진 조회 키
+  { country: "호주", city: "시드니", caption: "시드니, 호주" }, // i18n-ignore: country·city 는 사진 조회 키
 ];
 
-const FEATURES = [
-  {
-    icon: Heart,
-    title: "가고 싶은 곳을 모아 두기",
-    body: "언젠가 가 보고 싶은 나라와 도시를 세계지도에 핀으로 저장해요. 마음이 정해지면 바로 여행으로 바꿔요.",
-    tone: "bg-primary-soft text-primary-strong",
-  },
-  {
-    icon: Map,
-    title: "지도 위에서 하루씩 계획",
-    body: "장소를 검색해 핀을 꽂고, 드래그로 동선을 정리하고, 가계부와 준비물까지 한곳에서 챙겨요.",
-    tone: "bg-teal-soft text-mint",
-  },
-  {
-    icon: Users,
-    title: "링크 하나로 함께 편집",
-    body: "동행자는 초대하거나 편집 링크로, 가족은 보기 링크로. 누가 고치면 모두의 화면에 바로 보여요.",
-    tone: "bg-surface-muted text-foreground",
-  },
+// 제품 화면 샘플: 실제 화면을 캡처하면 data-slot 자리를 그 이미지로 바꾼다
+const STOPS = [
+  { name: "기요미즈데라", time: "09:00", x: 22, y: 30 },
+  { name: "니넨자카", time: "11:30", x: 44, y: 52 },
+  { name: "기온 거리", time: "14:00", x: 63, y: 38 },
+  { name: "가모가와 강변", time: "17:30", x: 80, y: 66 },
+];
+const BUDGET = [
+  { label: "숙소", amount: "₩420,000" },
+  { label: "교통", amount: "₩180,000" },
+  { label: "식비", amount: "₩150,000" },
+];
+const PACKING = [
+  { label: "여권", done: true },
+  { label: "충전기", done: true },
+  { label: "우산", done: false },
+  { label: "교통카드", done: false },
 ];
 
 export default function Landing() {
   const t = useT();
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const timer = setInterval(() => setI((v) => (v + 1) % SLIDES.length), 5200);
-    return () => clearInterval(timer);
-  }, []);
-  const slide = SLIDES[i];
+  const hero = PLACES[0];
 
   return (
-    <main className="min-h-dvh">
-      {/* 히어로: 사진이 천천히 확대되며 바뀌는 슬라이드 */}
-      <section className="relative isolate flex min-h-[88dvh] flex-col overflow-hidden text-white">
-        <AnimatePresence mode="sync">
-          <motion.div
-            key={slide.caption}
-            className="absolute inset-0 -z-10"
-            initial={{ opacity: 0, scale: 1.08 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ opacity: { duration: 1.2 }, scale: { duration: 6.5, ease: "linear" } }}
-          >
-            <CoverPhoto country={slide.country} city={slide.city} scrim={false} />
-          </motion.div>
-        </AnimatePresence>
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-950/50 via-slate-950/5 to-slate-950/80" />
-
-        <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 pt-[max(1.25rem,env(safe-area-inset-top))] md:px-8">
+    <main className="landing">
+      <header className="l-nav">
+        <div className="l-container l-nav__row">
           <Logo tone="light" />
-          <PrefsToggle tone="light" className="ml-auto mr-2" />
-          <Link href="/login" className="btn bg-white/15 px-4 text-sm text-white backdrop-blur-md hover:bg-white/25">
+          <PrefsToggle tone="light" className="l-nav__prefs" />
+          <Link href="/login" className="l-btn l-btn--on-dark">
             {t("로그인")}
           </Link>
-        </header>
+        </div>
+      </header>
 
-        <div className="mx-auto mt-auto w-full max-w-6xl px-5 pb-14 md:px-8 md:pb-20">
-          <motion.p
-            key={slide.caption}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-1.5 rounded-full bg-black/25 px-3 py-1 text-xs font-semibold text-white/90 backdrop-blur-md"
-          >
-            <MapPin size={12} aria-hidden /> {t(slide.caption)}
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
-            className="mt-3 max-w-2xl text-4xl font-extrabold leading-[1.15] tracking-tight md:text-6xl"
-          >
-            {t("가고 싶은 곳에서")}
-            <br />
-            {t("함께 떠나는 여행까지.")}
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.7 }}
-            className="mt-4 max-w-md text-base text-white/88 md:text-lg"
-          >
-            {t("꿈꾸던 여행지를 모아 두고, 지도 위에서 하루씩 계획하고, 링크 하나로 동행자와 나눠요.")}
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.7 }}
-            className="mt-8 flex items-center gap-4"
-          >
-            <Link href="/login" className="btn btn-primary px-6 py-3.5 text-sm">
-              {t("내 여행 열기")} <ArrowRight size={16} />
+      <section className="l-hero">
+        <CoverPhoto country={hero.country} city={hero.city} scrim={false} />
+        <div className="l-hero__scrim" aria-hidden />
+        <div className="l-container l-hero__inner">
+          <div className="l-hero__copy">
+            <h1>
+              {t("가고 싶은 곳에서")}
+              <br />
+              {t("함께 떠나는 여행까지.")}
+            </h1>
+            <p className="lead">{t("꿈꾸던 여행지를 모아 두고, 지도 위에서 하루씩 계획하고, 링크 하나로 동행자와 나눠요.")}</p>
+            <Link href="/login" className="l-btn l-btn--primary">
+              {t("내 여행 열기")}
             </Link>
-            <div className="flex gap-1.5" aria-hidden>
-              {SLIDES.map((s, idx) => (
-                <span
-                  key={s.caption}
-                  className={`h-1.5 rounded-full bg-white transition-all duration-500 ${idx === i ? "w-6 opacity-100" : "w-1.5 opacity-40"}`}
-                />
-              ))}
-            </div>
-          </motion.div>
+          </div>
+          <p className="l-hero__credit">{t(hero.caption)}</p>
         </div>
       </section>
 
-      {/* 기능 소개 */}
-      <section className="topo">
-       <div className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-24">
-        <p className="eyebrow">{t("이렇게 써요")}</p>
-        <h2 className="mt-2 max-w-md text-2xl font-extrabold tracking-tight md:text-3xl">
-          {t("여행 준비의 처음부터 끝까지, 한 화면에서")}
-        </h2>
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          {FEATURES.map(({ icon: Icon, title, body, tone }, idx) => (
-            <motion.article
-              key={title}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ delay: idx * 0.1, duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
-              className="card p-6"
-            >
-              <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${tone}`}>
-                <Icon size={21} />
-              </span>
-              <p className="mt-5 font-mono text-xs font-semibold text-foreground/68">0{idx + 1}</p>
-              <h3 className="mt-1 text-lg font-bold tracking-tight">{t(title)}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-foreground/72">{t(body)}</p>
-            </motion.article>
+      <section className="l-tools">
+        <div className="l-container">
+          <h2>{t("여행 준비의 처음부터 끝까지, 한 화면에서")}</h2>
+          <div className="l-bento">
+            <article className="l-tile l-tile--lead">
+              <h3>{t("지도 위에서 하루씩 계획")}</h3>
+              <p>{t("장소를 검색해 핀을 꽂고, 드래그로 동선을 정리해요.")}</p>
+              <div className="l-screen" data-slot="plan" data-kind="product" data-alt={t("일정 탭: 지도 위 핀과 하루 동선")}>
+                <div className="l-map" aria-hidden>
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="l-map__base">
+                    <path className="l-map__street" d="M0 20 L100 26 M0 46 L100 50 M0 74 L100 78 M18 0 L24 100 M40 0 L46 100 M60 0 L64 100" />
+                    <path className="l-map__river" d="M90 0 C86 22 92 40 86 58 S82 86 88 100" />
+                  </svg>
+                  <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="l-map__route">
+                    <polyline points={STOPS.map((s) => `${s.x},${s.y}`).join(" ")} />
+                  </svg>
+                  {STOPS.map((s, idx) => (
+                    <span key={s.name} className="l-map__pin" style={{ left: `${s.x}%`, top: `${s.y}%` }}>
+                      {idx + 1}
+                    </span>
+                  ))}
+                </div>
+                <div className="l-day">
+                  <p className="l-day__title">{t("교토, 1일차")}</p>
+                  <ol className="l-day__stops">
+                    {STOPS.map((s) => (
+                      <li key={s.name}>
+                        <span>{t(s.name)}</span>
+                        <time className="num">{s.time}</time>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            </article>
+
+            <article className="l-tile">
+              <h3>{t("가계부")}</h3>
+              <div className="l-screen" data-slot="budget" data-kind="product" data-alt={t("가계부 탭: 항목별 지출")}>
+                <table className="l-budget">
+                  <tbody>
+                    {BUDGET.map((b) => (
+                      <tr key={b.label}>
+                        <th scope="row">{t(b.label)}</th>
+                        <td className="num">{b.amount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th scope="row">{t("합계")}</th>
+                      <td className="num">₩750,000</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </article>
+
+            <article className="l-tile">
+              <h3>{t("준비물")}</h3>
+              <div className="l-screen" data-slot="packing" data-kind="product" data-alt={t("준비물 탭: 체크리스트")}>
+                <ul className="l-pack">
+                  {PACKING.map((p) => (
+                    <li key={p.label} data-done={p.done || undefined}>
+                      <span className="l-pack__box" aria-hidden>
+                        {p.done && <Check size={14} strokeWidth={3} />}
+                      </span>
+                      {t(p.label)}
+                      {p.done && <span className="visually-hidden">{t("챙김")}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </article>
+
+            <article className="l-tile l-tile--wide">
+              <div className="l-tile__text">
+                <h3>{t("링크 하나로 함께 편집")}</h3>
+                <p>{t("동행자는 초대하거나 편집 링크로, 가족은 보기 링크로. 누가 고치면 모두의 화면에 바로 보여요.")}</p>
+              </div>
+              <div className="l-screen" data-slot="share" data-kind="product" data-alt={t("공유 창: 편집 링크와 보기 링크")}>
+                <dl className="l-links">
+                  <div>
+                    <dt>{t("편집 링크")}</dt>
+                    <dd>
+                      <code>/t/a8f3k2</code>
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>{t("보기 링크")}</dt>
+                    <dd>
+                      <code>/v/9mq1x7</code>
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="l-places">
+        <div className="l-container l-places__head">
+          <h2>{t("가고 싶은 곳을 모아 두기")}</h2>
+          <p className="lead">
+            {t("언젠가 가 보고 싶은 나라와 도시를 세계지도에 핀으로 저장해요. 마음이 정해지면 바로 여행으로 바꿔요.")}
+          </p>
+        </div>
+        <ul className="l-rail" tabIndex={0} aria-label={t("가고 싶은 곳을 모아 두기")}>
+          {PLACES.map((p) => (
+            <li key={p.caption}>
+              <figure>
+                <div className="l-rail__photo">
+                  <CoverPhoto country={p.country} city={p.city} scrim={false} />
+                </div>
+                <figcaption>{t(p.caption)}</figcaption>
+              </figure>
+            </li>
           ))}
-        </div>
-       </div>
+        </ul>
       </section>
 
-      <footer className="border-t border-border-subtle py-8 text-center text-xs text-foreground/68">
-        {t("Triplan · 가고 싶은 곳을 모으고 함께 계획하는 여행 플래너")}
+      <footer className="l-foot">
+        <div className="l-container">
+          <p className="l-foot__line">{t("가고 싶은 곳을 모으고 함께 계획하는 여행 플래너")}</p>
+          <Link href="/login" className="l-btn l-btn--primary">
+            {t("내 여행 열기")}
+          </Link>
+          <div className="l-foot__mark">
+            <Logo />
+          </div>
+        </div>
       </footer>
     </main>
   );

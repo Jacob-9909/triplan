@@ -88,6 +88,10 @@
 }
 
 /* 문서 스크롤바 자리를 항상 확보 → 콘텐츠 길이가 변해도 가로 정렬 고정 */
+html,
+body {
+  overflow-x: clip;
+}
 html {
   scrollbar-gutter: stable;
   -webkit-tap-highlight-color: transparent;
