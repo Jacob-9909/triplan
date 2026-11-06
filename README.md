@@ -2,148 +2,92 @@
 
 **English** | [한국어](README.ko.md)
 
-A travel planner that starts from the places you dream about. Save places you want to visit someday on a world map, turn one into a trip when you are ready, plan it day by day on a map with a timetable, budget, and packing list, and share it with one link so companions can edit along with you.
+A travel planner for collecting the places you want to go, planning a trip day by day on a map once it's decided, and editing it together with companions through a single link.
 
-- Demo: https://triplan-beryl.vercel.app
+Demo: https://triplan-beryl.vercel.app
 
-![Trip page: day tabs, route map with numbered pins and direction arrows, and the day's timetable](docs/screenshot.jpg)
+![Trip page: day tabs, a map with the day's route, and the day's timetable](docs/screenshot.jpg)
 
-## Features
+## How it works
 
-| Feature | Description |
-|---|---|
-| Wishlist | Save countries and cities you want to visit with a priority, memo, and tags. Pins on a world map. Turn any of them into a trip in one tap |
-| Day-by-day map | Search places (Kakao for Korea, OSM Photon worldwide) or tap the map or a POI icon to drop pins. The map opens at the city you picked, and each leg is drawn along real streets with arrows inside the line |
-| Visit order | Stops appear as chips joined by arrows (① → ② → ③). Drag a chip to reorder, tap it to open details |
-| Place details | Pick an icon (sight, restaurant, cafe, shopping, heritage, nature, stay, transport) and pin color, and attach photos, a link, and a memo to each stop |
-| Route tools | **Optimize route** reorders a day's stops to shorten the trip (the first stop stays put) with one-tap undo. A **Maybe list** tab holds places you haven't scheduled yet; open a place to move it to any day |
-| Timetable | Set arrival time and stay length per stop and travel mode and minutes per leg; the day becomes a timetable with arrival and departure times |
-| Area grouping | In the Maybe list, **Group into areas** groups places you can walk between (about 1.2 km apart), shows each area's average walk between places and roughly how long it takes as a day, and splits areas longer than 9 hours. Places that fit no area are listed with the nearest place and walk time. Pick a day on an area to move all of its places there; the day tab then shows the area name (named by NVIDIA NIM, or the district from OpenStreetMap). Grouping is computed, not generated |
-| Real routes | Walking, taxi/car and bike legs follow real streets (FOSSGIS Valhalla, OpenStreetMap). Open a leg to compare transit, walking and taxi side by side: the chosen route stays bold on the map and the others show faded; tap a card or a faded line to switch, and the timetable follows. In Korea, transit shows each step (walk, line, stops, fare) from ODsay, looked up live when you open the leg (never stored, per ODsay's terms; 30 lookups a day on the free plan). Japan transit shows an estimate with a link to Google Maps. Times you edit by hand are kept when routes are refetched |
-| Korean map labels | Labels with no Korean name in OpenStreetMap (shops, facilities, streets) are machine-translated to Korean as you move the map. A place picked from the map gets its Korean name beside the local one: `東京タワー (도쿄 타워)` |
-| Budget | Record expenses in local currency with automatic KRW conversion and per-day and per-category summaries. Amount input with comma formatting and quick-add buttons |
-| Packing and bookings | Checklist with templates, plus flight, hotel, and ticket records with D-day badges. Each day's plan shows that day's bookings on top (check-in, check-out, flights, tickets) with the confirmation number |
-| Splitting costs and budget | Add travel companions, pick who paid and who shares each expense, and get the fewest transfers that settle up ("A sends B ₩32,000"). Set a trip budget to see what's left and how much you can spend per remaining day |
-| Today mode | During a trip, the plan opens on today. A card shows where you should be now or the next stop with its ETA, and a **Directions** button opens Kakao Map in Korea or Google Maps elsewhere. Each leg card can also open the leg in a maps app with the start, the end, and the travel mode |
-| Weather and local info | Day tabs show the Open-Meteo forecast (no API key) from 16 days out. The prep tab shows the time difference and local time, plug type and voltage (with an adapter warning), emergency numbers, and tipping customs |
-| Trip journal | Once a trip starts, a **Record** tab adds a daily journal with weather and mood, star ratings and one-line reviews for each stop, and trip stats (places, distance, spending). Finished trips open on this tab |
-| Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
-| Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
-| Korean / English, home currency, light / dark | Switch language (한/EN), home currency (KRW, USD, EUR, JPY…; defaults to KRW in Korean and USD in English) and theme (system → light → dark) from the header; both are remembered in a cookie. English mode also translates country and city names and shows English map labels. Expenses are still stored in KRW; amounts show roughly converted to the home currency, and an expense in yen gets a small "≈ $8.12" beside it. Dark mode follows the OS by default |
-| Together | The live badge on the photo header shows who else has the trip open; tap it for a change history of who edited places, expenses, bookings and trip details. Deleting a place shows an **Undo** for a few seconds |
-| Opening hours | Opening hours are looked up in OpenStreetMap (and can be edited); the timetable warns when you arrive on a closed day or outside opening hours |
-| Calendar, print, copy | The More menu prints the itinerary (or saves a PDF), subscribes to it as a calendar (webcal, Google Calendar, .ics; built from the view link, so booking codes stay out) and copies the trip (places, order, legs and packing list only). Logged-in users who open a view link can **Copy to my trips** |
-| Cover, previews, recap | Change a trip's cover to a place photo or a photo URL. Share links pasted into chat apps show a preview card with the cover, title and D-day, and finished trips can make a recap card image from the Record tab |
-| Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA. Trips you have opened once stay readable offline (service worker; cleared on logout) |
+**1. Collect.** Save countries and cities you want to visit someday on a world map, with a priority and notes. When you're ready, one button turns a place into a trip.
 
-## Access Model
+**2. Plan.**
+- Search for places or tap the map to pin them to each day. Drag to reorder, or let **Optimize route** order them by travel distance.
+- Keep undecided places in the **Maybe** list, group them into walkable areas, and move a whole area to a day.
+- Each leg is drawn along real streets, and you can compare transit, walking and taxi.
+- Each day becomes a timetable with arrival and departure times, and it warns you when you'd arrive on a closed day or outside opening hours.
 
-There is no sign-up. One admin password protects everything, each trip carries two random tokens, and the admin creates member accounts (user or demo).
+**3. Prepare.**
+- Keep a packing checklist with templates, and record flight, hotel and ticket bookings. Bookings show up on top of that day's plan.
+- See the weather forecast and local info such as time difference, plugs and emergency numbers.
+- Subscribe to the plan as a calendar, or print it as an itinerary.
+
+**4. Share.**
+- Send companions an **edit link** and family a **view link**. No sign-up needed.
+- Edits show up on everyone's screen right away, along with who's viewing now and a change history.
+- Log expenses in local currency to get KRW totals, the fewest transfers to settle up, and a budget.
+
+**5. On the trip, and after.**
+- During the trip, today's plan and the next stop come first, with directions in Kakao Map or Google Maps. Trips you've opened once stay readable offline.
+- Afterwards, keep a daily journal and place ratings, make a recap card image, and collect passport stamps at `/archive`.
+
+Korean and English, a home currency, and light and dark themes are supported, and the app can be installed to the home screen (PWA).
+
+## Access
 
 | Who | How | Can do |
 |---|---|---|
-| Admin | Logs in with only `ADMIN_PASSWORD` (HMAC-signed cookie). The only admin | Everything: all trips, own wishlist, share links, members, delete |
-| User account | Logs in with an ID and password the admin created on the Members page | Own trips and wishlist. Invites other users to a trip by ID; invited users edit it after logging in. Only the owner (or admin) manages links, invites, and deletion |
-| Edit link `/t/<token>` | Opens the link | Edit that one trip's pins, plan, budget, checklist, bookings |
-| View link `/v/<token>` | Opens the link | Read that one trip. Booking codes and links are removed by the API |
-| Demo account | Logs in with an ID and password the admin created on the Members page | Read trips the admin marked "Show to demo accounts" in the share sheet. No place search, translation, or exchange rates |
+| Admin | Log in with `ADMIN_PASSWORD` | Everything (all trips, members) |
+| Member | Log in with an ID the admin created | Own trips, invite other members |
+| Edit link `/t/<token>` | Anyone with the link | Edit that one trip |
+| View link `/v/<token>` | Anyone with the link | Read that one trip (booking codes hidden) |
+| Demo member | Log in with an ID the admin created | Read only trips marked as public |
 
-Links can be regenerated at any time, which immediately disables the old one. Changes appear on everyone's open trip page within about a second (Postgres `NOTIFY` → Server-Sent Events), or every few seconds by polling if a proxy blocks the stream. Every API route checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
+Links can be reissued at any time, which blocks the old one immediately. Every API checks access on the server ([`src/lib/auth.ts`](src/lib/auth.ts)).
 
-## How Korean Labels Work
-
-1. When the map stops moving, the app collects the visible labels that have no `name:ko`.
-2. It sends them in batches to `/api/translate`, guessing the source language from kana or the trip's country.
-3. The server answers from a shared cache table (`triplan.name_translations`) and asks the free [MyMemory](https://mymemory.translated.net/) API only for names it has not seen.
-4. The answers are swapped into the map's label expression, so an area you have seen once shows in Korean right away.
-
-The free limit is about 5,000 characters a day, or 50,000 with `MYMEMORY_EMAIL` set. When it runs out, labels stay in the local language. Translations are machine-made, so names can be off; place names are editable.
-
-## Tech Stack
-
-- Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, framer-motion
-- PostgreSQL 17 via `pg` (tables in the `triplan` schema), self-hosted on an Oracle Cloud VM
-- MapLibre with the OpenFreeMap Liberty style (restaurant, cafe, sight, and station icons; Carto as fallback, Mapbox with a token), dnd-kit, date-fns
-- MyMemory translation API (free, no key)
-- Routes: FOSSGIS Valhalla (free, no key) and ODsay LAB (Korea transit, free key)
-
-## Getting Started
-
-### 1. Database
-
-Apply the files in [`supabase/migrations/`](supabase/migrations) in order to any Postgres 13+. The app role must own the `triplan` tables: RLS is enabled with no policies, so only the owner can read them. Only the Next.js server talks to the database.
-
-For local development you can use any Postgres instead:
+## Run locally
 
 ```bash
+# 1. Start Postgres and apply the migrations in order
 docker run -d --name triplan-pg -e POSTGRES_PASSWORD=triplan -e POSTGRES_DB=triplan -p 5433:5432 postgres:16-alpine
 for f in supabase/migrations/*.sql; do docker exec -i triplan-pg psql -U postgres -d triplan < "$f"; done
-```
 
-### 2. App
-
-```bash
+# 2. Run the app (log in at http://localhost:3000 with ADMIN_PASSWORD)
 npm install
 cp .env.example .env.local
 npm run dev
 ```
 
-Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
+Checks: `npm run lint`, `npm test` (self-checks for the calculation logic), `npm run build`.
 
-| Variable | Required | Purpose |
-|---|---|---|
-| `DATABASE_URL` | Yes | Postgres connection string |
-| `ADMIN_PASSWORD` | Yes | Admin login |
-| `SESSION_SECRET` | Yes | Signs the login cookie (32+ random characters) |
-| `SITE_URL` | No | Public origin for share-link previews (`og:image`), e.g. `https://triplan-beryl.vercel.app`. Without it, the request's `x-forwarded-proto`/`x-forwarded-host` (or `host`) is used |
-| `KAKAO_REST_KEY` | No | Place search in Korea |
-| `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
-| `MYMEMORY_EMAIL` | No | Raises the free translation limit |
-| `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
-| `NVIDIA_API_KEY` | No | Area names in the Maybe list (NVIDIA NIM). Without it, district names from OpenStreetMap are used |
-| `ODSAY_API_KEY` | No | Korea transit routes (ODsay LAB free key, bound to the server IP). Without it transit shows an estimate |
-| `SAMPLE_TRIP_PATH` | No | View-link path opened by the landing page's "Browse a sample trip" button (e.g. `/v/abc123`). Without it the button is hidden |
+### Environment variables
 
-### 3. Deploy (Oracle Cloud VM)
+Only `DATABASE_URL`, `ADMIN_PASSWORD` and `SESSION_SECRET` (32+ random characters) are required. The app works without the rest; each one turns something on or improves it.
 
-The app and the database run on the same VM. Postgres is reachable only on `127.0.0.1`, and Caddy terminates TLS in front of the app.
-
-| Piece | Where |
+| Variable | Adds |
 |---|---|
-| App | `node server.js` (standalone build) as systemd [`triplan.service`](deploy/triplan.service) on `127.0.0.1:8030` |
-| Secrets | `~/triplan/.env` on the VM (same variables as the table above) |
-| Database | Local PostgreSQL 17, `postgres` database, `triplan` schema owned by the `triplan` role |
-| CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml): lint and build on every push and PR. On `main`, SSH into the VM and run [`deploy/deploy.sh`](deploy/deploy.sh), which builds, swaps the release, and rolls back if `/api/health` fails |
+| `KAKAO_REST_KEY` | Place search in Korea |
+| `ODSAY_API_KEY` | Korean transit routes (otherwise an estimate) |
+| `NVIDIA_API_KEY` | AI-named areas in the Maybe list (otherwise neighbourhood names) |
+| `MYMEMORY_EMAIL` | Raises the map-label translation quota from 5,000 to 50,000 characters a day |
+| `EXCHANGE_RATE_API_KEY` | A keyed exchange-rate API (otherwise a free keyless endpoint) |
+| `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox instead of MapLibre |
+| `SITE_URL` | Base URL for share-link preview images, e.g. `https://triplan-beryl.vercel.app` |
+| `SAMPLE_TRIP_PATH` | A "Browse a sample trip" button on the landing page, e.g. `/v/abc123` |
 
-GitHub secrets: `VM_HOST`, `VM_SSH_KEY` (a key limited to `deploy.sh` with `command=` in `authorized_keys`), and `VM_KNOWN_HOSTS`.
+## Deploy
 
-`triplan-beryl.vercel.app` is only a proxy: [`deploy/vercel/vercel.json`](deploy/vercel/vercel.json) rewrites every path to the VM. Redeploy it from that folder (`cd deploy/vercel && vercel link --project triplan && vercel deploy --prod`). Running `vercel deploy` at the repository root would replace the proxy with a standalone Vercel build that has no database.
+The app and Postgres run on one Oracle Cloud VM, with Caddy in front for TLS. A push to `main` runs [CI](.github/workflows/ci-cd.yml): lint, tests and build, then [`deploy/deploy.sh`](deploy/deploy.sh) on the VM. If `/api/health` fails, it rolls back to the previous release.
 
-## Project Structure
+- **Apply new migrations on the VM yourself.** `deploy.sh` does not run them.
+- Secrets live in `~/triplan/.env` on the VM. The GitHub secrets are `VM_HOST`, `VM_SSH_KEY` and `VM_KNOWN_HOSTS`.
+- `triplan-beryl.vercel.app` is only a proxy to the VM ([`deploy/vercel/vercel.json`](deploy/vercel/vercel.json)). Redeploy it from `deploy/vercel`. Running `vercel deploy` from the repo root replaces the proxy with a build that has no database.
 
-```
-src/
-├── app/
-│   ├── (admin)/         Admin-only pages: wishlist, new trip, trip workspace
-│   ├── t/[token]/       Edit link
-│   ├── v/[token]/       View link
-│   ├── login/           Admin login
-│   └── api/             Route handlers (all access-checked)
-├── features/
-│   ├── home/            Landing and dashboard
-│   ├── wishlist/        Wishlist map, cards, form
-│   ├── trip/            Trip workspace, place details, share panel
-│   ├── map/             Map engine wrapper, pins, route arrows, Korean labels
-│   ├── route/           Day tabs, visit order chips, timetable
-│   ├── expenses/        Budget
-│   ├── prep/            Checklist and booking records
-│   ├── shell/           App shell (top bar, bottom tab bar)
-│   └── ui/              Cover photo, bottom sheet, money input, date helpers
-├── lib/                 DB pool, auth, translation, API client, types
-└── data/                Countries, cities, map centers, background photos
-supabase/migrations/     Database schema
-```
+## Tech stack
+
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · PostgreSQL 17 · MapLibre + OpenFreeMap. Routes come from Valhalla and ODsay, opening hours from OpenStreetMap (Overpass), translations from MyMemory, and weather from Open-Meteo.
 
 ## Credits
 
-Country and city photos are from Wikimedia Commons (city photos via `scripts/fetch-city-photos.mjs`). See [`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md). Map data © OpenStreetMap contributors, tiles by OpenFreeMap.
+Country and city photos are from Wikimedia Commons ([`public/backgrounds/CREDITS.md`](public/backgrounds/CREDITS.md)). Map data © OpenStreetMap contributors, tiles by OpenFreeMap.
