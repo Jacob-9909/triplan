@@ -16,6 +16,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint
+      # 자체 점검 (src/**/*.check.ts): 경로·정산·가계부 같은 계산을 배포 전에 확인
+      - run: npm test
       - run: npm run build
 
   deploy:

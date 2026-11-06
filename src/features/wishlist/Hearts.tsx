@@ -25,7 +25,7 @@ export default function Hearts({
         const heart = (
           <Heart
             size={size}
-            className={on ? "text-accent" : light ? "text-white/70" : "text-foreground/20"}
+            className={on ? "text-accent" : light ? "text-on-ink/70" : "text-foreground/20"}
             fill={on ? "currentColor" : "none"}
             strokeWidth={2.2}
           />

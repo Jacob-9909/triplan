@@ -5,9 +5,26 @@ const MAX_BYTES = 2.5 * 1024 * 1024;
 const MAX_PER_POINT = 12;
 const TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-/** GET ?point_id= : 사진 목록 (메타데이터만, 이미지 본문은 /api/point-photos/[id]) */
+/**
+ * GET ?point_id= : 장소 사진 목록 (메타데이터만, 이미지 본문은 /api/point-photos/[id])
+ * GET ?trip_id=  : 여행 전체 사진 (커버 고르기·기록 탭). 어느 장소 사진인지 같이 준다
+ */
 export async function GET(request: Request) {
-  const pointId = new URL(request.url).searchParams.get("point_id") ?? "";
+  const params = new URL(request.url).searchParams;
+  const tripParam = params.get("trip_id");
+  if (tripParam !== null) {
+    if (!UUID_RE.test(tripParam)) return jsonError("invalid trip_id", 400);
+    const access = await requireTrip(request, tripParam, "view");
+    if (access instanceof Response) return access;
+    const { rows } = await getPool().query<Row>(
+      `SELECT ph.id, ph.point_id, ph.width, ph.height, ph.created_at, p.name AS point_name, p.day_number
+         FROM triplan.point_photos ph JOIN triplan.map_points p ON p.id = ph.point_id
+        WHERE ph.trip_id = $1 ORDER BY p.day_number NULLS LAST, p.visit_order NULLS LAST, ph.created_at`,
+      [tripParam]
+    );
+    return Response.json(rows);
+  }
+  const pointId = params.get("point_id") ?? "";
   if (!UUID_RE.test(pointId)) return jsonError("invalid point_id", 400);
   const tripId = await tripIdOf("map_points", pointId);
   if (!tripId) return jsonError("not found", 404);

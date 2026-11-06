@@ -1,6 +1,8 @@
 import { getPool, jsonError, UUID_RE } from "@/lib/db";
 import { requireTrip } from "@/lib/auth";
-import { subscribeTrip } from "@/lib/realtime-server";
+import { joinPresence, subscribeTrip } from "@/lib/realtime-server";
+import { actorName } from "@/lib/activity";
+import { randomUUID } from "node:crypto";
 
 // 연결을 오래 열어 두는 스트림이라 캐시하지 않는다
 export const dynamic = "force-dynamic";
@@ -12,6 +14,8 @@ const HEARTBEAT_MS = 25_000;
  * 데이터는 보내지 않고 "어느 테이블이 바뀌었는지"만 알린다. 클라이언트는 그 목록을 API로 다시 불러온다.
  *   event: ready  data: <rev>     연결 직후
  *   event: change data: <table>   변경 (table 이 "*" 면 전부 다시 불러오기)
+ *   event: hello  data: <연결 id>  연결 직후 (접속자 목록에서 나를 빼는 데)
+ *   event: presence data: [{id,name}] 이 여행을 열어 둔 사람이 바뀔 때마다
  * 프록시가 스트림을 모아 두면 ready 가 늦게 오므로, 클라이언트는 그때 /rev 폴링으로 바꾼다.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -34,12 +38,14 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         }
       };
       let unsubscribe = () => {};
+      let leave = () => {};
       const heartbeat = setInterval(() => send(": ping\n\n"), HEARTBEAT_MS);
       cleanup = () => {
         if (closed) return;
         closed = true;
         clearInterval(heartbeat);
         unsubscribe();
+        leave();
         try {
           controller.close();
         } catch {}
@@ -61,8 +67,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       const { rows } = await getPool()
         .query<{ rev: string }>("SELECT rev::text FROM triplan.trips WHERE id = $1", [id])
         .catch(() => ({ rows: [] as { rev: string }[] }));
-      // 첫 조각을 2KB 넘게 채운다: Safari 와 일부 프록시는 1KB 미만이면 모아 두고 보내지 않는다
-      send(`: ${" ".repeat(2048)}\nretry: 3000\nevent: ready\ndata: ${rows[0]?.rev ?? "0"}\n\n`);
+      // 첫 조각을 2KB 넘게 채운다: Safari 와 일부 프록시는 1KB 미만이면 모아 두고 보내지 않는다.
+      // hello 는 이 연결의 id: 접속자 목록에서 자기 자신을 빼는 데 쓴다
+      const viewer = { id: randomUUID(), name: await actorName(request).catch(() => "@guest") };
+      send(`: ${" ".repeat(2048)}\nretry: 3000\nevent: hello\ndata: ${viewer.id}\n\nevent: ready\ndata: ${rows[0]?.rev ?? "0"}\n\n`);
+      if (closed) return;
+      leave = joinPresence(id, viewer, (list) => send(`event: presence\ndata: ${JSON.stringify(list)}\n\n`));
     },
     cancel() {
       cleanup();

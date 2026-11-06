@@ -1,5 +1,6 @@
 import { getPool, jsonError, type Row } from "@/lib/db";
 import { invalidPointField, listChildren, requireEditBody } from "@/lib/crud";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(request: Request) {
   return listChildren(request, "map_points", "visit_order ASC NULLS LAST", "지도 핀");
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
         b.stay_min ?? null,
       ]
     );
+    await logActivity(request, b.trip_id, "point.add", String(rows[0].name), { day: rows[0].day_number ?? null });
     return Response.json(rows[0]);
   } catch (err) {
     console.error("POST /api/map-points failed:", err);

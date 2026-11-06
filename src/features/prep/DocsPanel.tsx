@@ -101,6 +101,8 @@ export default function DocsPanel({
   const { docs, loading, addDoc, removeDoc } = useTravelDocs(tripId);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  /** 입력 칸은 "예약 추가"를 눌렀을 때만 펼친다 (늘 펼쳐 두면 칸 일곱 개가 목록보다 먼저 보였다) */
+  const [adding, setAdding] = useState(false);
 
   const setField =
     (key: keyof typeof EMPTY_FORM) =>
@@ -123,19 +125,27 @@ export default function DocsPanel({
     });
     setForm((prev) => ({ ...EMPTY_FORM, type: prev.type }));
     setSaving(false);
+    setAdding(false);
   };
 
   return (
     <section className="card fade-up p-6 lg:p-7">
-      <h2 className="flex items-center gap-2 text-lg font-bold">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
-          <Ticket size={18} />
-        </span>
-        {tr("여행 문서 보관함")}
-      </h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-lg font-bold">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
+            <Ticket size={18} />
+          </span>
+          {tr("여행 문서 보관함")}
+        </h2>
+        {!readOnly && !adding && (
+          <button type="button" onClick={() => setAdding(true)} className="btn btn-ghost shrink-0 px-3.5 text-sm">
+            <Plus size={15} aria-hidden /> {tr("예약 추가")}
+          </button>
+        )}
+      </div>
 
       {/* 등록 폼 */}
-      {!readOnly && (
+      {!readOnly && adding && (
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface-muted)] p-4 sm:grid-cols-4">
         <select
           aria-label={tr("종류")}
@@ -170,23 +180,25 @@ export default function DocsPanel({
           placeholder={tr("예약번호")}
           className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
         />
-        <input
-          type="date"
-          aria-label={tr("시작일")}
-          value={form.starts_at}
-          onChange={setField("starts_at")}
-          className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm outline-none focus:border-[var(--color-primary)]"
-        />
-        <div className="relative">
+        <label className="flex flex-col gap-1 text-[11px] font-semibold text-foreground/65">
+          {tr("시작일")}
           <input
             type="date"
-            aria-label={tr("종료일")}
-          value={form.ends_at}
+            value={form.starts_at}
+            onChange={setField("starts_at")}
+            className="rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm font-normal text-foreground outline-none focus:border-[var(--color-primary)]"
+          />
+        </label>
+        <label className="flex flex-col gap-1 text-[11px] font-semibold text-foreground/65">
+          {tr("종료일")}
+          <input
+            type="date"
+            value={form.ends_at}
             min={form.starts_at || undefined}
             onChange={setField("ends_at")}
-            className="w-full rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 pr-8 text-sm outline-none focus:border-[var(--color-primary)]"
+            className="w-full rounded-lg border border-[var(--border-subtle)] bg-surface px-3 py-2 text-sm font-normal text-foreground outline-none focus:border-[var(--color-primary)]"
           />
-        </div>
+        </label>
         <input
           aria-label={tr("링크 주소")}
           value={form.url}
@@ -207,6 +219,13 @@ export default function DocsPanel({
           )}
           {tr("등록")}
         </button>
+        <button
+          type="button"
+          onClick={() => setAdding(false)}
+          className="col-span-2 py-1 text-xs font-semibold text-foreground/65 hover:text-foreground sm:col-span-4"
+        >
+          {tr("취소")}
+        </button>
       </div>
       )}
 
@@ -218,7 +237,7 @@ export default function DocsPanel({
           {tr("등록된 문서가 없어요. 항공권·숙소 바우처를 저장해보세요!")}
         </p>
       ) : (
-        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+        <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
           <AnimatePresence initial={false}>
             {docs.map((doc) => (
               <DocCard
@@ -296,13 +315,17 @@ function DocCard({
                 .join(" · ")}
             </p>
           )}
-          <p className="mt-1 flex items-center gap-1 text-xs text-slate-600">
-            <CalendarDays size={12} />
-            {doc.starts_at
-              ? format(parseISO(doc.starts_at), t("M월 d일 (E)"), { locale: df })
-              : t("날짜 미정")}
-            {doc.ends_at &&
-              ` ~ ${format(parseISO(doc.ends_at), t("M월 d일"), { locale: df })}`}
+          <p className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-slate-600">
+            <CalendarDays size={12} className="shrink-0" />
+            <span className="whitespace-nowrap">
+              {doc.starts_at
+                ? format(parseISO(doc.starts_at), t("M월 d일 (E)"), { locale: df })
+                : t("날짜 미정")}
+            </span>
+            {/* 같은 날 끝나는 예약(항공권 등)은 날짜를 한 번만. 칸이 좁으면 끝 날짜는 다음 줄로 */}
+            {doc.ends_at && doc.ends_at.slice(0, 10) !== doc.starts_at?.slice(0, 10) && (
+              <span className="whitespace-nowrap">– {format(parseISO(doc.ends_at), t("M월 d일 (E)"), { locale: df })}</span>
+            )}
           </p>
           {dDay !== null && !ongoing && (
             <span

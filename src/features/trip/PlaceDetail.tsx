@@ -3,18 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { ExternalLink, ImagePlus, Link2, Loader2, Navigation, Trash2, X } from "lucide-react";
+import { Clock, ExternalLink, ImagePlus, Link2, Loader2, Navigation, Search, Trash2, X } from "lucide-react";
 import type { MapPoint, PointPhoto } from "@/lib/types";
-import { apiDelete, apiGet, apiUpload, photoUrl } from "@/lib/api";
+import { apiDelete, apiGet, apiPost, apiUpload, photoUrl } from "@/lib/api";
 import { useTripChanges } from "@/lib/realtime";
 import { categoryStyle, PointBadge } from "@/features/map/pointStyle";
 import StylePicker from "@/features/map/StylePicker";
 import { DEFAULT_STAY, formatDuration } from "@/features/route/schedule";
 import { directionsUrl } from "@/features/route/directions";
+import { parseOpeningHours } from "@/features/route/openingHours";
 import { usePrefs } from "@/i18n/I18nProvider";
 
 export type PointPatch = Partial<
-  Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min" | "rating" | "review">
+  Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min" | "rating" | "review" | "opening_hours">
 >;
 
 const STAY_PRESETS = [30, 60, 90, 120, 180, 240];
@@ -106,6 +107,10 @@ function Body({
   const [link, setLink] = useState(point.link_url ?? "");
   const [saved, setSaved] = useState<string | null>(null);
   const [stayCustom, setStayCustom] = useState(false);
+  // 고치는 중일 때만 값을 들고 있고, 아니면 저장된 값(자동으로 찾아 채워질 수도 있다)을 보여 준다
+  const [hoursDraft, setHoursDraft] = useState<string | null>(null);
+  const [hoursFrom, setHoursFrom] = useState<"osm" | "none" | null>(null);
+  const [findingHours, setFindingHours] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -158,6 +163,49 @@ function Body({
     }
   }
 
+  async function saveHours() {
+    if (hoursDraft === null) return;
+    const next = hoursDraft.trim();
+    // 비우면 '' 로 저장해 자동으로 다시 찾지 않는다
+    if (next !== (point.opening_hours ?? "")) {
+      setHoursFrom(null);
+      await save({ opening_hours: next }, "hours");
+    }
+    setHoursDraft(null);
+  }
+
+  async function findHours() {
+    setFindingHours(true);
+    setError(null);
+    setHoursFrom(null);
+    try {
+      const r = await apiPost<{ opening_hours: string; found: boolean }>("/api/places/hours", { point_id: point.id });
+      setHoursDraft(null);
+      setHoursFrom(r.found ? "osm" : "none");
+      // 서버에는 이미 저장됐다. 화면의 장소 목록도 같은 값으로 맞춘다
+      if (r.opening_hours !== (point.opening_hours ?? null)) setError(await onSave(point.id, { opening_hours: r.opening_hours }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("영업시간을 찾지 못했어요."));
+    } finally {
+      setFindingHours(false);
+    }
+  }
+
+  const hoursText = (hoursDraft ?? point.opening_hours ?? "").trim();
+  const hoursKnown = hoursText !== "" && parseOpeningHours(hoursText) !== null;
+  // 방금 찾아봤는데 없으면 그것부터 알려 준다 (적어 둔 값은 그대로 남는다)
+  const hoursUnreadable = hoursText !== "" && !hoursKnown && hoursFrom !== "none";
+  const hoursHint =
+    hoursFrom === "none" || (!hoursText && point.opening_hours === "")
+      ? t("OpenStreetMap에 영업시간 정보가 없어요")
+      : !hoursText
+        ? null
+        : hoursUnreadable
+          ? t("형식을 읽지 못했어요 — 경고 없이 메모로만 보여요")
+          : hoursFrom === "osm"
+            ? t("OpenStreetMap에서 가져왔어요 — 일정표에서 휴무일·영업시간 밖이면 알려 줘요")
+            : t("일정표에서 휴무일·영업시간 밖이면 알려 줘요");
+
   const linkTrim = link.trim();
   const linkValid = linkTrim === "" || /^https?:\/\//i.test(linkTrim);
 
@@ -178,7 +226,7 @@ function Body({
                   disabled={on}
                   onClick={async () => setError(await onMove(point.id, d))}
                   className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                    on ? "bg-ink text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+                    on ? "bg-ink text-on-ink" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
                   }`}
                 >
                   {d === null ? t("후보함") : `Day ${d}`}
@@ -225,7 +273,7 @@ function Body({
                         void save({ stay_min: m }, "time");
                       }}
                       className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                        on ? "bg-ink text-white" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
+                        on ? "bg-ink text-on-ink" : "bg-surface-muted text-foreground/72 hover:bg-primary-soft"
                       }`}
                     >
                       {formatDuration(m, locale)}
@@ -262,6 +310,44 @@ function Body({
               : t("{time} 머묾", { time: formatDuration(point.stay_min ?? DEFAULT_STAY, locale) })}
           </p>
         )}
+      </section>
+
+      {/* 영업시간 (OSM opening_hours 형식) */}
+      <section>
+        <h3 className="mb-2 flex items-center justify-between text-sm font-bold">
+          <span className="flex items-center gap-1.5">
+            {t("영업시간")} {saved === "hours" && <span className="text-xs font-medium text-mint">{t("저장됨")}</span>}
+          </span>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={() => void findHours()}
+              disabled={findingHours}
+              className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary-strong transition hover:bg-primary hover:text-white disabled:opacity-60"
+            >
+              {findingHours ? <Loader2 size={12} className="animate-spin" aria-hidden /> : <Search size={12} aria-hidden />}
+              {t("OpenStreetMap에서 찾기")}
+            </button>
+          )}
+        </h3>
+        {canEdit ? (
+          <div className="relative">
+            <Clock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-foreground/68" aria-hidden />
+            <input
+              value={hoursDraft ?? point.opening_hours ?? ""}
+              onChange={(e) => setHoursDraft(e.target.value)}
+              onBlur={() => void saveHours()}
+              onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+              maxLength={200}
+              placeholder="Mo-Fr 09:00-18:00; Sa 10:00-15:00"
+              aria-label={t("영업시간")}
+              className="input pl-9 font-mono text-sm"
+            />
+          </div>
+        ) : (
+          <p className="font-mono text-sm text-foreground/70">{point.opening_hours || t("영업시간 정보가 없어요")}</p>
+        )}
+        {hoursHint && (canEdit || hoursText) && <p className={`mt-1.5 text-xs ${hoursUnreadable ? "text-accent" : "text-foreground/68"}`}>{hoursHint}</p>}
       </section>
 
       {/* 분류·핀 색 */}
@@ -343,7 +429,7 @@ function Body({
             href={directionsUrl(point)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white"
+            className="inline-flex items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-on-ink"
           >
             <Navigation size={12} /> {t("길찾기")}
           </a>

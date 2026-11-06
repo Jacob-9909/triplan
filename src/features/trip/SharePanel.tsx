@@ -7,6 +7,7 @@ import { Check, Copy, Eye, Loader2, PencilLine, RefreshCw, Share, Trash2, UserPl
 import type { Trip } from "@/lib/types";
 import { ApiError, apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api";
 import Sheet from "@/features/ui/Sheet";
+import CalendarLinks from "./CalendarLinks";
 import { useT } from "@/i18n/I18nProvider";
 
 type Kind = "edit" | "view";
@@ -158,6 +159,13 @@ export default function SharePanel({
           );
         })}
       </div>
+
+      {/* 일정·예약을 폰 캘린더로. 보기 링크로 만들어 예약번호는 넘어가지 않는다 */}
+      {tokens.view && (
+        <div className="mt-3">
+          <CalendarLinks viewToken={tokens.view} />
+        </div>
+      )}
 
       {isAdmin && <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-2xl border border-border-subtle p-4">
         <input type="checkbox" checked={demo} onChange={() => void toggleDemo()} className="mt-1 h-4 w-4 accent-primary" />

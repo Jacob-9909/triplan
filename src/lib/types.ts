@@ -92,6 +92,8 @@ export interface MapPoint {
   rating?: number | null;
   /** 다녀온 뒤 한줄평 */
   review?: string | null;
+  /** OSM opening_hours 형식 영업시간. null 은 아직 찾아보지 않음, '' 는 찾아봤지만 없음 */
+  opening_hours?: string | null;
   created_at: string;
 }
 

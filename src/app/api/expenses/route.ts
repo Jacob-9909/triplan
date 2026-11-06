@@ -1,5 +1,6 @@
 import { getPool, jsonError, type Row } from "@/lib/db";
-import { invalidPointField, listChildren, pointsBelongTo, requireEditBody } from "@/lib/crud";
+import { activityDetail, invalidPointField, listChildren, pointsBelongTo, requireEditBody } from "@/lib/crud";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(request: Request) {
   return listChildren(request, "expenses", "spent_at ASC NULLS LAST, created_at ASC", "가계부");
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
         b.split_with ?? null,
       ]
     );
+    await logActivity(request, b.trip_id, "expense.add", String(rows[0].title), activityDetail(rows[0]));
     return Response.json(rows[0]);
   } catch (err) {
     console.error("POST /api/expenses failed:", err);

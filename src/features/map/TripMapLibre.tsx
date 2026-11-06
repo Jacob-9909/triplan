@@ -9,6 +9,8 @@ import { adaptKitComponent, type MapKit } from "./mapKit";
 import { TRIPOI_LAYER_IDS, TRIPOI_LAYER_PREFIX } from "./poiLayers";
 import { usePrefs } from "@/i18n/I18nProvider";
 import type { Locale } from "@/i18n/translate";
+import { useDarkMode } from "@/features/ui/useDarkMode";
+import { darkenStyle } from "./darkStyle";
 
 /**
  * 기본 지도: OpenFreeMap Liberty (키·사용량 제한 없음, OpenMapTiles 스키마).
@@ -166,11 +168,14 @@ const kit: MapKit = {
 /** 기본 실행 모드 — 토큰 없이 maplibre + OpenFreeMap Liberty(실패 시 Carto) 스타일로 렌더링 */
 export default function TripMapLibre(props: Omit<TripMapCoreProps, "kit" | "mapStyle" | "accessToken">) {
   const { locale } = usePrefs();
+  const dark = useDarkMode();
   const [loaded, setLoaded] = useState<LoadedStyle | null>(null);
-  const mapStyle = useMemo(
-    () => (loaded?.localize ? localizeLabels(loaded.style, locale) : loaded?.style),
-    [loaded, locale]
-  );
+  const mapStyle = useMemo(() => {
+    if (!loaded) return undefined;
+    const style = loaded.localize ? localizeLabels(loaded.style, locale) : loaded.style;
+    // 다크 모드면 같은 스타일의 색만 밤 지도로 바꾼다 (레이어 id 가 같아 POI 클릭·번역 라벨이 그대로 동작)
+    return dark ? darkenStyle(style) : style;
+  }, [loaded, locale, dark]);
 
   useEffect(() => {
     let alive = true;

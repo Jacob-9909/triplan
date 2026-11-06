@@ -24,20 +24,26 @@ export default function DayBookings({ docs, date }: { docs: TravelDoc[]; date: s
         const label = (doc.type === "hotel" ? HOTEL_WHEN : OTHER_WHEN)[when] ?? meta.label;
         const body = (
           <>
-            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg} ${meta.text}`}>
-              <Icon size={17} aria-hidden />
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg md:h-9 md:w-9 md:rounded-xl ${meta.bg} ${meta.text}`}>
+              <Icon size={16} aria-hidden />
             </span>
             <span className="min-w-0">
-              <span className={`block text-[11px] font-bold ${meta.text}`}>{t(label)}</span>
-              <span className="block max-w-48 truncate text-sm font-semibold">{doc.title}</span>
+              {/* 휴대폰에서는 두 줄로 줄여 지도·일정이 첫 화면에 더 보이게 */}
+              <span className={`block text-[11px] font-bold ${meta.text}`}>
+                {t(label)}
+                {doc.confirmation_code && (
+                  <span className="ml-1.5 font-mono font-medium text-foreground/68 md:hidden">{doc.confirmation_code}</span>
+                )}
+              </span>
+              <span className="block max-w-44 truncate text-[13px] font-semibold md:max-w-48 md:text-sm">{doc.title}</span>
               {doc.confirmation_code && (
-                <span className="block font-mono text-[11px] text-foreground/68">{doc.confirmation_code}</span>
+                <span className="hidden font-mono text-[11px] text-foreground/68 md:block">{doc.confirmation_code}</span>
               )}
             </span>
             {url && <ExternalLink size={13} className="shrink-0 text-foreground/45" aria-hidden />}
           </>
         );
-        const cls = "card flex shrink-0 items-center gap-2.5 px-3 py-2.5";
+        const cls = "card flex shrink-0 items-center gap-2 px-2.5 py-1.5 md:gap-2.5 md:px-3 md:py-2.5";
         return (
           <li key={doc.id}>
             {url ? (

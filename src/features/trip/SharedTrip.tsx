@@ -11,11 +11,15 @@ export default function SharedTrip({
   tripId,
   token,
   mode,
+  canCopy = false,
 }: {
   tripId: string;
   token: string;
   mode: "edit" | "view";
+  /** 로그인한 관리자·사용 회원이면 "내 여행으로 가져오기" */
+  canCopy?: boolean;
 }) {
   setTripToken(token);
-  return <TripWorkspace tripId={tripId} mode={mode} />;
+  // 보기 링크면 그 토큰으로 캘린더 구독을 줄 수 있다 (편집 토큰은 캘린더 주소에 넣지 않는다)
+  return <TripWorkspace tripId={tripId} mode={mode} viewToken={mode === "view" ? token : undefined} canCopy={canCopy} />;
 }

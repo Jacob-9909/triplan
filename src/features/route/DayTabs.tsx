@@ -110,14 +110,14 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
           onClick={() => handleSelect(BIN_DAY)}
           className={`flex shrink-0 flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-2 transition-all md:px-5 md:py-2.5 ${
             selected === BIN_DAY
-              ? "border-ink bg-ink text-white shadow-md"
+              ? "border-ink bg-ink text-on-ink shadow-md"
               : "border-border-subtle bg-surface-muted text-foreground hover:border-ink"
           }`}
         >
           <span className="flex items-center gap-1 text-xs font-semibold">
             <Inbox size={13} aria-hidden /> {t("후보함")}
           </span>
-          <span className={`mt-0.5 text-[11px] ${selected === BIN_DAY ? "text-white" : "text-foreground/68"}`}>
+          <span className={`mt-0.5 text-[11px] ${selected === BIN_DAY ? "text-on-ink/80" : "text-foreground/68"}`}>
             {t("{n}곳", { n: bin })}
           </span>
         </button>

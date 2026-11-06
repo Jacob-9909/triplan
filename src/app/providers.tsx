@@ -4,6 +4,7 @@ import { MotionConfig } from "framer-motion";
 import { useEffect, type ReactNode } from "react";
 import { PrefsProvider } from "@/i18n/I18nProvider";
 import type { HomeCurrency, Locale, Theme } from "@/i18n/translate";
+import { Toaster } from "@/features/ui/Toast";
 
 /** OS의 '동작 줄이기' 설정을 framer-motion 전체에 적용 + 언어·테마 */
 export default function Providers({
@@ -26,7 +27,10 @@ export default function Providers({
 
   return (
     <PrefsProvider locale={locale} theme={theme} currency={currency}>
-      <MotionConfig reducedMotion="user">{children}</MotionConfig>
+      <MotionConfig reducedMotion="user">
+        {children}
+        <Toaster />
+      </MotionConfig>
     </PrefsProvider>
   );
 }

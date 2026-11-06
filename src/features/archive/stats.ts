@@ -1,13 +1,14 @@
 import type { Expense, MapPoint, RouteLeg } from "@/lib/types";
 import { adjacentLegs } from "@/features/route/schedule";
 import { estimateDirections } from "@/features/route/directions";
+import { expenseDay } from "@/features/expenses/summary";
 
 export interface TripStats {
   places: number;
   /** 하루 동선(이웃한 장소 사이) 거리 합. 거리를 모르는 구간은 추정치 */
   distanceKm: number;
   spendKrw: number;
-  /** 하루 평균 지출 (days 가 0 이면 0) */
+  /** 하루 평균 지출: 여행 기간 안에서 쓴 돈만 (출발 전 결제 제외). days 가 0 이면 0 */
   perDayKrw: number;
   /** 가장 많이 쓴 날 */
   topDay: { day: number; krw: number } | null;
@@ -21,7 +22,14 @@ function maxEntry<K>(totals: Map<K, number>): [K, number] | null {
   return best;
 }
 
-export function tripStats(points: MapPoint[], legs: RouteLeg[], expenses: Expense[], days: number): TripStats {
+/** startDate 를 주면 지출 날짜로 Day 를 정하고, 기간 밖 지출은 하루 평균·가장 많이 쓴 날에서 뺀다 */
+export function tripStats(
+  points: MapPoint[],
+  legs: RouteLeg[],
+  expenses: Expense[],
+  days: number,
+  startDate?: string | null
+): TripStats {
   let distanceKm = 0;
   const dayNumbers = new Set(points.map((p) => p.day_number).filter((d): d is number => d != null));
   for (const day of dayNumbers) {
@@ -42,9 +50,14 @@ export function tripStats(points: MapPoint[], legs: RouteLeg[], expenses: Expens
   const byDay = new Map<number, number>();
   const byCategory = new Map<Expense["category"], number>();
   let spendKrw = 0;
+  let inTripKrw = 0;
   for (const e of expenses) {
     spendKrw += e.amount_krw;
-    if (e.day_number != null) byDay.set(e.day_number, (byDay.get(e.day_number) ?? 0) + e.amount_krw);
+    const day = expenseDay(e, startDate, days > 0 ? days : null);
+    if (day != null) {
+      inTripKrw += e.amount_krw;
+      byDay.set(day, (byDay.get(day) ?? 0) + e.amount_krw);
+    }
     byCategory.set(e.category, (byCategory.get(e.category) ?? 0) + e.amount_krw);
   }
   const topDay = maxEntry(byDay);
@@ -55,7 +68,7 @@ export function tripStats(points: MapPoint[], legs: RouteLeg[], expenses: Expens
     places: points.filter((p) => p.day_number != null).length,
     distanceKm: Math.round(distanceKm * 10) / 10,
     spendKrw,
-    perDayKrw: days > 0 ? Math.round(spendKrw / days) : 0,
+    perDayKrw: days > 0 ? Math.round(inTripKrw / days) : 0,
     topDay: topDay && { day: topDay[0], krw: topDay[1] },
     topCategory: topCategory && { category: topCategory[0], krw: topCategory[1] },
   };

@@ -1,27 +1,6 @@
 import { getCountryBackground } from "@/data/countryBackgrounds";
-import { findCityBackground, getCityBackground } from "@/data/cityBackgrounds";
-
-/** 사진이 없는 나라용 대륙별 그라디언트 */
-const CONTINENT_GRADIENTS: Record<string, string> = {
-  아시아: "linear-gradient(160deg, #e8553d 0%, #8c2f1f 100%)", // i18n-ignore
-  유럽: "linear-gradient(160deg, #2f5d8a 0%, #14233b 100%)", // i18n-ignore
-  북미: "linear-gradient(160deg, #0d6b63 0%, #14233b 100%)", // i18n-ignore
-  남미: "linear-gradient(160deg, #e9a23b 0%, #a8331c 100%)", // i18n-ignore
-  아프리카: "linear-gradient(160deg, #c26a2c 0%, #5a2a14 100%)", // i18n-ignore
-  오세아니아: "linear-gradient(160deg, #1f8a85 0%, #0e3b54 100%)", // i18n-ignore
-  중동: "linear-gradient(160deg, #b7791f 0%, #5c3b14 100%)", // i18n-ignore
-};
-/** trips.continent 는 영어 id 로 저장된다 */
-const CONTINENT_IDS: Record<string, string> = {
-  asia: "아시아", // i18n-ignore
-  europe: "유럽", // i18n-ignore
-  "north-america": "북미", // i18n-ignore
-  "south-america": "남미", // i18n-ignore
-  africa: "아프리카", // i18n-ignore
-  oceania: "오세아니아", // i18n-ignore
-  "middle-east": "중동", // i18n-ignore
-};
-const DEFAULT_GRADIENT = "linear-gradient(160deg, #24365a 0%, #14233b 100%)";
+import { useT } from "@/i18n/I18nProvider";
+import { coverGradient, coverImage } from "./cover";
 
 interface CoverPhotoProps {
   country?: string | null;
@@ -35,6 +14,8 @@ interface CoverPhotoProps {
   className?: string;
   /** 사진 확대 정도 (hover 줌 등은 부모에서 group으로 제어) */
   zoomOnHover?: boolean;
+  /** 직접 고른 커버 사진 주소. 있으면 도시·나라 사진보다 먼저 쓴다 */
+  src?: string | null;
 }
 
 /**
@@ -48,8 +29,11 @@ export default function CoverPhoto({
   scrim = true,
   className = "",
   zoomOnHover = false,
+  src = null,
 }: CoverPhotoProps) {
-  const image = getCityBackground(city) ?? findCityBackground(title) ?? getCountryBackground(country)?.image ?? null;
+  const t = useT();
+  const label = city || country || title;
+  const image = src || coverImage({ country, city, title });
   return (
     <div aria-hidden className={`pointer-events-none absolute inset-0 select-none ${className}`}>
       {image ? (
@@ -64,13 +48,15 @@ export default function CoverPhoto({
           }`}
         />
       ) : (
-        <div
-          className="h-full w-full"
-          style={{
-            background:
-              CONTINENT_GRADIENTS[CONTINENT_IDS[continent ?? ""] ?? continent ?? ""] ?? DEFAULT_GRADIENT,
-          }}
-        />
+        // 사진이 없는 곳: 대륙 색 위에 등고선 무늬와 지명을 크게 깔아 빈 카드처럼 보이지 않게 한다
+        <div className="relative h-full w-full overflow-hidden [container-type:size]" style={{ background: coverGradient(continent) }}>
+          <div className="topo absolute inset-0 opacity-80 invert" />
+          {label && (
+            <span className="absolute left-[6%] top-[8%] max-w-[94%] select-none break-keep font-display text-[clamp(2.25rem,26cqmin,8rem)] font-extrabold leading-[0.95] tracking-tighter text-white/14">
+              {t(label)}
+            </span>
+          )}
+        </div>
       )}
       {scrim && <div className="photo-scrim absolute inset-0" />}
     </div>

@@ -5,6 +5,7 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import TripMapCore from "./TripMapCore";
 import type { TripMapCoreProps } from "./TripMapCore";
 import { adaptKitComponent, type MapKit } from "./mapKit";
+import { useDarkMode } from "@/features/ui/useDarkMode";
 
 const kit: MapKit = {
   Map: adaptKitComponent(Map),
@@ -23,11 +24,13 @@ export default function TripMapMapbox({
   accessToken,
   ...props
 }: Omit<TripMapCoreProps, "kit" | "mapStyle"> & { accessToken?: string }) {
+  // 다크 모드에선 Mapbox 밤 지도 (poi-label 레이어가 같아 장소 클릭이 그대로 동작)
+  const dark = useDarkMode();
   return (
     <TripMapCore
       {...props}
       kit={kit}
-      mapStyle="mapbox://styles/mapbox/outdoors-v12"
+      mapStyle={dark ? "mapbox://styles/mapbox/navigation-night-v1" : "mapbox://styles/mapbox/outdoors-v12"}
       accessToken={accessToken}
       poiLayerIds={MAPBOX_POI_LAYER_IDS}
     />

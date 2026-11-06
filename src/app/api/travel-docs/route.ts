@@ -1,5 +1,6 @@
 import { getPool, jsonError, type Row } from "@/lib/db";
 import { listChildren, requireEditBody } from "@/lib/crud";
+import { logActivity } from "@/lib/activity";
 
 export async function GET(request: Request) {
   // 보기 전용 링크에는 예약번호와 예약 링크를 내보내지 않는다
@@ -30,6 +31,7 @@ export async function POST(request: Request) {
         b.file_path ?? null,
       ]
     );
+    await logActivity(request, b.trip_id, "doc.add", String(rows[0].title));
     return Response.json(rows[0]);
   } catch (err) {
     console.error("POST /api/travel-docs failed:", err);

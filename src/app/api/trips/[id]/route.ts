@@ -1,6 +1,7 @@
 import { getPool, jsonError, UUID_RE, type Row } from "@/lib/db";
 import { requireTrip, stripTokens } from "@/lib/auth";
-import { isNameList } from "@/lib/crud";
+import { cleanUrl, isNameList } from "@/lib/crud";
+import { logActivity } from "@/lib/activity";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -35,7 +36,23 @@ export async function PATCH(request: Request, { params }: Ctx) {
       return jsonError("budget_krw must be a positive number", 400);
     }
     if (b?.travelers !== undefined && !isNameList(b.travelers)) return jsonError("travelers must be a list of names", 400);
-    const allowed = ["title", "continent", "country", "region", "start_date", "end_date", "base_currency", "budget_krw", "travelers"];
+    // 커버 사진: 이 여행 장소 사진(/api/point-photos/<id>)이나 https 주소, null 이면 기본 사진
+    if (b?.cover_image_url !== undefined && b.cover_image_url !== null) {
+      const photo = typeof b.cover_image_url === "string" ? b.cover_image_url.match(/^\/api\/point-photos\/([0-9a-f-]{36})$/i) : null;
+      if (photo) {
+        const { rows: own } = await getPool().query(
+          `SELECT 1 FROM triplan.point_photos ph JOIN triplan.map_points p ON p.id = ph.point_id
+            WHERE ph.id = $1 AND p.trip_id = $2`,
+          [photo[1], id]
+        );
+        if (!own[0]) return jsonError("cover photo must belong to this trip", 400);
+      } else {
+        const url = cleanUrl(b.cover_image_url);
+        if (!url || !url.startsWith("https://") || url.length > 1000) return jsonError("cover_image_url must be an https URL", 400);
+        b.cover_image_url = url;
+      }
+    }
+    const allowed = ["title", "continent", "country", "region", "start_date", "end_date", "base_currency", "budget_krw", "travelers", "cover_image_url"];
     // 체험 회원 공개 여부는 관리자만 바꾼다
     if (access === "admin") allowed.push("is_demo");
     const sets: string[] = [];
@@ -53,6 +70,9 @@ export async function PATCH(request: Request, { params }: Ctx) {
        RETURNING t.*, (SELECT username FROM triplan.members WHERE id = t.owner_id) AS owner_username`,
       vals
     );
+    // 바꾼 항목만 기록 (동행자 이름 목록처럼 자잘한 건 빼고)
+    const fields = allowed.filter((k) => b?.[k] !== undefined && k !== "travelers");
+    if (fields.length) await logActivity(request, id, "trip.edit", String(rows[0].title), { fields });
     return Response.json({ ...stripTokens(rows[0], access), access });
   } catch (err) {
     console.error("PATCH /api/trips/[id] failed:", err);

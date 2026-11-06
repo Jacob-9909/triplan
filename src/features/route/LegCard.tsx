@@ -101,7 +101,7 @@ export default function LegCard({
                   onClick={() => onChoose?.(m)}
                   aria-pressed={on}
                   className={`rounded-xl border px-2.5 py-2 text-left transition ${
-                    on ? "border-ink bg-ink text-white" : "border-border-subtle enabled:hover:border-primary/50"
+                    on ? "border-ink bg-ink text-on-ink" : "border-border-subtle enabled:hover:border-primary/50"
                   }`}
                 >
                   <span className="block text-lg font-extrabold tabular-nums leading-tight">
@@ -109,7 +109,7 @@ export default function LegCard({
                     {st === "failed" || st === "quota" ? "–" : formatDuration(mins, locale)}
                   </span>
                   <span className="block text-xs font-bold">{t(METHOD_META[m].label)}</span>
-                  <span className={`block truncate text-[11px] ${on ? "text-white/75" : "text-foreground/68"}`}>
+                  <span className={`block truncate text-[11px] ${on ? "text-on-ink/75" : "text-foreground/68"}`}>
                     {m === "transit" && !inApp ? t("추정") : sub}
                   </span>
                 </button>

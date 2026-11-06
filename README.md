@@ -30,6 +30,10 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
 | Korean / English, home currency, light / dark | Switch language (한/EN), home currency (KRW, USD, EUR, JPY…; defaults to KRW in Korean and USD in English) and theme (system → light → dark) from the header; both are remembered in a cookie. English mode also translates country and city names and shows English map labels. Expenses are still stored in KRW; amounts show roughly converted to the home currency, and an expense in yen gets a small "≈ $8.12" beside it. Dark mode follows the OS by default |
+| Together | The live badge on the photo header shows who else has the trip open; tap it for a change history of who edited places, expenses, bookings and trip details. Deleting a place shows an **Undo** for a few seconds |
+| Opening hours | Opening hours are looked up in OpenStreetMap (and can be edited); the timetable warns when you arrive on a closed day or outside opening hours |
+| Calendar, print, copy | The More menu prints the itinerary (or saves a PDF), subscribes to it as a calendar (webcal, Google Calendar, .ics; built from the view link, so booking codes stay out) and copies the trip (places, order, legs and packing list only). Logged-in users who open a view link can **Copy to my trips** |
+| Cover, previews, recap | Change a trip's cover to a place photo or a photo URL. Share links pasted into chat apps show a preview card with the cover, title and D-day, and finished trips can make a recap card image from the Record tab |
 | Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA. Trips you have opened once stay readable offline (service worker; cleared on logout) |
 
 ## Access Model
@@ -91,12 +95,14 @@ Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `ADMIN_PASSWORD` | Yes | Admin login |
 | `SESSION_SECRET` | Yes | Signs the login cookie (32+ random characters) |
+| `SITE_URL` | No | Public origin for share-link previews (`og:image`), e.g. `https://triplan-beryl.vercel.app`. Without it, the request's `x-forwarded-proto`/`x-forwarded-host` (or `host`) is used |
 | `KAKAO_REST_KEY` | No | Place search in Korea |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
 | `MYMEMORY_EMAIL` | No | Raises the free translation limit |
 | `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
 | `NVIDIA_API_KEY` | No | Area names in the Maybe list (NVIDIA NIM). Without it, district names from OpenStreetMap are used |
 | `ODSAY_API_KEY` | No | Korea transit routes (ODsay LAB free key, bound to the server IP). Without it transit shows an estimate |
+| `SAMPLE_TRIP_PATH` | No | View-link path opened by the landing page's "Browse a sample trip" button (e.g. `/v/abc123`). Without it the button is hidden |
 
 ### 3. Deploy (Oracle Cloud VM)
 

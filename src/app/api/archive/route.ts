@@ -18,12 +18,15 @@ export async function GET() {
            AND ($1::uuid IS NULL OR t.owner_id = $1
                 OR EXISTS (SELECT 1 FROM triplan.trip_members tm WHERE tm.trip_id = t.id AND tm.member_id = $1))
       )`;
+    // center_lat·lng: 지도 핀 자리. 실제로 간 장소들의 가운데라 도시 목록에 없는 지역도 제자리에 찍힌다
     const [trips, places] = await Promise.all([
       pool.query<Row>(
         `${past}
          SELECT t.id, t.title, t.continent, t.country, t.region, t.start_date, t.end_date,
                 (SELECT count(*)::int FROM triplan.map_points p WHERE p.trip_id = t.id AND p.day_number IS NOT NULL) AS place_count,
-                (SELECT coalesce(sum(e.amount_krw), 0)::float FROM triplan.expenses e WHERE e.trip_id = t.id) AS spend_krw
+                (SELECT coalesce(sum(e.amount_krw), 0)::float FROM triplan.expenses e WHERE e.trip_id = t.id) AS spend_krw,
+                (SELECT avg(p.lat)::float FROM triplan.map_points p WHERE p.trip_id = t.id AND p.day_number IS NOT NULL) AS center_lat,
+                (SELECT avg(p.lng)::float FROM triplan.map_points p WHERE p.trip_id = t.id AND p.day_number IS NOT NULL) AS center_lng
            FROM t ORDER BY t.start_date DESC`,
         [memberId]
       ),

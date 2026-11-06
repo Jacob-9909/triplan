@@ -71,6 +71,11 @@ export function apiDelete<T = { ok: true }>(url: string): Promise<T> {
   return apiSend<T>(url, "DELETE");
 }
 
+/** 페이지를 떠나는 중에도 끝까지 보내는 삭제 (되돌리기를 기다리던 삭제를 마저 보낼 때) */
+export function apiDeleteKeepalive(url: string) {
+  void fetch(url, { method: "DELETE", headers: headers(false), keepalive: true }).catch(() => {});
+}
+
 /** multipart 업로드 (Content-Type은 브라우저가 boundary와 함께 정한다) */
 export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
   const res = await fetch(url, { method: "POST", headers: headers(false), body: form });
@@ -80,6 +85,12 @@ export async function apiUpload<T>(url: string, form: FormData): Promise<T> {
 /** 헤더를 못 붙이는 요청(<img src>, EventSource)용. 공유 링크면 "?t=<토큰>", 아니면 빈 문자열 */
 export function tokenQuery() {
   return tripToken ? `?t=${encodeURIComponent(tripToken)}` : "";
+}
+
+/** 여행 커버 사진 주소. 장소 사진이면 공유 링크 토큰을 붙인다 */
+export function coverUrl(url: string | null | undefined) {
+  if (!url) return null;
+  return url.startsWith("/api/point-photos/") ? url + tokenQuery() : url;
 }
 
 /** <img src>용 사진 주소. 공유 링크면 토큰을 쿼리로 붙인다 */

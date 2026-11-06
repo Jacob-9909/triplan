@@ -17,6 +17,9 @@ import { Stars } from "./RecordTab";
 type PastTrip = Pick<Trip, "id" | "title" | "continent" | "country" | "region" | "start_date" | "end_date"> & {
   place_count: number;
   spend_krw: number;
+  /** 간 장소들의 가운데. 장소가 없으면 null */
+  center_lat: number | null;
+  center_lng: number | null;
 };
 
 type ReviewedPlace = Pick<MapPoint, "id" | "trip_id" | "name" | "category" | "color" | "lat" | "lng" | "rating" | "review"> & {
@@ -53,7 +56,8 @@ export default function Archive() {
 
   const mapPoints = useMemo(() => {
     const visited = trips.flatMap((t) => {
-      const at = getTripCenter(t.country, t.region);
+      // 장소 좌표가 있으면 그 가운데, 없으면 도시·나라 중심 (도시 목록에 없는 지역은 나라 중심이라 어긋났다)
+      const at = t.center_lat != null && t.center_lng != null ? { lat: t.center_lat, lng: t.center_lng } : getTripCenter(t.country, t.region);
       return at ? [pin(`trip-${t.id}`, t.title, VISITED, tr("다녀옴 · {date}", { date: t.start_date ?? "" }), at)] : [];
     });
     const done = new Set(trips.map((t) => t.id));
@@ -140,7 +144,7 @@ export default function Archive() {
                 aria-pressed={category === c.id}
                 onClick={() => setCategory(c.id)}
                 className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  category === c.id ? "bg-ink text-white" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
+                  category === c.id ? "bg-ink text-on-ink" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
                 }`}
               >
                 {tr(c.label)}

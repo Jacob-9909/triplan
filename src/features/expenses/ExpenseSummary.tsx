@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { differenceInCalendarDays, parseISO } from "date-fns";
+import { summarize } from "./summary";
 import { PiggyBank, Wallet } from "lucide-react";
 import MoneyInput from "@/features/ui/MoneyInput";
 import { usePrefs } from "@/i18n/I18nProvider";
@@ -26,59 +27,26 @@ export default function ExpenseSummary({
   onBudgetChange,
 }: ExpenseSummaryProps) {
   const { t, money } = usePrefs();
-  const { totalKrw, localTotals, byCategory, byDay, avgDaily, daysCount } =
-    useMemo(() => {
-      const localMap = new Map<string, number>();
-      const catMap = new Map<Expense["category"], number>();
-      const dayMap = new Map<number, number>();
-
-      let sumKrw = 0;
-      for (const e of expenses) {
-        sumKrw += e.amount_krw;
-        localMap.set(
-          e.currency_code,
-          (localMap.get(e.currency_code) ?? 0) + e.amount_local,
-        );
-        catMap.set(e.category, (catMap.get(e.category) ?? 0) + e.amount_krw);
-        if (e.day_number != null) {
-          dayMap.set(e.day_number, (dayMap.get(e.day_number) ?? 0) + e.amount_krw);
-        }
-      }
-
-      // day_number가 없는 항목은 날짜 기준으로 Day 계산
-      for (const e of expenses) {
-        if (e.day_number == null && e.spent_at && startDate) {
-          const diff = Math.floor(
-            (parseDate(e.spent_at).getTime() - parseDate(startDate).getTime()) /
-              86_400_000,
-          );
-          const day = diff >= 0 ? diff + 1 : 0;
-          if (!dayMap.has(day)) dayMap.set(day, 0);
-          dayMap.set(day, (dayMap.get(day) ?? 0) + e.amount_krw);
-        }
-      }
-
-      const maxDay = dayMap.size > 0 ? Math.max(...dayMap.keys()) : 0;
-      const days = endDate && startDate
-        ? Math.max(1, Math.ceil((parseDate(endDate).getTime() - parseDate(startDate).getTime()) / 86_400_000))
-        : maxDay || 1;
-      const trendDays = Array.from({ length: Math.max(maxDay, days) }, (_, i) => ({
-        day: i + 1,
-        krw: dayMap.get(i + 1) ?? 0,
-      }));
-
-      return {
-        totalKrw: sumKrw,
-        localTotals: [...localMap.entries()].sort((a, b) => b[1] - a[1]),
-        byCategory: CATEGORIES.map((c) => ({
-          ...c,
-          krw: catMap.get(c.value) ?? 0,
-        })).filter((c) => c.krw > 0),
-        byDay: trendDays,
-        avgDaily: trendDays.length > 0 ? Math.round(sumKrw / trendDays.length) : 0,
-        daysCount: trendDays.length,
-      };
-    }, [expenses, startDate, endDate]);
+  const { totalKrw, tripKrw, outsideKrw, localTotals, byCategory, byDay, avgDaily, daysCount } = useMemo(() => {
+    const localMap = new Map<string, number>();
+    const catMap = new Map<Expense["category"], number>();
+    for (const e of expenses) {
+      localMap.set(e.currency_code, (localMap.get(e.currency_code) ?? 0) + e.amount_local);
+      catMap.set(e.category, (catMap.get(e.category) ?? 0) + e.amount_krw);
+    }
+    // 일수·Day 별 합·일평균은 summary.ts (여행 기간 밖 지출은 일평균에서 뺀다)
+    const sum = summarize(expenses, startDate, endDate);
+    return {
+      totalKrw: sum.totalKrw,
+      tripKrw: sum.tripKrw,
+      outsideKrw: sum.outsideKrw,
+      localTotals: [...localMap.entries()].sort((a, b) => b[1] - a[1]),
+      byCategory: CATEGORIES.map((c) => ({ ...c, krw: catMap.get(c.value) ?? 0 })).filter((c) => c.krw > 0),
+      byDay: sum.byDay,
+      avgDaily: sum.avgDaily,
+      daysCount: sum.days,
+    };
+  }, [expenses, startDate, endDate]);
 
   const maxCat = Math.max(1, ...byCategory.map((c) => c.krw));
   const maxDayKrw = Math.max(1, ...byDay.map((d) => d.krw));
@@ -89,23 +57,30 @@ export default function ExpenseSummary({
       <div className="card p-5">
         <div className="flex items-center gap-2 text-xs font-semibold text-foreground/68">
           <Wallet size={14} />
-          {t("총 지출 ({n}일)", { n: daysCount })}
+          {t("총 지출")}
         </div>
         <p className="mt-1 text-2xl font-extrabold tabular-nums text-[var(--color-primary-strong)] md:text-3xl">
           {money(totalKrw)}
         </p>
         <p className="mt-0.5 text-xs tabular-nums text-foreground/68">
-          {t("일평균 {amount}", { amount: money(avgDaily) })}
-          {localTotals.length > 0 && (
-            <>
-              {" · "}
-              {localTotals
-                .filter(([code]) => code !== "KRW")
-                .map(([code, amt]) => `${currencySymbol(code)} ${formatMoney(amt, code)}`)
-                .join(" + ")}
-            </>
-          )}
+          {localTotals
+            .filter(([code]) => code !== "KRW")
+            .map(([code, amt]) => `${currencySymbol(code)} ${formatMoney(amt, code)}`)
+            .join(" + ")}
         </p>
+        {/* 여행 중 지출과 출발 전 결제를 나눠, 일평균이 항공권·숙소 선결제로 부풀지 않게 */}
+        <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-xl bg-surface-muted px-3 py-2">
+            <dt className="text-foreground/65">{t("여행 중 ({n}일)", { n: daysCount })}</dt>
+            <dd className="mt-0.5 text-sm font-bold tabular-nums">{money(tripKrw)}</dd>
+            <dd className="tabular-nums text-foreground/65">{t("하루 평균 {amount}", { amount: money(avgDaily) })}</dd>
+          </div>
+          <div className="rounded-xl bg-surface-muted px-3 py-2">
+            <dt className="text-foreground/65">{t("미리 결제·기간 밖")}</dt>
+            <dd className="mt-0.5 text-sm font-bold tabular-nums">{money(outsideKrw)}</dd>
+            <dd className="text-foreground/65">{t("항공권·숙소 선결제 등")}</dd>
+          </div>
+        </dl>
         <Budget
           spentKrw={totalKrw}
           budgetKrw={budgetKrw}
@@ -154,9 +129,7 @@ export default function ExpenseSummary({
                   }}
                   title={`Day ${day}: ${money(krw)}`}
                 />
-                <span className="text-[10px] tabular-nums text-foreground/68">
-                  {day}
-                </span>
+                <span className="text-[10px] tabular-nums text-foreground/68">D{day}</span>
               </div>
             ))}
           </div>
@@ -277,8 +250,4 @@ function Budget({
       </p>
     </div>
   );
-}
-
-function parseDate(s: string): Date {
-  return new Date(`${s.slice(0, 10)}T00:00:00`);
 }

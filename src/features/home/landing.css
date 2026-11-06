@@ -104,6 +104,11 @@
   .l-btn--primary:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
   .l-btn--on-dark { min-height: 40px; padding: 0 var(--space-md); background: transparent; border-color: var(--color-on-dark-rule); color: var(--color-on-photo); font-size: var(--text-sm); }
   .l-btn--on-dark:hover { background: var(--color-on-dark-hover); border-color: var(--color-on-photo); }
+  /* 샘플 여행 버튼: 사진 위에서는 테두리 버튼을 기본 버튼 높이로, 바닥글에서는 잉크 테두리 */
+  .l-btn--lg { min-height: 48px; padding: 0 var(--space-lg); font-size: var(--text-md); }
+  .l-btn--ghost { background: transparent; border-color: color-mix(in srgb, currentColor 35%, transparent); color: inherit; }
+  .l-btn--ghost:hover { border-color: currentColor; }
+  .l-actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
 
   /* Nav: a slab of night ink over the photograph */
   .l-nav { position: relative; z-index: 2; background: var(--landing-slab); color: var(--color-on-photo); }
@@ -136,6 +141,9 @@
   .l-screen { position: relative; overflow: hidden; margin-top: var(--space-xs); border-radius: var(--radius-well); background: var(--color-paper-2); }
 
   .l-map { position: relative; aspect-ratio: 2 / 1; background-color: var(--color-paper-2); }
+  /* 실제 화면 캡처: 타일이 두 줄 높이라 남는 자리에 액자처럼 가운데 띄운다 */
+  .l-tile--lead .l-screen:has(.l-shot) { display: grid; align-content: center; padding: var(--space-md); }
+  .l-shot { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 1px 2px rgb(20 35 59 / 0.08), 0 18px 36px -18px rgb(20 35 59 / 0.45); }
   .l-map__base { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; }
   .l-map__street { stroke: var(--color-rule); stroke-width: 6; vector-effect: non-scaling-stroke; }
   .l-map__river { stroke: color-mix(in oklab, var(--color-route) 35%, var(--color-paper-2)); stroke-width: 14; vector-effect: non-scaling-stroke; }
