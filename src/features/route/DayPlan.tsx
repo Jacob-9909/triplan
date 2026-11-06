@@ -13,11 +13,12 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
+import { Clock, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { usePrefs } from "@/i18n/I18nProvider";
 import { buildSchedule, DEFAULT_STAY, formatDuration, formatTime, type StopTime } from "./schedule";
+import { checkVisit, weekdayOf, type VisitCheck } from "./openingHours";
 
 export interface DayPlanProps {
   /** visit_order 순서로 정렬된 그날 장소 */
@@ -26,6 +27,8 @@ export interface DayPlanProps {
   legs: RouteLeg[];
   /** 후보함: 순서·시간·구간 없이 모아 두는 목록 */
   bin?: boolean;
+  /** 그 Day 의 날짜 "yyyy-MM-dd". 있으면 영업시간과 맞춰 본다 (후보함·날짜 없는 여행은 비움) */
+  date?: string | null;
   /** 편집 콜백. 없으면 읽기 전용 */
   onReorder?: (ids: string[]) => void;
   onDelete?: (id: string) => void;
@@ -47,9 +50,10 @@ export interface DayPlanProps {
  * 하루 일정 한 장: 머리(요약·동선 정리) + 장소 카드와 그 사이 이동 구간.
  * 카드를 누르면 상세, 손잡이를 끌면 순서 변경(키보드도 됨).
  */
-export default function DayPlan({ points, legs, bin = false, onReorder, onDelete, renderLeg, onOptimize, onGroup, onUndo, onOpen, area, onClearArea }: DayPlanProps) {
+export default function DayPlan({ points, legs, bin = false, date, onReorder, onDelete, renderLeg, onOptimize, onGroup, onUndo, onOpen, area, onClearArea }: DayPlanProps) {
   const { t, locale, money } = usePrefs();
   const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
+  const weekday = !bin && date ? weekdayOf(date) : null;
   const legAfter = useMemo(() => new Map(legs.map((l) => [l.from_point_id, l])), [legs]);
   const [order, setOrder] = useState<string[] | null>(null);
   const [already, setAlready] = useState(false);
@@ -176,12 +180,14 @@ export default function DayPlan({ points, legs, bin = false, onReorder, onDelete
             <ol className="px-3 py-3 md:px-4">
               {shown.map((point, i) => {
                 const leg = !bin && !order && i < shown.length - 1 ? legAfter.get(point.id) : undefined;
+                const time = bin ? undefined : schedule.get(point.id);
                 return (
                   <Stop
                     key={point.id}
                     point={point}
                     index={i}
-                    time={bin ? undefined : schedule.get(point.id)}
+                    time={time}
+                    hours={time && weekday !== null ? checkVisit(point.opening_hours, weekday, time.arrive, time.leave) : undefined}
                     // 끄는 동안에는 구간이 어긋나므로 숨긴다
                     legView={leg && leg.to_point_id === shown[i + 1].id ? renderLeg(leg, point, shown[i + 1]) : undefined}
                     sortable={!!onReorder}
@@ -208,6 +214,7 @@ function Stop({
   point,
   index,
   time,
+  hours,
   legView,
   sortable,
   onOpen,
@@ -216,6 +223,8 @@ function Stop({
   point: MapPoint;
   index: number;
   time?: StopTime;
+  /** 도착~출발 동안 영업하는지 */
+  hours?: VisitCheck;
   /** 다음 장소로 가는 구간 카드 */
   legView?: ReactNode;
   sortable: boolean;
@@ -263,6 +272,16 @@ function Stop({
                 {time && time.wait > 0 && <span className="text-mint">{t("대기 {time}", { time: formatDuration(time.wait, locale) })}</span>}
                 {time && time.late > 0 && (
                   <span className="text-accent">{t("지정 시각보다 {time} 늦음", { time: formatDuration(time.late, locale) })}</span>
+                )}
+                {hours?.status === "closed-day" && (
+                  <span className="inline-flex items-center gap-0.5 text-accent">
+                    <Clock size={10} aria-hidden /> {t("휴무일")}
+                  </span>
+                )}
+                {hours?.status === "outside" && (
+                  <span className="inline-flex items-center gap-0.5 text-accent">
+                    <Clock size={10} aria-hidden /> {t("영업시간 밖 · {hours}", { hours: hours.hours ?? "" })}
+                  </span>
                 )}
               </span>
             </span>

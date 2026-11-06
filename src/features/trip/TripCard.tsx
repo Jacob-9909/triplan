@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CalendarDays, MapPin } from "lucide-react";
 import type { Trip } from "@/lib/types";
 import CoverPhoto from "@/features/ui/CoverPhoto";
+import { coverUrl } from "@/lib/api";
 import { ddayLabel, formatRange, stayLabel, tripPhase } from "@/features/ui/dates";
 import { usePrefs } from "@/i18n/I18nProvider";
 
@@ -23,7 +24,7 @@ export default function TripCard({ trip, index = 0, href = `/trips/${trip.id}` }
         href={href}
         className="card-lift group relative block aspect-[4/5] overflow-hidden rounded-[var(--radius-card)] bg-slate-200 shadow-card sm:aspect-[4/4.6]"
       >
-        <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} zoomOnHover />
+        <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} src={coverUrl(trip.cover_image_url)} zoomOnHover />
         <div className="absolute left-3 top-3 flex gap-1.5">
           <span
             className={`rounded-full px-2.5 py-1 text-[11px] font-bold backdrop-blur-md ${

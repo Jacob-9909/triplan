@@ -68,6 +68,38 @@ async function ensureListening() {
   return connecting;
 }
 
+/**
+ * 지금 이 여행을 열어 둔 사람 (SSE 연결마다 하나). 같은 사람이 탭을 여러 개 열면 여러 번 들어간다.
+ * 이 프로세스의 연결만 안다: 인스턴스를 늘리면 다른 인스턴스에 붙은 사람은 보이지 않는다 (지금 배포는 하나)
+ */
+export interface Viewer {
+  id: string;
+  name: string;
+}
+type PresenceListener = (viewers: Viewer[]) => void;
+const rooms = new Map<string, Map<string, { viewer: Viewer; notify: PresenceListener }>>();
+
+function broadcastPresence(tripId: string) {
+  const room = rooms.get(tripId);
+  if (!room) return;
+  const list = [...room.values()].map((e) => e.viewer);
+  room.forEach((e) => e.notify(list));
+}
+
+/** 접속 알리기. 반환값을 부르면 나간 것으로 */
+export function joinPresence(tripId: string, viewer: Viewer, notify: PresenceListener) {
+  let room = rooms.get(tripId);
+  if (!room) rooms.set(tripId, (room = new Map()));
+  room.set(viewer.id, { viewer, notify });
+  broadcastPresence(tripId);
+  return () => {
+    const r = rooms.get(tripId);
+    if (!r?.delete(viewer.id)) return;
+    if (r.size === 0) rooms.delete(tripId);
+    else broadcastPresence(tripId);
+  };
+}
+
 /** 여행 변경 구독. 반환값을 부르면 구독 해제 */
 export async function subscribeTrip(tripId: string, fn: Listener): Promise<() => void> {
   let set = subscribers.get(tripId);

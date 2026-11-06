@@ -49,7 +49,7 @@ export default function StylePicker({
           type="button"
           onClick={() => onChange({ category, color: null })}
           className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${
-            color === null ? "border-ink bg-ink text-white" : "border-border-subtle text-foreground/65"
+            color === null ? "border-ink bg-ink text-on-ink" : "border-border-subtle text-foreground/65"
           }`}
         >
           {t("기본")}

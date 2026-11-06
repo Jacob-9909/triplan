@@ -4,6 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import type { MapPoint, RouteLeg, RouteOption, Trip } from "@/lib/types";
 import { useTripChanges } from "@/lib/realtime";
+import { isDeletePending } from "@/lib/deferredDelete";
+
+/** 되돌리기를 기다리는 삭제는 다시 불러와도 숨겨 둔다 */
+const visible = (list: MapPoint[]) => list.filter((p) => !isDeletePending(`/api/map-points/${p.id}`));
 
 export function useTripData(tripId: string) {
   const [trip, setTrip] = useState<Trip | null>(null);
@@ -27,7 +31,7 @@ export function useTripData(tripId: string) {
         apiGet<MapPoint[]>(`/api/map-points?trip_id=${tripId}`),
         apiGet<RouteLeg[]>(`/api/route-legs?trip_id=${tripId}`),
       ]);
-      setPoints(pointData);
+      setPoints(visible(pointData));
       setLegs(legData);
     } catch {
       setNotConfigured(true);
@@ -50,7 +54,7 @@ export function useTripData(tripId: string) {
           apiGet<RouteLeg[]>(`/api/route-legs?trip_id=${tripId}`),
         ]);
         if (!cancelled) {
-          setPoints(pointData);
+          setPoints(visible(pointData));
           setLegs(legData);
           setLoading(false);
         }
@@ -76,7 +80,7 @@ export function useTripData(tripId: string) {
     ])
       .then(([t, p, l]) => {
         setTrip(t);
-        setPoints(p);
+        setPoints(visible(p));
         setLegs(l);
         setRevoked(false);
       })

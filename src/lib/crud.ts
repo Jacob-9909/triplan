@@ -1,5 +1,20 @@
 import { getPool, jsonError, UUID_RE, type Row } from "@/lib/db";
 import { requireTrip, tripIdOf, type Access } from "@/lib/auth";
+import { logActivity, type ActivityAction } from "@/lib/activity";
+
+/** 지우면 변경 기록에 남기는 표 */
+const DELETE_ACTIONS: Partial<Record<ChildTable, ActivityAction>> = {
+  map_points: "point.delete",
+  expenses: "expense.delete",
+  travel_docs: "doc.delete",
+};
+
+/** 변경 기록에 덧붙일 값: 지출은 원화 금액, 장소는 Day */
+export function activityDetail(row: Row): Record<string, unknown> | undefined {
+  if (row.amount_krw != null) return { amount_krw: Number(row.amount_krw) };
+  if (row.day_number !== undefined && row.lat !== undefined) return { day: row.day_number };
+  return undefined;
+}
 
 /** 여행 하위 테이블 (trip_id를 가진 테이블) */
 export type ChildTable = "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos" | "trip_days" | "route_options";
@@ -18,6 +33,9 @@ export function invalidPointField(b: Record<string, unknown> | null): string | n
     return "rating must be 1-5";
   }
   if (b.review != null && !(typeof b.review === "string" && b.review.length <= 500)) return "review must be 500 chars or less";
+  if (b.opening_hours != null && !(typeof b.opening_hours === "string" && b.opening_hours.length <= 200)) {
+    return "opening_hours must be 200 chars or less";
+  }
   if (b.paid_by != null && !(typeof b.paid_by === "string" && b.paid_by.length <= 20)) return "paid_by must be a name";
   if (b.split_with != null && !isNameList(b.split_with)) return "split_with must be a list of names";
   return null;
@@ -102,11 +120,22 @@ export async function patchChild(
       }
     }
     if (!sets.length) return jsonError("no fields to update", 400);
+    // 장소를 다른 Day(후보함)로 옮기면 변경 기록에 남긴다. 순서만 바뀐 건 남기지 않는다
+    const before =
+      table === "map_points" && b.day_number !== undefined
+        ? (await getPool().query<{ trip_id: string; name: string; day_number: number | null }>(
+            "SELECT trip_id, name, day_number FROM triplan.map_points WHERE id = $1",
+            [id]
+          )).rows[0]
+        : undefined;
     vals.push(id);
     await getPool().query(
       `UPDATE triplan.${table} SET ${sets.join(", ")} WHERE id = $${vals.length}`,
       vals
     );
+    if (before && before.day_number !== b.day_number) {
+      await logActivity(request, before.trip_id, "point.move", before.name, { from: before.day_number, to: b.day_number });
+    }
     return Response.json({ ok: true });
   } catch (err) {
     console.error(`PATCH ${table} failed:`, err);
@@ -118,7 +147,12 @@ export async function deleteChild(request: Request, table: ChildTable, id: strin
   const denied = await guardRow(request, table, id);
   if (denied) return denied;
   try {
-    await getPool().query(`DELETE FROM triplan.${table} WHERE id = $1`, [id]);
+    const { rows } = await getPool().query<Row>(`DELETE FROM triplan.${table} WHERE id = $1 RETURNING *`, [id]);
+    const row = rows[0];
+    const action = DELETE_ACTIONS[table];
+    if (row && action) {
+      await logActivity(request, String(row.trip_id), action, String(row.name ?? row.title ?? ""), activityDetail(row));
+    }
     return Response.json({ ok: true });
   } catch (err) {
     console.error(`DELETE ${table} failed:`, err);

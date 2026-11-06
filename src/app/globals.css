@@ -12,8 +12,11 @@
   --foreground: light-dark(#14233b, #ece6dc);
   --surface: light-dark(#ffffff, #182235);
   --surface-muted: light-dark(#f4eee5, #213048);
-  /* 흰 글씨를 올리는 잉크색 바탕 (활성 탭·칩). 다크에서도 흰 글씨가 읽히게 남색 유지 */
-  --ink: light-dark(#14233b, #3a5180);
+  /* 선택 상태 규칙: 어디에 있는지(탭·메뉴·필터·옵션 칩)는 잉크 pill, 무엇을 볼지(Day)·행동은 코랄.
+   * 잉크 pill 은 라이트에서 남색 바탕·흰 글씨, 다크에서 종이색 바탕·남색 글씨로 뒤집는다
+   * (다크에서 밝은 파랑 pill 이 따뜻한 테마와 따로 놀던 것 정리). 글씨는 text-on-ink */
+  --ink: light-dark(#14233b, #ece6dc);
+  --on-ink: light-dark(#ffffff, #14233b);
 
   /* Primary: 석양 코랄 (버튼·활성 상태). 흰 글씨 바탕이라 다크에서도 같은 색 */
   --color-primary: #cc4126;
@@ -70,6 +73,7 @@
   --color-surface: var(--surface);
   --color-surface-muted: var(--surface-muted);
   --color-ink: var(--ink);
+  --color-on-ink: var(--on-ink);
   --color-primary: var(--color-primary);
   --color-primary-soft: var(--color-primary-soft);
   --color-primary-strong: var(--color-primary-strong);
@@ -199,10 +203,10 @@ body {
 /* 잉크색 버튼: 사진·코랄 위에서 두 번째 행동 */
 .btn-ink {
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
 }
 .btn-ink:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--ink) 88%, #fff);
+  background: color-mix(in srgb, var(--ink) 88%, var(--on-ink));
 }
 
 .input {
@@ -377,13 +381,15 @@ body {
 .maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--surface); }
 .maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--surface); }
 
-/* 다크 모드 지도: 타일 스타일을 따로 두지 않고 지도 그림(canvas)만 밝기를 뒤집는다. 핀(HTML)은 그대로.
- * ponytail: 색이 아주 정확하진 않다. 어색하면 OpenFreeMap 다크 스타일로 바꾸면 된다 */
-:root[data-theme="dark"] .maplibregl-canvas {
-  filter: invert(0.92) hue-rotate(180deg) saturate(0.7) brightness(0.95);
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .maplibregl-canvas {
-    filter: invert(0.92) hue-rotate(180deg) saturate(0.7) brightness(0.95);
+/* 인쇄(일정표·PDF)는 다크 모드여도 흰 종이에 검은 글씨로 */
+@media print {
+  :root {
+    color-scheme: light;
+  }
+  body {
+    background: #fff;
+    color: #000;
   }
 }
+
+/* 다크 모드 지도는 CSS 반전 대신 스타일 색을 바꿔 그린다 (src/features/map/darkStyle.ts) */

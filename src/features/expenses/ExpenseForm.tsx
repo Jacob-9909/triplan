@@ -205,7 +205,7 @@ export default function ExpenseForm({
                     aria-pressed={payer === t}
                     onClick={() => setPaidBy(t)}
                     className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                      payer === t ? "bg-ink text-white" : "bg-[var(--surface-muted)] text-foreground/72"
+                      payer === t ? "bg-ink text-on-ink" : "bg-[var(--surface-muted)] text-foreground/72"
                     }`}
                   >
                     {t}

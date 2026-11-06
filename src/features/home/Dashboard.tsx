@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, CalendarDays, ChevronRight, Heart, MapPin, Plane, Plus } from "lucide-react";
-import { apiGet } from "@/lib/api";
+import { apiGet, coverUrl } from "@/lib/api";
 import type { Trip, WishlistPlace } from "@/lib/types";
 import CoverPhoto from "@/features/ui/CoverPhoto";
 import CountUp from "@/features/ui/CountUp";
@@ -208,7 +208,7 @@ function NextTripHero({ trip }: { trip: Trip }) {
         href={`/trips/${trip.id}`}
         className="group relative block h-72 overflow-hidden rounded-[1.75rem] bg-slate-300 shadow-lift md:h-96"
       >
-        <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} zoomOnHover />
+        <CoverPhoto country={trip.country} continent={trip.continent} city={trip.region} title={trip.title} src={coverUrl(trip.cover_image_url)} zoomOnHover />
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/55 via-slate-950/15 to-transparent" />
         <div className="absolute inset-0 flex flex-col justify-between p-6 text-white md:p-9">
           <div className="flex items-center gap-2 text-sm font-semibold text-white/85">
@@ -247,7 +247,7 @@ function NextTripHero({ trip }: { trip: Trip }) {
 function EmptyHero() {
   const t = useT();
   return (
-    <div className="relative flex h-72 flex-col items-start justify-end overflow-hidden rounded-[1.75rem] bg-ink p-6 text-white shadow-lift md:h-80 md:p-9">
+    <div className="relative flex h-72 flex-col items-start justify-end overflow-hidden rounded-[1.75rem] bg-slate-900 p-6 text-white shadow-lift md:h-80 md:p-9">
       <div aria-hidden className="topo absolute inset-0 opacity-60 invert" />
       <motion.div
         aria-hidden

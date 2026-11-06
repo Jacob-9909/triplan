@@ -123,7 +123,7 @@ export default function Wishlist() {
               key={String(f)}
               onClick={() => setFilter(f)}
               className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                active ? "text-white" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
+                active ? "text-on-ink" : "bg-surface text-foreground/72 shadow-sm ring-1 ring-border-subtle"
               }`}
             >
               {active && (

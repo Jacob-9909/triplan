@@ -15,7 +15,9 @@ export default async function HomePage() {
     );
   }
   const member = await currentMember();
-  if (!member) return <Landing />;
+  // 샘플 여행 보기 링크 (/v/<토큰>). 관리자가 보기 링크 하나를 골라 SAMPLE_TRIP_PATH 에 넣는다
+  const sample = process.env.SAMPLE_TRIP_PATH;
+  if (!member) return <Landing sampleHref={sample && /^\/v\/[\w-]+$/.test(sample) ? sample : null} />;
   return (
     <AppShell role="demo">
       <MemberHome username={member.username} />

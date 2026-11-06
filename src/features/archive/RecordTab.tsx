@@ -13,6 +13,7 @@ import { formatRange, nights } from "@/features/ui/dates";
 import type { PointPatch } from "@/features/trip/PlaceDetail";
 import { usePrefs, useT } from "@/i18n/I18nProvider";
 import TripStamp from "./TripStamp";
+import RecapButton from "./RecapButton";
 import { tripStats } from "./stats";
 
 const WEATHER: { id: Weather; label: string; icon: LucideIcon }[] = [
@@ -81,7 +82,7 @@ export default function RecordTab({
   const { days, save } = useTripDays(trip.id);
   const n = nights(trip);
   const dayCount = n !== null ? n + 1 : Math.max(1, ...points.map((p) => p.day_number ?? 1));
-  const stats = useMemo(() => tripStats(points, legs, expenses, dayCount), [points, legs, expenses, dayCount]);
+  const stats = useMemo(() => tripStats(points, legs, expenses, dayCount, trip.start_date), [points, legs, expenses, dayCount, trip.start_date]);
 
   const dayList = Array.from({ length: dayCount }, (_, i) => i + 1).filter((d) => {
     if (canEdit) return true;
@@ -96,6 +97,10 @@ export default function RecordTab({
           <TripStamp trip={trip} className="h-40 w-40" />
           <h2 className="mt-3 text-lg font-bold">{trip.title}</h2>
           <p className="text-sm text-foreground/65">{formatRange(trip, locale)}</p>
+          {/* 도장·숫자·별점 높은 곳을 한 장 이미지로 (공유용) */}
+          <div className="mt-4">
+            <RecapButton tripId={trip.id} />
+          </div>
         </section>
 
         <section className="card p-4">
@@ -239,7 +244,7 @@ function DayCard({
                   title={t(label)}
                   onClick={() => onSaveDay({ weather: on ? null : id })}
                   className={`flex h-9 w-9 items-center justify-center rounded-full transition ${
-                    on ? "bg-ink text-white" : "bg-surface-muted text-foreground/68 hover:bg-primary-soft"
+                    on ? "bg-ink text-on-ink" : "bg-surface-muted text-foreground/68 hover:bg-primary-soft"
                   }`}
                 >
                   <Icon size={16} />

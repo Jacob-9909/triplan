@@ -65,7 +65,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
   return (
     <div className="flex min-h-dvh flex-col">
       {/* 데스크톱 상단 바 */}
-      <header className="glass sticky top-0 z-40 hidden border-b border-border-subtle md:block">
+      <header className="glass sticky top-0 z-40 hidden border-b border-border-subtle md:block print:hidden">
         <div className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-6">
           <Link href="/" aria-label={t("Triplan 홈")} className="rounded-xl">
             <Logo />
@@ -80,7 +80,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
                     href={href}
                     aria-current={active ? "page" : undefined}
                     className={`relative rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                      active ? "text-white" : "text-foreground/68 hover:text-foreground"
+                      active ? "text-on-ink" : "text-foreground/68 hover:text-foreground"
                     }`}
                   >
                     {active && (
@@ -119,7 +119,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
 
       {/* 모바일 상단: 여행 상세에서는 숨긴다 */}
       {!tripDetail && (
-        <header className="flex items-center justify-between px-4 pb-1 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden">
+        <header className="flex items-center justify-between px-4 pb-1 pt-[max(0.75rem,env(safe-area-inset-top))] md:hidden print:hidden">
           <Link href="/" aria-label={t("Triplan 홈")} className="rounded-xl">
             <Logo />
           </Link>
@@ -151,7 +151,7 @@ export default function AppShell({ children, role }: { children: ReactNode; role
       {showTabBar && (
         <nav
           aria-label={t("주요 메뉴")}
-          className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle pb-[env(safe-area-inset-bottom)] md:hidden"
+          className="glass fixed inset-x-0 bottom-0 z-40 border-t border-border-subtle pb-[env(safe-area-inset-bottom)] md:hidden print:hidden"
         >
           <div className="mx-auto grid h-[var(--nav-height)] max-w-md grid-cols-5 items-center">
             {NAV.slice(0, 2).map((item) => (

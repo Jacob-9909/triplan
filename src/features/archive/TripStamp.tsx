@@ -4,16 +4,7 @@ import type { Trip } from "@/lib/types";
 import { flagOf } from "@/data/world";
 import { stayLabel } from "@/features/ui/dates";
 import { usePrefs } from "@/i18n/I18nProvider";
-
-/** 지도 핀과 같은 계열의 잉크색 (흰 배경 대비 4.5:1 이상) */
-const INKS = ["#cc4126", "#0d6b63", "#2f5d8a", "#6d5bd0", "#a16207", "#c2417a"];
-
-/** 여행 id 로 정해지는 값: 같은 여행은 늘 같은 도장 */
-function seed(id: string) {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return h;
-}
+import { stampLook } from "./stamp";
 
 type StampTrip = Pick<Trip, "id" | "title" | "country" | "region" | "start_date" | "end_date">;
 
@@ -22,10 +13,7 @@ export default function TripStamp({ trip, className = "" }: { trip: StampTrip; c
   const { t, locale } = usePrefs();
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const name = (s: string | null) => s && t(s);
-  const h = seed(trip.id);
-  const ink = INKS[h % INKS.length];
-  const round = (h >> 3) % 2 === 0;
-  const tilt = ((h >> 5) % 19) - 9;
+  const { seed: h, ink, round, tilt } = stampLook(trip.id);
   const place = name(trip.region) || name(trip.country) || trip.title;
   const top = (name(trip.country) || trip.title).toUpperCase();
   const date = trip.start_date ? format(parseISO(trip.start_date), "yyyy.MM.dd") : "";

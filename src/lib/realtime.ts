@@ -20,6 +20,8 @@ export type ChangeTable =
   | "point_photos"
   | "trip_days"
   | "route_options"
+  /** 변경 기록 (누가 무엇을 바꿨는지) */
+  | "trip_activity"
   /** 초대·여행 삭제·회원 권한/비밀번호 변경처럼 접근 권한이 바뀌었을 수 있음 */
   | "access";
 
@@ -35,10 +37,21 @@ const SSE_RETRY_MS = 60_000;
 
 type Listener = (tables: Set<string>) => void;
 
+/** 지금 이 여행을 열어 둔 사람 (SSE 연결마다) */
+export interface Viewer {
+  id: string;
+  name: string;
+}
+const NO_VIEWERS: Viewer[] = [];
+
 class TripChannel {
   listeners = new Set<Listener>();
   statusListeners = new Set<() => void>();
   status: SyncStatus = "connecting";
+  /** 나를 뺀 접속자. 폴링 중에는 모른다(빈 목록) */
+  viewers: Viewer[] = NO_VIEWERS;
+  presenceListeners = new Set<() => void>();
+  private myId: string | null = null;
   private es: EventSource | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -60,6 +73,11 @@ class TripChannel {
     this.closeSse();
     this.stopPolling();
     for (const t of [this.retryTimer, this.batchTimer]) if (t) clearTimeout(t);
+  }
+
+  private setViewers(list: Viewer[]) {
+    this.viewers = list;
+    this.presenceListeners.forEach((fn) => fn());
   }
 
   private setStatus(s: SyncStatus) {
@@ -107,6 +125,13 @@ class TripChannel {
       this.setStatus("live");
     });
     es.addEventListener("change", (e) => this.emit(String((e as MessageEvent).data)));
+    es.addEventListener("hello", (e) => (this.myId = String((e as MessageEvent).data)));
+    es.addEventListener("presence", (e) => {
+      try {
+        const list = JSON.parse(String((e as MessageEvent).data)) as Viewer[];
+        this.setViewers(list.filter((v) => v.id !== this.myId));
+      } catch {}
+    });
     es.addEventListener("unavailable", () => this.fallBack());
     es.onerror = () => {
       // 브라우저가 알아서 다시 붙지만, 한 번도 ready 를 못 받았거나 완전히 닫혔으면 폴링으로
@@ -120,6 +145,7 @@ class TripChannel {
     this.readyTimer = null;
     this.es?.close();
     this.es = null;
+    if (this.viewers.length) this.setViewers(NO_VIEWERS);
   }
 
   private fallBack() {
@@ -230,5 +256,21 @@ export function useSyncStatus(tripId: string): SyncStatus {
     },
     () => channels.get(tripId)?.ch.status ?? "connecting",
     () => "connecting"
+  );
+}
+
+/** 나 말고 지금 이 여행을 열어 둔 사람 (실시간 연결일 때만 알 수 있다) */
+export function usePresence(tripId: string): Viewer[] {
+  return useSyncExternalStore(
+    (notify) => {
+      const ch = acquire(tripId);
+      ch.presenceListeners.add(notify);
+      return () => {
+        ch.presenceListeners.delete(notify);
+        release(tripId);
+      };
+    },
+    () => channels.get(tripId)?.ch.viewers ?? NO_VIEWERS,
+    () => NO_VIEWERS
   );
 }
