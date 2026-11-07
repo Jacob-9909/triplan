@@ -1,5 +1,6 @@
 /** 한국어 → 영어 (shell) */
 const en: Record<string, string> = {
+  "언어·통화·테마": "Language · currency · theme",
   // 메타데이터 · 매니페스트
   "Triplan — 가고 싶은 곳부터 함께 짜는 여행까지": "Triplan — from dream destinations to trips planned together",
   "가고 싶은 곳을 모아 두고, 지도·일정·가계부·준비물로 여행을 계획하고, 링크 하나로 동행자와 함께 편집하는 여행 플래너":

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  Download,
   Maximize2,
   Minimize2,
   Banknote,
@@ -28,7 +29,10 @@ import { useTripData, persistOrder, addPoint, ensureLeg, deletePoint, updateLeg 
 import { TripMap, AddPointDialog, type PointDraft } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
-import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
+import DayTabs, { BIN_DAY, OVERVIEW_DAY } from "@/features/route/DayTabs";
+import TripOverview, { dayColor } from "@/features/route/TripOverview";
+import { planDays } from "./itinerary";
+import ExportSheet from "./ExportSheet";
 import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
 import DayPlan from "@/features/route/DayPlan";
@@ -118,6 +122,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     () => Object.fromEntries(dayRecords.filter((d) => d.area).map((d) => [d.day_number, d.area!])) as Record<number, string>,
     [dayRecords]
   );
+  /** Day 마다 장소·시각·구간 (전체 일정 보기와 내보내기에 쓴다) */
+  const plan = useMemo(() => (trip ? planDays(trip, points, legs, areaByDay) : []), [trip, points, legs, areaByDay]);
   async function saveArea(day: number, area: string | null) {
     setDayRecords((prev) =>
       prev.some((d) => d.day_number === day)
@@ -144,6 +150,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   /** 지도 POI 라벨이나 검색 결과로 미리 채울 장소 정보 */
   const [poiPrefill, setPoiPrefill] = useState<{ name: string; category: MapPoint["category"] } | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   /** 지도 크게 보기: 일정은 지도 아래로. 이 기기에만 기억한다 */
   // ponytail: 서버 렌더는 비행기 로딩 화면만 그리므로 첫 값을 바로 localStorage 에서 읽어도 화면이 어긋나지 않는다
   const [mapBig, setMapBig] = useState(() => {
@@ -164,11 +171,30 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
 
   /** 후보함(BIN_DAY)이면 아직 Day 를 정하지 않은 장소 */
   const inBin = day === BIN_DAY;
+  /** 전체 일정 보기: 모든 Day 의 장소를 Day 색으로 한 지도에. 여기서는 장소를 새로 넣지 않는다 */
+  const inOverview = day === OVERVIEW_DAY;
   const pointsOf = (d: number | null) =>
     points.filter((p) => p.day_number === d).sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99));
-  const dayPoints = useMemo(() => pointsOf(inBin ? null : day), [points, day, inBin]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dayPoints = useMemo(
+    () => (inOverview ? plan.flatMap((d) => d.stops.map((s) => s.point)) : pointsOf(inBin ? null : day)),
+    [points, day, inBin, inOverview, plan] // eslint-disable-line react-hooks/exhaustive-deps
+  );
   // 후보함은 순서가 없으니 이동 구간도 없다
-  const dayLegs = useMemo(() => (inBin ? [] : adjacentLegs(dayPoints, legs)), [legs, dayPoints, inBin]);
+  const dayLegs = useMemo(
+    () => (inBin ? [] : inOverview ? plan.flatMap((d) => d.legs) : adjacentLegs(dayPoints, legs)),
+    [legs, dayPoints, inBin, inOverview, plan]
+  );
+  const overviewPins = useMemo(() => {
+    if (!inOverview) return null;
+    const colors: Record<string, string> = {};
+    const labels: Record<string, number> = {};
+    for (const d of plan)
+      d.stops.forEach((s, i) => {
+        colors[s.point.id] = dayColor(d.day);
+        labels[s.point.id] = i + 1;
+      });
+    return { colors, labels };
+  }, [inOverview, plan]);
   const binCount = points.filter((p) => p.day_number == null).length;
 
   // 후보함 구역 제안: 묶기는 여기서 계산하고, 이름만 서버(NIM)에 묻는다
@@ -240,7 +266,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     options: savedRoutes,
     setOptions: setRouteOptions,
     setLegs,
-    enabled: canEdit && now?.phase !== "past",
+    // 전체 보기에서 모든 Day 경로를 한꺼번에 받지 않는다 (Valhalla 초당 1건). 저장된 경로만 그린다
+    enabled: canEdit && now?.phase !== "past" && !inOverview,
   });
 
   // 구간을 펼치면 비교할 이동수단 경로를 받는다 (한국 대중교통은 이때만)
@@ -253,7 +280,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 시간이 비어 있는 구간은 우선 거리 기반 추정치로 채운다 (실제 경로가 오면 그 시간으로 바뀐다)
   const estimated = useRef(new Set<string>());
   useEffect(() => {
-    if (!canEdit) return;
+    if (!canEdit || inOverview) return;
     for (const leg of dayLegs) {
       if (leg.duration_min != null || estimated.current.has(leg.id)) continue;
       const from = points.find((p) => p.id === leg.from_point_id);
@@ -266,7 +293,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         void updateLeg(leg.id, patch);
       });
     }
-  }, [dayLegs, points, canEdit, setLegs]);
+  }, [dayLegs, points, canEdit, inOverview, setLegs]);
 
   // 구간 수정: 화면은 바로 바꾸고, 저장은 입력이 멈춘 뒤 한 번만
   const legSaveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -491,9 +518,20 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
               </span>
             )}
             <span className="ml-auto flex items-center gap-2">
-              {/* 로그인 화면은 데스크톱 상단 바에 이미 있다 */}
-              <PrefsToggle tone="light" className={inApp ? "md:hidden" : ""} />
+              {/* 휴대폰은 버튼 하나로 접는다. 로그인 화면 데스크톱은 상단 바에 이미 있다 */}
+              <PrefsToggle tone="light" compact className="sm:hidden" />
+              <span className={`hidden sm:inline-flex ${inApp ? "md:hidden" : ""}`}>
+                <PrefsToggle tone="light" />
+              </span>
               <SyncBadge status={sync} />
+              <button
+                onClick={() => setExportOpen(true)}
+                aria-label={t("내보내기")}
+                title={t("내보내기")}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-black/25 backdrop-blur-md transition hover:bg-black/40"
+              >
+                <Download size={16} aria-hidden />
+              </button>
               {inApp && canManage && (
                 <button
                   onClick={() => setShareOpen(true)}
@@ -602,16 +640,17 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                   today={todayDay}
                   bin={canEdit || binCount > 0 ? binCount : undefined}
                   areas={areaByDay}
+                  overview={tripDays > 1}
                 />
                 {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
-                {!inBin && trip.start_date && (
+                {!inBin && !inOverview && trip.start_date && (
                   <DayBookings docs={docs} date={format(addDays(parseISO(trip.start_date), day - 1), "yyyy-MM-dd")} />
                 )}
                 <div className={`grid gap-4 lg:gap-6 ${mapBig ? "" : "lg:grid-cols-5 lg:items-start"}`}>
                   {/* 데스크톱: 목록을 내려도 지도는 그 자리에 (상단 바 + 탭 바 아래). 크게 보기면 지도가 가로 전체, 일정은 아래 */}
                   <div className={mapBig ? "" : "lg:sticky lg:top-36 lg:col-span-3"}>
                     <div className="relative overflow-hidden rounded-[var(--radius-card)] shadow-card">
-                      {canEdit && (
+                      {canEdit && !inOverview && (
                         <div className="absolute left-3 right-14 top-3 z-10 sm:right-auto">
                           <PlaceSearch
                             center={mapCenter}
@@ -628,14 +667,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         routeOptions={routes.options}
                         selectedLegId={selectedLegId}
                         onRouteOptionClick={canEdit ? routes.choose : undefined}
-                        pinColors={pinColors}
+                        pinColors={overviewPins?.colors ?? pinColors}
+                        pinLabels={overviewPins?.labels}
                         expenses={expenses}
                         defaultCenter={getTripCenter(trip.country, trip.region)}
                         labelCountry={trip.country}
                         selectedPointId={selectedPointId}
                         focusPointId={selectedPointId}
                         onMapClick={
-                          canEdit
+                          canEdit && !inOverview
                             ? (latlng: { lat: number; lng: number }, poi) => {
                                 setPendingLatLng(latlng);
                                 setPoiPrefill(poi ?? null);
@@ -644,7 +684,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         }
                         onPointClick={(id: string) => setSelectedPointId(id)}
                         onPointOpen={(id: string) => setDetailId(id)}
-                        editable={canEdit}
+                        editable={canEdit && !inOverview}
                         // 휴대폰에서는 지도를 낮춰 일정 목록이 첫 화면에 보이게
                         // 크게 보기는 창이 낮아도 늘 원래보다 크다 (화면 높이 비율과 최소 높이 중 큰 쪽)
                         heightClass={
@@ -665,7 +705,17 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                     </div>
                   </div>
                   <div className={mapBig ? "" : "lg:col-span-2"}>
-                    {areas ? (
+                    {inOverview ? (
+                      <TripOverview
+                        days={plan}
+                        binCount={binCount}
+                        onPickDay={setDay}
+                        onOpen={(p) => {
+                          setDetailId(p.id);
+                          setSelectedPointId(p.id);
+                        }}
+                      />
+                    ) : areas ? (
                       <AreaGroups
                         groups={areas.groups}
                         loose={areas.loose}
@@ -742,7 +792,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
             )}
 
             {tab === "expenses" && (
-              <ExpensesTab tripId={tripId} day={day} canEdit={canEdit} trip={trip} onPatchTrip={patchTrip} />
+              // 전체·후보함(Day 1 미만)을 보고 있었으면 새 지출은 Day 1 로
+              <ExpensesTab tripId={tripId} day={Math.max(1, day)} canEdit={canEdit} trip={trip} onPatchTrip={patchTrip} />
             )}
 
             {tab === "record" && (
@@ -780,6 +831,15 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
           onSave={handlePointCreate}
         />
       )}
+
+      <ExportSheet
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        trip={trip}
+        days={plan}
+        bin={points.filter((p) => p.day_number == null)}
+        docs={docs}
+      />
 
       {inApp && canManage && (
         <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} isAdmin={access === "admin"} />

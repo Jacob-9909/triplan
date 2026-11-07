@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   addDays,
   differenceInCalendarDays,
@@ -10,7 +10,7 @@ import {
 import type { Trip } from "@/lib/types";
 import type { DayForecast } from "./weather";
 import { usePrefs } from "@/i18n/I18nProvider";
-import { Inbox } from "lucide-react";
+import { Inbox, Layers } from "lucide-react";
 
 export interface DayTabsProps {
   trip: Pick<Trip, "start_date" | "end_date">;
@@ -26,10 +26,14 @@ export interface DayTabsProps {
   bin?: number;
   /** Day 번호별 구역 이름 (후보함에서 구역째 옮긴 날) */
   areas?: Record<number, string>;
+  /** true 면 맨 앞에 전체 일정 탭(값 OVERVIEW_DAY)을 붙인다 */
+  overview?: boolean;
 }
 
 /** 아직 Day 를 정하지 않은 장소(day_number 없음)를 모아 보는 탭의 값 */
 export const BIN_DAY = 0;
+/** 모든 Day 를 한 지도·목록으로 보는 탭의 값 */
+export const OVERVIEW_DAY = -1;
 
 function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
   if (!trip.start_date || !trip.end_date) return [];
@@ -39,12 +43,22 @@ function getDays(trip: Pick<Trip, "start_date" | "end_date">): Date[] {
   return Array.from({ length: count }, (_, i) => addDays(start, i));
 }
 
-export default function DayTabs({ trip, value = null, onChange, forecast, today = null, bin, areas }: DayTabsProps) {
+export default function DayTabs({ trip, value = null, onChange, forecast, today = null, bin, areas, overview = false }: DayTabsProps) {
   const { t, df } = usePrefs();
   const days = getDays(trip);
   const [internalDay, setInternalDay] = useState(1);
 
   const selected = value ?? internalDay;
+  // 고른 탭(여행 중이면 오늘)이 가로 스크롤 밖에 있으면 보이게 끌어온다. 페이지는 세로로 움직이지 않는다
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const list = listRef.current;
+    const el = list?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!list || !el) return;
+    const a = list.getBoundingClientRect();
+    const b = el.getBoundingClientRect();
+    if (b.left < a.left || b.right > a.right) list.scrollBy({ left: b.left - a.left - 16, behavior: "smooth" });
+  }, [selected]);
 
   function handleSelect(dayNumber: number) {
     setInternalDay(dayNumber);
@@ -61,10 +75,50 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
 
   return (
     <div
+      ref={listRef}
       role="tablist"
       aria-label={t("여행 일차 선택")}
       className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
+      {overview && (
+        <button
+          role="tab"
+          aria-selected={selected === OVERVIEW_DAY}
+          onClick={() => handleSelect(OVERVIEW_DAY)}
+          className={`flex shrink-0 flex-col items-center justify-center rounded-2xl border px-4 py-2 transition-all md:px-5 md:py-2.5 ${
+            selected === OVERVIEW_DAY
+              ? "border-ink bg-ink text-white shadow-md"
+              : "border-border-subtle bg-surface text-foreground hover:border-ink"
+          }`}
+        >
+          <span className="flex items-center gap-1 text-xs font-semibold">
+            <Layers size={13} aria-hidden /> {t("전체")}
+          </span>
+          <span className={`mt-0.5 text-[11px] ${selected === OVERVIEW_DAY ? "text-white" : "text-foreground/68"}`}>
+            {t("{n}일", { n: days.length })}
+          </span>
+        </button>
+      )}
+      {/* 후보함은 Day 앞에 둔다: 휴대폰에서 Day 가 많으면 맨 끝 탭은 가로 스크롤에 가려 안 보인다 */}
+      {bin !== undefined && (
+        <button
+          role="tab"
+          aria-selected={selected === BIN_DAY}
+          onClick={() => handleSelect(BIN_DAY)}
+          className={`flex shrink-0 flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-2 transition-all md:px-5 md:py-2.5 ${
+            selected === BIN_DAY
+              ? "border-ink bg-ink text-white shadow-md"
+              : "border-border-subtle bg-surface-muted text-foreground hover:border-ink"
+          }`}
+        >
+          <span className="flex items-center gap-1 text-xs font-semibold">
+            <Inbox size={13} aria-hidden /> {t("후보함")}
+          </span>
+          <span className={`mt-0.5 text-[11px] ${selected === BIN_DAY ? "text-white" : "text-foreground/68"}`}>
+            {t("{n}곳", { n: bin })}
+          </span>
+        </button>
+      )}
       {days.map((date, i) => {
         const dayNumber = i + 1;
         const isActive = selected === dayNumber;
@@ -103,25 +157,6 @@ export default function DayTabs({ trip, value = null, onChange, forecast, today 
           </button>
         );
       })}
-      {bin !== undefined && (
-        <button
-          role="tab"
-          aria-selected={selected === BIN_DAY}
-          onClick={() => handleSelect(BIN_DAY)}
-          className={`flex shrink-0 flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-2 transition-all md:px-5 md:py-2.5 ${
-            selected === BIN_DAY
-              ? "border-ink bg-ink text-white shadow-md"
-              : "border-border-subtle bg-surface-muted text-foreground hover:border-ink"
-          }`}
-        >
-          <span className="flex items-center gap-1 text-xs font-semibold">
-            <Inbox size={13} aria-hidden /> {t("후보함")}
-          </span>
-          <span className={`mt-0.5 text-[11px] ${selected === BIN_DAY ? "text-white" : "text-foreground/68"}`}>
-            {t("{n}곳", { n: bin })}
-          </span>
-        </button>
-      )}
     </div>
   );
 }

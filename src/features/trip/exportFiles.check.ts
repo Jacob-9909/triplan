@@ -1,0 +1,49 @@
+// 내보내기 파일 자체 점검: node src/features/trip/exportFiles.check.ts
+import assert from "node:assert/strict";
+import type { MapPoint, TravelDoc } from "@/lib/types";
+import { buildIcs, buildKml, fileName, type ExportDay } from "./exportFiles.ts";
+
+const t = (key: string, vars: Record<string, string | number> = {}) => key.replace(/\{(\w+)\}/g, (_, k) => String(vars[k]));
+const pt = (id: string, name: string, extra: Partial<MapPoint> = {}) =>
+  ({ id, name, lat: 35.7148, lng: 139.7967, memo: null, link_url: null, ...extra }) as MapPoint;
+
+const days: ExportDay[] = [
+  {
+    day: 1,
+    date: "2026-11-20",
+    stops: [
+      { point: pt("a", "센소지, 아사쿠사; 본당", { memo: "줄 길다\n아침 일찍" }), arrive: 9 * 60, leave: 10 * 60 },
+      // 자정을 넘기는 장소는 다음 날로
+      { point: pt("b", "야경 & <바>"), arrive: 23 * 60 + 30, leave: 25 * 60 },
+    ],
+  },
+  { day: 2, date: "2026-11-21", stops: [] },
+];
+const docs = [
+  { id: "h", type: "hotel", title: "호텔", provider: "아고다", confirmation_code: "AB12", starts_at: "2026-11-20", ends_at: "2026-11-23" },
+  { id: "p", type: "passport", title: "여권", starts_at: "2030-01-01" },
+] as TravelDoc[];
+
+const ics = buildIcs({ title: "도쿄", days, docs, stamp: new Date("2026-11-07T01:02:03Z") }, t, (d) => d.type === "passport");
+assert.ok(ics.startsWith("BEGIN:VCALENDAR\r\n") && ics.endsWith("END:VCALENDAR\r\n"));
+assert.equal((ics.match(/BEGIN:VEVENT/g) ?? []).length, 3, "장소 2 + 숙소 1, 여권은 뺀다");
+assert.ok(ics.includes("DTSTART:20261120T090000\r\n"));
+assert.ok(ics.includes("DTSTART:20261120T233000\r\nDTEND:20261121T010000"), "자정 넘김");
+assert.ok(ics.includes("SUMMARY:센소지\\, 아사쿠사\\; 본당"), "쉼표·세미콜론 이스케이프");
+assert.ok(ics.includes("DTSTART;VALUE=DATE:20261120\r\nDTEND;VALUE=DATE:20261124"), "종일 일정 끝은 다음 날");
+assert.ok(ics.includes("DTSTAMP:20261107T010203Z"));
+// 접힌 줄을 펴면 원래 줄. 접힌 각 줄은 75바이트 이하
+const enc = new TextEncoder();
+for (const line of ics.split("\r\n")) assert.ok(enc.encode(line).length <= 75, `too long: ${line}`);
+assert.ok(ics.replace(/\r\n /g, "").includes("DESCRIPTION:도쿄 · Day 1 · 1번째\\n줄 길다\\n아침 일찍"));
+
+const kml = buildKml({ title: "도쿄 & 오사카", days, bin: [pt("c", "도쿄 타워")] }, t);
+assert.equal((kml.match(/<Folder>/g) ?? []).length, 2, "빈 Day 는 폴더를 만들지 않는다");
+assert.ok(kml.includes("<name>도쿄 &amp; 오사카</name>"));
+assert.ok(kml.includes("<name>2. 야경 &amp; &lt;바&gt;</name>"));
+assert.ok(kml.includes("<coordinates>139.7967,35.7148,0</coordinates>"));
+assert.ok(kml.includes("<name>후보함</name>"));
+
+assert.equal(fileName('도쿄: 3박/4일?', "ics"), "도쿄 3박 4일.ics");
+assert.equal(fileName("///", "kml"), "triplan.kml");
+console.log("exportFiles ok");

@@ -252,6 +252,29 @@ const en: Record<string, string> = {
   "다른 곳과 멀어요": "Far from the others",
   "장소를 눌러 직접 Day로 옮기세요": "Tap a place to move it to a day yourself",
   "{name} 순서 바꾸기": "Reorder {name}",
+
+  // 전체 일정 보기 (features/route/TripOverview.tsx, DayTabs.tsx)
+  "{n}일": "{n} days",
+  "전체 일정": "Whole trip",
+  "아직 장소가 없어요": "No places yet",
+  "{n}곳은 아직 날을 정하지 않았어요": "{n} places don't have a day yet",
+
+  // 내보내기 (features/trip/ExportSheet.tsx, TripPrint.tsx, exportFiles.ts)
+  "내보내기": "Export",
+  "캘린더에 넣기": "Add to calendar",
+  "장소별 시간과 예약 날짜를 .ics 파일로 받아요. 구글·애플 캘린더에서 열면 일정이 들어가요.":
+    "Download each place's time and your booking dates as an .ics file. Open it in Google or Apple Calendar to add the events.",
+  "여행 날짜를 정하면 쓸 수 있어요": "Set the trip dates to use this",
+  "지도 앱으로": "Open in a map app",
+  "Day별 장소를 .kml 파일로 받아요. 구글 내 지도(My Maps)에서 가져오기로 열면 Day마다 레이어가 생겨요.":
+    "Download places by day as a .kml file. Import it into Google My Maps and each day becomes a layer.",
+  "장소를 넣으면 쓸 수 있어요": "Add places to use this",
+  "인쇄 · PDF로 저장": "Print · Save as PDF",
+  "Day별 타임테이블과 그날 예약을 일정표로 정리해요. 인쇄 창에서 PDF로 저장할 수 있어요.":
+    "Lays out each day's timetable and bookings. You can save it as a PDF from the print dialog.",
+  "Triplan에서 만든 일정표": "Itinerary made with Triplan",
+  "{title} · Day {day} · {n}번째": "{title} · Day {day} · stop {n}",
+  "예약번호 {code}": "Booking no. {code}",
 };
 
 export default en;

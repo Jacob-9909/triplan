@@ -8,7 +8,7 @@ export interface DayDoc {
 }
 
 /** 여행 내내 걸쳐 있는 서류라 하루 일정에는 안 띄운다 */
-const WHOLE_TRIP: TravelDoc["type"][] = ["passport", "visa", "insurance"];
+export const WHOLE_TRIP: TravelDoc["type"][] = ["passport", "visa", "insurance"];
 
 /** date("yyyy-MM-dd")에 걸린 예약. 날짜는 모두 "yyyy-MM-dd" 라 문자열 비교로 충분하다 */
 export function docsOnDay(docs: TravelDoc[], date: string): DayDoc[] {
