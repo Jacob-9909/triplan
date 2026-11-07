@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { addDays, format, parseISO } from "date-fns";
 import { Maximize2, Minimize2 } from "lucide-react";
 import type { Expense, MapPoint, RouteLeg, RouteOption, TravelDoc, Trip, TripDay } from "@/lib/types";
 import { ApiError, apiGet, apiPatch } from "@/lib/api";
-import { useTripChanges } from "@/lib/realtime";
 import { TripMap, AddPointDialog } from "@/features/map";
 import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
-import DayTabs, { BIN_DAY } from "@/features/route/DayTabs";
+import DayTabs, { BIN_DAY, OVERVIEW_DAY } from "@/features/route/DayTabs";
+import TripOverview, { dayColor } from "@/features/route/TripOverview";
+import StaySheet from "@/features/route/StaySheet";
+import SuggestSheet from "@/features/route/SuggestSheet";
 import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
 import DayPlan from "@/features/route/DayPlan";
@@ -29,7 +31,10 @@ import Sheet from "@/features/ui/Sheet";
 import { nights } from "@/features/ui/dates";
 import { usePrefs } from "@/i18n/I18nProvider";
 import PlaceDetail from "./PlaceDetail";
-import { updateLeg } from "./useTripData";
+import { ensureLeg, updateLeg } from "./useTripData";
+import { dayStays, planDays } from "./itinerary";
+import { useCollab } from "./useCollab";
+import type { TripDays } from "./useTripDays";
 import type { PointActions } from "./usePointActions";
 
 /** 휴대폰 지도 높이 단계 (화면 높이 %). 손잡이를 끌거나 눌러 바꾼다 */
@@ -69,6 +74,7 @@ export default function PlanTab({
   past,
   expenses,
   docs,
+  tripDayData,
 }: {
   tripId: string;
   trip: Trip;
@@ -87,41 +93,125 @@ export default function PlanTab({
   expenses: Expense[];
   /** 예약 (그날 걸린 항공·숙소를 일정 위에) */
   docs: TravelDoc[];
+  /** Day 별 구역 이름·밤 숙소 */
+  tripDayData: TripDays;
 }) {
   const { t, locale, df } = usePrefs();
   const inBin = day === BIN_DAY;
-  const dayPoints = useMemo(() => actions.pointsOf(inBin ? null : day), [points, day, inBin]); // eslint-disable-line react-hooks/exhaustive-deps
-  // 후보함은 순서가 없으니 이동 구간도 없다
-  const dayLegs = useMemo(() => (inBin ? [] : adjacentLegs(dayPoints, legs)), [legs, dayPoints, inBin]);
-  const binCount = points.filter((p) => p.day_number == null).length;
+  /** 전체 일정 보기: 모든 Day 의 장소를 Day 색으로 한 지도에. 여기서는 장소를 새로 넣지 않는다 */
+  const inOverview = day === OVERVIEW_DAY;
   const tripDays = (nights(trip) ?? -1) + 1;
-  const dateOf = (d: number) => (trip.start_date ? format(addDays(parseISO(trip.start_date), d - 1), "yyyy-MM-dd") : null);
+  const dateOf = (d: number) => (trip.start_date && d >= 1 ? format(addDays(parseISO(trip.start_date), d - 1), "yyyy-MM-dd") : null);
+  const collab = useCollab(tripId);
 
-  // Day 별 구역 이름 (trip_days.area). 일기 칸은 기록 탭이 따로 다룬다
-  const [dayRecords, setDayRecords] = useState<TripDay[]>([]);
-  const loadDays = useCallback(
-    () =>
-      apiGet<TripDay[]>(`/api/trip-days?trip_id=${tripId}`)
-        .then(setDayRecords)
-        .catch(() => {}),
-    [tripId]
-  );
-  useEffect(() => {
-    void loadDays();
-  }, [loadDays]);
-  useTripChanges(tripId, ["trip_days"], () => void loadDays());
+  // Day 별 구역 이름·밤 숙소 (trip_days). 인쇄 일정표와 같이 쓰려고 여행 화면에서 받아 온다
+  const { dayRecords, setDayRecords, loadDays, stayByNight } = tripDayData;
   const areaByDay = useMemo(
     () => Object.fromEntries(dayRecords.filter((d) => d.area).map((d) => [d.day_number, d.area!])) as Record<number, string>,
     [dayRecords]
   );
+  /** 하루 기록 행을 화면에서 먼저 고친다 (없으면 만든다) */
+  function patchDaysLocal(days: number[], patch: Partial<TripDay>) {
+    setDayRecords((prev) => {
+      let next = prev;
+      for (const d of days)
+        next = next.some((r) => r.day_number === d)
+          ? next.map((r) => (r.day_number === d ? { ...r, ...patch } : r))
+          : [...next, { id: `local-${d}`, trip_id: tripId, day_number: d, weather: null, mood: null, note: null, ...patch }];
+      return next;
+    });
+  }
   async function saveArea(d: number, area: string | null) {
-    setDayRecords((prev) =>
-      prev.some((r) => r.day_number === d)
-        ? prev.map((r) => (r.day_number === d ? { ...r, area } : r))
-        : [...prev, { id: `local-${d}`, trip_id: tripId, day_number: d, weather: null, mood: null, note: null, area }]
-    );
+    patchDaysLocal([d], { area });
     await apiPatch("/api/trip-days", { trip_id: tripId, day_number: d, area }).catch(() => void loadDays());
   }
+  const stayIds = useMemo(() => new Set(Object.values(stayByNight)), [stayByNight]);
+  /** 여러 밤의 숙소를 한 번에. 실패하면 서버 값으로 되돌리고 오류 메시지 */
+  async function saveStay(pointId: string | null, nightList: number[]) {
+    patchDaysLocal(nightList, { stay_point_id: pointId });
+    try {
+      for (const n of nightList) await apiPatch("/api/trip-days", { trip_id: tripId, day_number: n, stay_point_id: pointId });
+      return null;
+    } catch (e) {
+      void loadDays();
+      return e instanceof Error ? e.message : t("저장하지 못했어요.");
+    }
+  }
+  const [stayNight, setStayNight] = useState<number | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
+
+  /** Day 마다 장소·시각·구간·숙소 (전체 일정 보기에 쓴다) */
+  const plan = useMemo(() => planDays(trip, points, legs, areaByDay, stayByNight), [trip, points, legs, areaByDay, stayByNight]);
+  // 후보함에는 숙소로 지정한 곳을 빼고 보여 준다 (숙소는 Day 맨 앞·뒤에 붙는다)
+  const dayPoints = useMemo(
+    () =>
+      inOverview
+        ? plan.flatMap((d) => d.stops.map((s) => s.point))
+        : inBin
+          ? actions.pointsOf(null).filter((p) => !stayIds.has(p.id))
+          : actions.pointsOf(day),
+    [points, day, inBin, inOverview, plan, stayIds] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // 후보함은 순서가 없으니 이동 구간도 없다
+  const dayLegs = useMemo(
+    () => (inBin ? [] : inOverview ? plan.flatMap((d) => d.legs) : adjacentLegs(dayPoints, legs)),
+    [legs, dayPoints, inBin, inOverview, plan]
+  );
+  const binCount = points.filter((p) => p.day_number == null && !stayIds.has(p.id)).length;
+  /** 그날 출발 숙소(전날 밤)·돌아갈 숙소(오늘 밤)와 첫·마지막 장소를 잇는 구간 */
+  const stays = useMemo(
+    () =>
+      inBin || inOverview ? { start: null, end: null } : dayStays(day, dayPoints, stayByNight, new Map(points.map((p) => [p.id, p])), legs),
+    [inBin, inOverview, day, dayPoints, stayByNight, points, legs]
+  );
+  /** 경로를 받고 지도에 그릴 구간: 숙소 → 첫 장소 … 마지막 장소 → 숙소 */
+  const routeLegs = useMemo(() => [stays.start?.leg, ...dayLegs, stays.end?.leg].filter((l): l is RouteLeg => !!l), [stays, dayLegs]);
+  // 숙소와 첫·마지막 장소 사이 구간이 아직 없으면 만든다 (순서를 바꾸거나 숙소를 바꿀 때마다)
+  const ensuringStay = useRef(new Set<string>());
+  useEffect(() => {
+    if (!canEdit || inBin || inOverview) return;
+    const first = dayPoints[0];
+    const last = dayPoints[dayPoints.length - 1];
+    const pairs: [string, string][] = [];
+    if (stays.start && first && !stays.start.leg && first.id !== stays.start.point.id) pairs.push([stays.start.point.id, first.id]);
+    if (stays.end && last && !stays.end.leg && last.id !== stays.end.point.id) pairs.push([last.id, stays.end.point.id]);
+    for (const [a, b] of pairs) {
+      const key = `${a}>${b}`;
+      if (ensuringStay.current.has(key)) continue;
+      ensuringStay.current.add(key);
+      void ensureLeg(tripId, a, b).then((leg) => {
+        ensuringStay.current.delete(key);
+        if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+      });
+    }
+  }, [stays, dayPoints, canEdit, inBin, inOverview, tripId, setLegs]);
+  /** 지도 핀: 그날 장소 + 숙소 (전체 보기면 모든 숙소). 숙소는 번호 없이 */
+  const mapPoints = useMemo(() => {
+    const extras = inOverview ? points.filter((p) => stayIds.has(p.id)) : [stays.start?.point, stays.end?.point];
+    const extra = extras.filter(
+      (p, i, arr): p is MapPoint => !!p && arr.findIndex((q) => q?.id === p.id) === i && !dayPoints.some((d) => d.id === p.id)
+    );
+    return [...dayPoints, ...extra];
+  }, [dayPoints, stays, inOverview, points, stayIds]);
+  /** 전체 보기: Day 색 핀, 번호는 그날 안 순서 */
+  const overviewPins = useMemo(() => {
+    if (!inOverview) return null;
+    const colors: Record<string, string> = {};
+    const labels: Record<string, number> = {};
+    for (const d of plan)
+      d.stops.forEach((s, i) => {
+        colors[s.point.id] = dayColor(d.day);
+        labels[s.point.id] = i + 1;
+      });
+    return { colors, labels };
+  }, [inOverview, plan]);
+  const pinLabels = useMemo(() => {
+    const base: Record<string, number | null> | undefined = overviewPins?.labels;
+    if (mapPoints.length === dayPoints.length) return base;
+    const out = { ...(base ?? Object.fromEntries(dayPoints.map((p, i) => [p.id, i + 1]))) };
+    for (const p of mapPoints) if (!(p.id in out)) out[p.id] = null;
+    return out;
+  }, [overviewPins, mapPoints, dayPoints]);
 
   const center = getTripCenter(trip.country, trip.region);
   const forecast = useForecast(center?.lat, center?.lng, trip.start_date, trip.end_date);
@@ -170,45 +260,84 @@ export default function PlanTab({
   // 실제 경로: 다녀온 여행은 새로 받지 않는다
   const routes = useRouteFetcher({
     tripId,
-    legs: dayLegs,
+    legs: routeLegs,
     points,
     options: savedRoutes,
     setOptions: setRouteOptions,
     setLegs,
-    enabled: canEdit && !past,
+    // 전체 보기에서 모든 Day 경로를 한꺼번에 받지 않는다 (Valhalla 초당 1건). 저장된 경로만 그린다
+    enabled: canEdit && !past && !inOverview,
   });
 
   // 영업시간을 모르는 장소는 OpenStreetMap 에서 조금씩 찾아 둔다 (일정표의 휴무일·영업시간 밖 경고용)
   useOpeningHours({
     points: dayPoints,
-    enabled: canEdit && !inBin && !past,
+    enabled: canEdit && !inBin && !inOverview && !past,
     onFound: (id, hours) => actions.patchLocal(id, { opening_hours: hours }),
   });
 
+  // 보고 있는 Day(후보함)의 장소 사진·연락처를 하나씩 찾아 둔다 (목록 썸네일, 장소 상세).
+  // Nominatim 이용 정책(초당 1건)에 맞춰 1.2초 간격, 한 번 찾아본 곳(info_checked_at)은 다시 찾지 않는다
+  const infoTried = useRef(new Set<string>());
+  const infoLastAt = useRef(0);
+  const infoTodo = mapPoints.filter((p) => !p.info_checked_at).map((p) => p.id);
+  useEffect(() => {
+    if (!canEdit || inOverview || infoTodo.length === 0) return;
+    let stop = false;
+    void (async () => {
+      for (const id of infoTodo) {
+        // 효과가 다시 시작돼도 간격은 지킨다 (마지막 요청 시각 기준)
+        const wait = infoLastAt.current + 1200 - Date.now();
+        if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+        if (stop) return;
+        if (infoTried.current.has(id)) continue;
+        infoTried.current.add(id);
+        infoLastAt.current = Date.now();
+        try {
+          const r = await apiGet<{ point: Partial<MapPoint> | null }>(`/api/places/info?point_id=${id}&locale=${locale}`);
+          if (r.point) actions.patchLocal(id, r.point);
+        } catch {
+          return;
+        }
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [infoTodo.join(), canEdit, inOverview]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 구간을 펼치면 비교할 이동수단 경로를 받는다 (한국 대중교통은 이때만)
-  const openLeg = dayLegs.find((l) => l.id === selectedLegId);
+  const openLeg = routeLegs.find((l) => l.id === selectedLegId);
   useEffect(() => {
     if (!openLeg) return;
     for (const m of chipMethods(openLeg)) routes.ensure(openLeg.id, m);
   }, [openLeg?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 시간이 비어 있는 구간은 우선 거리 기반 추정치로 채운다 (실제 경로가 오면 그 시간으로 바뀐다)
-  const estimated = useRef(new Set<string>());
+  // 구간 id → 채운 추정치 (null 이면 계산 중). 막 만든 구간은 실시간 재조회가 저장 전 값(빈 시간)으로
+  // 덮을 수 있어서, 이미 채운 구간이 다시 비어 보이면 저장 없이 화면에만 다시 채운다
+  const estimated = useRef(new Map<string, Partial<RouteLeg> | null>());
   useEffect(() => {
-    if (!canEdit) return;
-    for (const leg of dayLegs) {
-      if (leg.duration_min != null || estimated.current.has(leg.id)) continue;
+    if (!canEdit || inOverview) return;
+    for (const leg of routeLegs) {
+      if (leg.duration_min != null) continue;
+      if (estimated.current.has(leg.id)) {
+        const done = estimated.current.get(leg.id);
+        if (done) setLegs((prev) => prev.map((l) => (l.id === leg.id && l.duration_min == null ? { ...l, ...done } : l)));
+        continue;
+      }
       const from = points.find((p) => p.id === leg.from_point_id);
       const to = points.find((p) => p.id === leg.to_point_id);
       if (!from || !to) continue;
-      estimated.current.add(leg.id);
+      estimated.current.set(leg.id, null);
       void fetchDirections(from, to, leg.method).then((r) => {
         const patch = { duration_min: r.durationMin, distance_km: r.distanceKm };
+        estimated.current.set(leg.id, patch);
         setLegs((prev) => prev.map((l) => (l.id === leg.id ? { ...l, ...patch } : l)));
         void updateLeg(leg.id, patch);
       });
     }
-  }, [dayLegs, points, canEdit, setLegs]);
+  }, [routeLegs, points, canEdit, inOverview, setLegs]);
 
   // 구간 수정: 화면은 바로 바꾸고, 저장은 입력이 멈춘 뒤 한 번만
   const legSaveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -230,10 +359,13 @@ export default function PlanTab({
     );
   }
 
-  /** 이동 거리가 짧은 순서로. 이미 그 순서면 false */
+  /** 이동 거리가 짧은 순서로. 출발 숙소가 있으면 숙소에서 시작해 첫 장소도 바뀔 수 있다. 이미 그 순서면 false */
   function handleOptimize() {
     const before = dayPoints.map((p) => p.id);
-    const after = optimizeOrder(dayPoints).map((p) => p.id);
+    const from = stays.start?.point;
+    const after = (
+      from && !dayPoints.some((p) => p.id === from.id) ? optimizeOrder([from, ...dayPoints]).slice(1) : optimizeOrder(dayPoints)
+    ).map((p) => p.id);
     if (before.join() === after.join()) return false;
     setUndo({ day, before, after });
     void actions.reorder(after, inBin);
@@ -247,7 +379,7 @@ export default function PlanTab({
           lng: dayPoints.reduce((s, p) => s + p.lng, 0) / dayPoints.length,
         }
       : center;
-  const date = inBin ? null : dateOf(day);
+  const date = inBin || inOverview ? null : dateOf(day);
 
   return (
     <div className="space-y-4">
@@ -259,8 +391,9 @@ export default function PlanTab({
         today={todayDay}
         bin={canEdit || binCount > 0 ? binCount : undefined}
         areas={areaByDay}
+        overview={tripDays > 1}
       />
-      {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
+      {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} startTravel={stays.start?.leg?.duration_min ?? 0} />}
       {date && <DayBookings docs={docs} date={date} />}
       <div className={`grid gap-4 lg:gap-6 ${mapBig ? "" : "lg:grid-cols-5 lg:items-start"}`}>
         {/* 휴대폰: 탭 바 아래 붙어 있고 목록이 아래로 지나간다. 데스크톱: 목록을 내려도 지도는 그 자리에 */}
@@ -275,7 +408,7 @@ export default function PlanTab({
             mapBig={mapBig}
             onToggleBig={toggleMapBig}
             search={
-              canEdit ? (
+              canEdit && !inOverview ? (
                 <PlaceSearch
                   center={mapCenter}
                   onPick={(place: PickedPlace) => {
@@ -288,19 +421,20 @@ export default function PlanTab({
           >
             {(heightClass) => (
               <TripMap
-                points={dayPoints}
-                legs={dayLegs}
+                points={mapPoints}
+                legs={routeLegs}
                 routeOptions={routes.options}
                 selectedLegId={selectedLegId}
                 onRouteOptionClick={canEdit ? routes.choose : undefined}
-                pinColors={grouping.pinColors}
+                pinColors={overviewPins?.colors ?? grouping.pinColors}
+                pinLabels={pinLabels}
                 expenses={expenses}
                 defaultCenter={center}
                 labelCountry={trip.country}
                 selectedPointId={selectedPointId}
                 focusPointId={selectedPointId}
                 onMapClick={
-                  canEdit
+                  canEdit && !inOverview
                     ? (latlng: { lat: number; lng: number }, poi) => {
                         setPendingLatLng(latlng);
                         setPoiPrefill(poi ?? null);
@@ -309,14 +443,24 @@ export default function PlanTab({
                 }
                 onPointClick={(id: string) => setSelectedPointId(id)}
                 onPointOpen={(id: string) => setDetailId(id)}
-                editable={canEdit}
+                editable={canEdit && !inOverview}
                 heightClass={heightClass}
               />
             )}
           </MapPane>
         </div>
         <div className={mapBig ? "" : "lg:col-span-2"}>
-          {grouping.areas ? (
+          {inOverview ? (
+            <TripOverview
+              days={plan}
+              binCount={binCount}
+              onPickDay={onDayChange}
+              onOpen={(p) => {
+                setDetailId(p.id);
+                setSelectedPointId(p.id);
+              }}
+            />
+          ) : grouping.areas ? (
             <AreaGroups
               groups={grouping.areas.groups}
               loose={grouping.areas.loose}
@@ -384,8 +528,13 @@ export default function PlanTab({
                   : undefined
               }
               onGroup={canEdit ? () => setAreaOpen(true) : undefined}
+              onSuggest={canEdit && inBin ? () => setSuggestOpen(true) : undefined}
               area={inBin ? null : areaByDay[day]}
               onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
+              start={stays.start}
+              end={stays.end}
+              onPickStay={canEdit && !inBin && day < tripDays ? () => setStayNight(day) : undefined}
+              social={collab.byPoint}
             />
           )}
         </div>
@@ -416,7 +565,39 @@ export default function PlanTab({
         onSave={actions.savePoint}
         dayCount={tripDays}
         onMove={actions.movePoint}
+        onPointPatch={actions.patchLocal}
+        collab={collab}
+        travelers={trip.travelers ?? []}
       />
+
+      {canEdit && (
+        <StaySheet
+          night={stayNight}
+          lastNight={tripDays - 1}
+          stayByNight={stayByNight}
+          candidates={points.filter((p) => p.category === "stay" || stayIds.has(p.id))}
+          center={mapCenter}
+          onClose={() => setStayNight(null)}
+          onSet={saveStay}
+          onCreate={(place) => actions.createPoint({ name: place.name, category: "stay", color: null, memo: null, lat: place.lat, lng: place.lng }, place, null)}
+        />
+      )}
+
+      {canEdit && (
+        <SuggestSheet
+          open={suggestOpen}
+          tripId={tripId}
+          onClose={() => setSuggestOpen(false)}
+          onAdd={async (places) => {
+            // 하나씩 저장한다. 추천 이유는 메모로 남긴다
+            let added = 0;
+            for (const p of places) {
+              if (await actions.createPoint({ name: p.name, category: p.category, color: null, memo: p.reason || null, lat: p.lat, lng: p.lng }, p, null)) added++;
+            }
+            return added;
+          }}
+        />
+      )}
 
       <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title={t("이동 구간")}>
         {editingLeg && (

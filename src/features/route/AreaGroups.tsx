@@ -7,7 +7,8 @@ import type { AreaGroup, LoosePlace } from "./areas";
 import { formatDuration } from "./schedule";
 
 /** 구역 색 (분류별 핀 색과 겹치지 않게). 애매한 곳은 회색 */
-export const AREA_COLORS = ["#e0782f", "#2f6fdf", "#2a9d6a", "#a855f7", "#db2777", "#0891b2"];
+// 구역 색이자 전체 일정 보기의 Day 색. 8일이 넘으면 다시 돈다
+export const AREA_COLORS = ["#e0782f", "#2f6fdf", "#2a9d6a", "#a855f7", "#db2777", "#0891b2", "#ca8a04", "#4338ca"];
 export const LOOSE_COLOR = "#9ca3af";
 
 /**

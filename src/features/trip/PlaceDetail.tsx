@@ -14,6 +14,9 @@ import { directionsUrl } from "@/features/route/directions";
 import { parseOpeningHours } from "@/features/route/openingHours";
 import { usePrefs } from "@/i18n/I18nProvider";
 
+import PlaceInfoCard from "./PlaceInfoCard";
+import CollabSection from "./CollabSection";
+import type { Collab } from "./useCollab";
 export type PointPatch = Partial<
   Pick<MapPoint, "memo" | "link_url" | "category" | "color" | "start_time" | "stay_min" | "rating" | "review" | "opening_hours">
 >;
@@ -58,6 +61,9 @@ export default function PlaceDetail({
   onSave,
   dayCount = 0,
   onMove,
+  onPointPatch,
+  collab,
+  travelers = [],
 }: {
   point: MapPoint | null;
   canEdit: boolean;
@@ -68,10 +74,27 @@ export default function PlaceDetail({
   dayCount?: number;
   /** 다른 Day 나 후보함(null)으로 옮기기. 실패하면 오류 메시지 */
   onMove?: MoveTo;
+  /** 장소 정보(사진·연락처)가 장소에 복사한 값을 화면에 반영 */
+  onPointPatch?: (id: string, patch: Partial<MapPoint>) => void;
+  /** 동행 의견(좋아요·댓글)과 이름 고르기에 쓰는 동행자 */
+  collab?: Collab;
+  travelers?: string[];
 }) {
   return (
     <Sheet open={point !== null} onClose={onClose} title={point ? <Title point={point} /> : null}>
-      {point && <Body key={point.id} point={point} canEdit={canEdit} onSave={onSave} dayCount={dayCount} onMove={onMove} />}
+      {point && (
+        <Body
+          key={point.id}
+          point={point}
+          canEdit={canEdit}
+          onSave={onSave}
+          dayCount={dayCount}
+          onMove={onMove}
+          onPointPatch={onPointPatch ? (patch) => onPointPatch(point.id, patch) : undefined}
+          collab={collab}
+          travelers={travelers}
+        />
+      )}
     </Sheet>
   );
 }
@@ -91,12 +114,18 @@ function Body({
   onSave,
   dayCount,
   onMove,
+  onPointPatch,
+  collab,
+  travelers,
 }: {
   point: MapPoint;
   canEdit: boolean;
   onSave: (id: string, patch: PointPatch) => Promise<string | null>;
   dayCount: number;
   onMove?: MoveTo;
+  onPointPatch?: (patch: Partial<MapPoint>) => void;
+  collab?: Collab;
+  travelers: string[];
 }) {
   const { t, locale } = usePrefs();
   const [photos, setPhotos] = useState<PointPhoto[] | null>(null);
@@ -211,6 +240,10 @@ function Body({
 
   return (
     <div className="space-y-5">
+      <PlaceInfoCard point={point} onPointPatch={onPointPatch} />
+
+      {collab && <CollabSection pointId={point.id} canEdit={canEdit} collab={collab} travelers={travelers} />}
+
       {/* Day 옮기기: 후보함 ↔ Day */}
       {canEdit && onMove && dayCount > 0 && (
         <section>

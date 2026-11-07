@@ -14,18 +14,21 @@ Demo: https://triplan-beryl.vercel.app
 
 **2. Plan.**
 - Search for places or tap the map to pin them to each day. Drag to reorder, or let **Optimize route** order them by travel distance.
-- Keep undecided places in the **Maybe** list, group them into walkable areas, and move a whole area to a day.
+- Keep undecided places in the **Maybe** list, group them into walkable areas, and move a whole area to a day. **AI ideas** suggests places for your interests and only offers the ones found on the map.
+- The **All** tab shows every day on one map in day colors. Set a **stay** for each night and the next day starts from it, with the way back added at the end of the day.
+- Opening a place shows a photo and summary (Wikipedia) and phone, website and address (OpenStreetMap); plan rows get photo thumbnails.
 - Each leg is drawn along real streets, and you can compare transit, walking and taxi.
 - Each day becomes a timetable with arrival and departure times, and it warns you when you'd arrive on a closed day or outside opening hours.
 
 **3. Prepare.**
-- Keep a packing checklist with templates, and record flight, hotel and ticket bookings. Bookings show up on top of that day's plan.
+- Keep a packing checklist with templates, and record flight, hotel and ticket bookings (paste a confirmation email and AI fills the form). Bookings show up on top of that day's plan.
 - See the weather forecast and local info such as time difference, plugs and emergency numbers.
-- Subscribe to the plan as a calendar, or print it as an itinerary.
+- Subscribe to the plan as a calendar, print it as an itinerary, or download a map file (.kml) for Google My Maps.
 
 **4. Share.**
 - Send companions an **edit link** and family a **view link**. No sign-up needed.
 - Edits show up on everyone's screen right away, along with who's viewing now and a change history.
+- Companions mark places they **want to go** and comment, so the Maybe list becomes a shared shortlist.
 - Log expenses in local currency to get KRW totals, the fewest transfers to settle up, and a budget.
 
 **5. On the trip, and after.**
@@ -69,7 +72,7 @@ Only `DATABASE_URL`, `ADMIN_PASSWORD` and `SESSION_SECRET` (32+ random character
 |---|---|
 | `KAKAO_REST_KEY` | Place search in Korea |
 | `ODSAY_API_KEY` | Korean transit routes (otherwise an estimate) |
-| `NVIDIA_API_KEY` | AI-named areas in the Maybe list (otherwise neighbourhood names) |
+| `NVIDIA_API_KEY` | NVIDIA NIM: area names in the Maybe list (otherwise neighbourhood names), AI place ideas, reading booking emails |
 | `MYMEMORY_EMAIL` | Raises the map-label translation quota from 5,000 to 50,000 characters a day |
 | `EXCHANGE_RATE_API_KEY` | A keyed exchange-rate API (otherwise a free keyless endpoint) |
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | Mapbox instead of MapLibre |

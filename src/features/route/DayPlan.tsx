@@ -13,10 +13,12 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Clock, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
+import { BedDouble, Clock, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, MessageCircle, Route, Sparkles, ThumbsUp, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
+import type { StayAnchor } from "@/features/trip/itinerary";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
-import { usePrefs } from "@/i18n/I18nProvider";
+import { photoUrl } from "@/lib/api";
+import { usePrefs, useT } from "@/i18n/I18nProvider";
 import { buildSchedule, DEFAULT_STAY, formatDuration, formatTime, type StopTime } from "./schedule";
 import { checkVisit, weekdayOf, type VisitCheck } from "./openingHours";
 
@@ -44,15 +46,45 @@ export interface DayPlanProps {
   /** 정리 직후 되돌리기 */
   onUndo?: () => void;
   onOpen: (point: MapPoint) => void;
+  /** 후보함에 AI 추천 장소 받기 */
+  onSuggest?: () => void;
+  /** 출발 숙소(전날 밤)와 돌아갈 숙소(오늘 밤). leg 는 첫·마지막 장소와 잇는 구간 */
+  start?: StayAnchor | null;
+  end?: StayAnchor | null;
+  /** 오늘 밤 숙소 정하기·바꾸기 (편집 권한이 있고 밤이 있는 Day 만) */
+  onPickStay?: () => void;
+  /** 장소별 동행 의견 (가고 싶어요·댓글) */
+  social?: Record<string, { voters: string[]; comments: unknown[] }>;
 }
 
 /**
  * 하루 일정 한 장: 머리(요약·동선 정리) + 장소 카드와 그 사이 이동 구간.
  * 카드를 누르면 상세, 손잡이를 끌면 순서 변경(키보드도 됨).
  */
-export default function DayPlan({ points, legs, bin = false, date, onReorder, onDelete, renderLeg, onOptimize, onGroup, onUndo, onOpen, area, onClearArea }: DayPlanProps) {
+export default function DayPlan({
+  points,
+  legs,
+  bin = false,
+  date,
+  onReorder,
+  onDelete,
+  renderLeg,
+  onOptimize,
+  onGroup,
+  onUndo,
+  onOpen,
+  area,
+  onClearArea,
+  onSuggest,
+  start = null,
+  end = null,
+  onPickStay,
+  social,
+}: DayPlanProps) {
   const { t, locale, money } = usePrefs();
-  const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
+  const startTravel = start?.leg?.duration_min ?? 0;
+  const endTravel = end?.leg?.duration_min ?? 0;
+  const schedule = useMemo(() => buildSchedule(points, legs, startTravel), [points, legs, startTravel]);
   const weekday = !bin && date ? weekdayOf(date) : null;
   const legAfter = useMemo(() => new Map(legs.map((l) => [l.from_point_id, l])), [legs]);
   const [order, setOrder] = useState<string[] | null>(null);
@@ -77,10 +109,16 @@ export default function DayPlan({ points, legs, bin = false, date, onReorder, on
     if (next.join() !== ids.join()) onReorder?.(next);
   }
 
-  const travelMin = legs.reduce((s, l) => s + (l.duration_min ?? 0), 0);
-  const travelCost = legs.reduce((s, l) => s + (l.cost ?? 0), 0);
-  const first = points[0] && schedule.get(points[0].id);
-  const last = points.length > 0 ? schedule.get(points[points.length - 1].id) : undefined;
+  const anchorLegs = [start?.leg, end?.leg].filter((l): l is RouteLeg => !!l);
+  const travelMin = [...legs, ...anchorLegs].reduce((s, l) => s + (l.duration_min ?? 0), 0);
+  const travelCost = [...legs, ...anchorLegs].reduce((s, l) => s + (l.cost ?? 0), 0);
+  const firstStop = points[0] && schedule.get(points[0].id);
+  const lastStop = points.length > 0 ? schedule.get(points[points.length - 1].id) : undefined;
+  // 숙소가 있으면 하루는 숙소를 나설 때 시작해 숙소에 들어갈 때 끝난다
+  const startLeave = firstStop ? firstStop.arrive - startTravel : null;
+  const endArrive = lastStop ? lastStop.leave + endTravel : null;
+  const first = firstStop && { arrive: start ? startLeave! : firstStop.arrive };
+  const last = lastStop && { leave: end ? endArrive! : lastStop.leave };
   const summary = [
     t("{n}곳", { n: points.length }),
     !bin && travelMin > 0 && t("이동 {time}", { time: formatDuration(travelMin, locale) }),
@@ -138,6 +176,15 @@ export default function DayPlan({ points, legs, bin = false, date, onReorder, on
             </button>
           )
         )}
+        {bin && onSuggest && (
+          <button
+            type="button"
+            onClick={onSuggest}
+            className="flex shrink-0 items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-on-ink transition hover:opacity-90"
+          >
+            <Sparkles size={14} aria-hidden /> {t("AI 추천")}
+          </button>
+        )}
         {bin && onGroup && points.length >= 3 && (
           <button
             type="button"
@@ -148,6 +195,13 @@ export default function DayPlan({ points, legs, bin = false, date, onReorder, on
           </button>
         )}
       </header>
+
+      {!bin && start && (
+        <div className="px-3 pt-3 md:px-4">
+          <StayRow point={start.point} time={startLeave} label={t("숙소에서 출발")} onOpen={() => onOpen(start.point)} />
+          {start.leg && points[0] && !order && <LegRow>{renderLeg(start.leg, start.point, points[0])}</LegRow>}
+        </div>
+      )}
 
       {points.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
@@ -188,6 +242,8 @@ export default function DayPlan({ points, legs, bin = false, date, onReorder, on
                     index={i}
                     time={time}
                     hours={time && weekday !== null ? checkVisit(point.opening_hours, weekday, time.arrive, time.leave) : undefined}
+                    votes={social?.[point.id]?.voters.length ?? 0}
+                    comments={social?.[point.id]?.comments.length ?? 0}
                     // 끄는 동안에는 구간이 어긋나므로 숨긴다
                     legView={leg && leg.to_point_id === shown[i + 1].id ? renderLeg(leg, point, shown[i + 1]) : undefined}
                     sortable={!!onReorder}
@@ -201,6 +257,24 @@ export default function DayPlan({ points, legs, bin = false, date, onReorder, on
         </DndContext>
       )}
 
+      {!bin && end && (
+        <div className="px-3 pb-3 md:px-4">
+          {end.leg && points.length > 0 && !order && <LegRow>{renderLeg(end.leg, points[points.length - 1], end.point)}</LegRow>}
+          <StayRow point={end.point} time={endArrive} label={t("오늘 밤 숙소")} onOpen={() => onOpen(end.point)} onChange={onPickStay} />
+        </div>
+      )}
+      {!bin && !end && onPickStay && (
+        <div className="px-3 pb-3 md:px-4">
+          <button
+            type="button"
+            onClick={onPickStay}
+            className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border-subtle py-3 text-xs font-semibold text-foreground/68 transition hover:border-primary hover:text-primary-strong"
+          >
+            <BedDouble size={15} aria-hidden /> {t("오늘 밤 숙소 정하기")}
+          </button>
+        </div>
+      )}
+
       {onReorder && points.length > 0 && !bin && (
         <p className="border-t border-border-subtle px-4 py-2.5 text-[11px] text-foreground/68 md:px-5">
           {t("손잡이를 끌어 순서를 바꾸고, 구간을 누르면 이동수단을 비교하고 바꿔요.")}
@@ -210,10 +284,79 @@ export default function DayPlan({ points, legs, bin = false, date, onReorder, on
   );
 }
 
+/** 목록 썸네일: 처음 올린 사진, 없으면 위키백과 사진, 둘 다 없거나 못 불러오면 분류 아이콘 */
+function PointThumb({ point }: { point: MapPoint }) {
+  const src = point.cover_photo_id ? photoUrl(point.cover_photo_id) : point.image_url;
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!src || failed === src) return <PointBadge point={point} size={34} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- 권한 검사 API·위키미디어 이미지
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(src)}
+      className="h-[34px] w-[34px] shrink-0 rounded-xl bg-surface-muted object-cover"
+      style={{ outline: `2px solid ${pointColor(point)}`, outlineOffset: -2 }}
+    />
+  );
+}
+
+/** 장소 사이 구간 자리 (시각 칸만큼 비우고 점선 세로줄) */
+function LegRow({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2.5 py-1">
+      <span className="w-11 shrink-0" />
+      <span className="ml-3 min-h-9 self-stretch border-l-2 border-dashed border-border-subtle" aria-hidden />
+      {children}
+    </div>
+  );
+}
+
+/** 숙소 행: 끌거나 지울 수 없고, 바꾸기는 숙소 고르기로 */
+function StayRow({
+  point,
+  time,
+  label,
+  onOpen,
+  onChange,
+}: {
+  point: MapPoint;
+  time: number | null;
+  label: string;
+  onOpen: () => void;
+  onChange?: () => void;
+}) {
+  const t = useT();
+  return (
+    <div className="flex items-stretch gap-2.5">
+      <div className="w-11 shrink-0 pt-2.5 text-right text-sm font-bold tabular-nums">{time != null && formatTime(time)}</div>
+      <div className="flex min-w-0 flex-1 items-center gap-1 rounded-2xl border border-dashed border-border-subtle bg-surface-muted/60 pr-1">
+        <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
+          <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-xl bg-ink text-on-ink">
+            <BedDouble size={17} aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[11px] font-bold text-foreground/68">{label}</span>
+            <span className="block truncate text-sm font-semibold">{point.name}</span>
+          </span>
+        </button>
+        {onChange && (
+          <button type="button" onClick={onChange} className="shrink-0 rounded-full px-3 py-2 text-xs font-semibold text-primary-strong hover:bg-primary-soft">
+            {t("바꾸기")}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Stop({
   point,
   index,
   time,
+  votes,
+  comments,
   hours,
   legView,
   sortable,
@@ -223,6 +366,8 @@ function Stop({
   point: MapPoint;
   index: number;
   time?: StopTime;
+  votes: number;
+  comments: number;
   /** 도착~출발 동안 영업하는지 */
   hours?: VisitCheck;
   /** 다음 장소로 가는 구간 카드 */
@@ -256,7 +401,7 @@ function Stop({
           style={{ borderLeft: `4px solid ${color}` }}
         >
           <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
-            <PointBadge point={point} size={34} />
+            <PointThumb point={point} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">
                 <span className="mr-1 text-xs text-foreground/68">{index + 1}</span>
@@ -272,6 +417,16 @@ function Stop({
                 {time && time.wait > 0 && <span className="text-mint">{t("대기 {time}", { time: formatDuration(time.wait, locale) })}</span>}
                 {time && time.late > 0 && (
                   <span className="text-accent">{t("지정 시각보다 {time} 늦음", { time: formatDuration(time.late, locale) })}</span>
+                )}
+                {votes > 0 && (
+                  <span className="inline-flex items-center gap-0.5 font-semibold text-primary-strong" aria-label={t("가고 싶어요 {n}", { n: votes })}>
+                    <ThumbsUp size={10} aria-hidden /> {votes}
+                  </span>
+                )}
+                {comments > 0 && (
+                  <span className="inline-flex items-center gap-0.5" aria-label={t("댓글 {n}개", { n: comments })}>
+                    <MessageCircle size={10} aria-hidden /> {comments}
+                  </span>
                 )}
                 {hours?.status === "closed-day" && (
                   <span className="inline-flex items-center gap-0.5 text-accent">
@@ -324,15 +479,7 @@ function Stop({
         </div>
       </div>
 
-      {legView ? (
-        <div className="flex items-start gap-2.5 py-1">
-          <span className="w-11 shrink-0" />
-          <span className="ml-3 min-h-9 self-stretch border-l-2 border-dashed border-border-subtle" aria-hidden />
-          {legView}
-        </div>
-      ) : (
-        <div className="h-2" />
-      )}
+      {legView ? <LegRow>{legView}</LegRow> : <div className="h-2" />}
     </li>
   );
 }

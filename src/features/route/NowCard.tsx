@@ -14,7 +14,16 @@ function nowMinutes() {
 }
 
 /** 여행 중 오늘 Day 위에 뜨는 카드: 지금 있을 곳 또는 다음 장소 + 길찾기 */
-export default function NowCard({ points, legs }: { points: MapPoint[]; legs: RouteLeg[] }) {
+export default function NowCard({
+  points,
+  legs,
+  startTravel = 0,
+}: {
+  points: MapPoint[];
+  legs: RouteLeg[];
+  /** 숙소에서 첫 장소까지(분) */
+  startTravel?: number;
+}) {
   const { t, locale } = usePrefs();
   // ponytail: 기기 시계 기준. 여행지에 있으면 폰 시각이 현지 시각이다
   const [now, setNow] = useState(nowMinutes);
@@ -23,7 +32,7 @@ export default function NowCard({ points, legs }: { points: MapPoint[]; legs: Ro
     return () => clearInterval(id);
   }, []);
 
-  const schedule = useMemo(() => buildSchedule(points, legs), [points, legs]);
+  const schedule = useMemo(() => buildSchedule(points, legs, startTravel), [points, legs, startTravel]);
   if (points.length === 0) return null;
 
   const current = points.find((p) => {

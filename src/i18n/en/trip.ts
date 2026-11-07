@@ -252,6 +252,84 @@ const en: Record<string, string> = {
   "다른 곳과 멀어요": "Far from the others",
   "장소를 눌러 직접 Day로 옮기세요": "Tap a place to move it to a day yourself",
   "{name} 순서 바꾸기": "Reorder {name}",
+
+  // 전체 일정 보기·지도 파일 (features/route/TripOverview.tsx, DayTabs.tsx, trip/TripWorkspace.tsx)
+  "지도 파일 받기 (.kml)": "Download map file (.kml)",
+  "{n}일": "{n} days",
+  "전체 일정": "Whole trip",
+  "아직 장소가 없어요": "No places yet",
+  "{n}곳은 아직 날을 정하지 않았어요": "{n} places don't have a day yet",
+
+
+  // 장소 정보 (features/trip/PlaceInfoCard.tsx, api/places/info)
+  "장소 정보를 불러오지 못했어요.": "Couldn't load place info.",
+  "공개 지도에서 찾은 장소 정보가 없어요.": "No public map info found for this place.",
+  "위키백과": "Wikipedia",
+  "공개 자료라 실제와 다를 수 있어요": "From public data, may be out of date",
+
+  // AI 도움 (features/route/SuggestSheet.tsx, prep/DocsPanel.tsx, api/ai/*)
+  "AI 추천": "AI ideas",
+  "AI 후보 추천": "AI place ideas",
+  "맛집": "Good food",
+  "명소": "Sights",
+  "자연·공원": "Nature · parks",
+  "문화·역사": "Culture · history",
+  "야경": "Night views",
+  "아이와 함께": "With kids",
+  "비 오는 날": "Rainy day",
+  "어떤 곳이 좋아요?": "What do you like?",
+  "더 알려 주세요 (선택)": "Tell us more (optional)",
+  "예: 현지인이 가는 라멘집, 걷기 좋은 골목, 부모님과 함께": "e.g. ramen where locals go, walkable lanes, travelling with parents",
+  "추천 받기": "Get ideas",
+  "고르고 지도에서 위치를 확인하는 중…": "Picking places and checking them on the map…",
+  "AI 추천은 틀릴 수 있어요. 지도 검색으로 위치를 확인한 곳만 보여 주고, 고른 곳만 후보함에 담아요.":
+    "AI ideas can be wrong. Only places found on the map are shown, and only the ones you pick go to the bin.",
+  "AI 추천을 받지 못했어요. 잠시 뒤 다시 해 보세요.": "Couldn't get AI ideas. Try again in a moment.",
+  "지도에서 위치를 확인한 곳이 없어요. 관심사를 바꿔 다시 해 보세요.": "None of the ideas could be found on the map. Try other interests.",
+  "위치를 확인하지 못했거나 이미 있는 {n}곳은 뺐어요.": "Left out {n} places that couldn't be found or are already in the trip.",
+  "다시 고르기": "Start over",
+  "후보함에 담기 ({n}곳)": "Add to bin ({n})",
+  "여행지를 먼저 정해 주세요.": "Set the destination first.",
+  "확인 메일 붙여 넣어 채우기": "Fill from a confirmation email",
+  "예약 확인 메일 내용": "Confirmation email text",
+  "항공·숙소·티켓 예약 확인 메일 내용을 붙여 넣으세요": "Paste a flight, hotel or ticket confirmation email",
+  "읽는 중…": "Reading…",
+  "읽어서 채우기": "Read and fill",
+  "붙여 넣은 글은 NVIDIA AI로 보내 읽기만 하고 저장하지 않아요. 아래 칸에 채워진 내용을 확인한 뒤 추가하세요.":
+    "The pasted text is sent to NVIDIA AI to read and isn't stored. Check the filled fields below, then add.",
+  "예약 메일 내용을 10~6000자로 붙여 넣어 주세요.": "Paste 10–6000 characters of the booking email.",
+  "AI 가 메일을 읽지 못했어요. 잠시 뒤 다시 해 보세요.": "AI couldn't read the email. Try again in a moment.",
+  "메일에서 예약 내용을 찾지 못했어요.": "Couldn't find booking details in the email.",
+
+  // 동행 의견 (features/trip/CollabSection.tsx, api/point-*)
+  "동행 의견": "Group opinions",
+  "가고 싶어요": "Want to go",
+  "가고 싶어요 {n}": "{n} want to go",
+  "댓글": "Comment",
+  "댓글 {n}개": "{n} comments",
+  "좋아요": "Likes",
+  "댓글 지우기": "Delete comment",
+  "댓글을 남기지 못했어요.": "Couldn't post the comment.",
+  "좋아요를 저장하지 못했어요.": "Couldn't save the like.",
+  "누구로 남길까요? 이 기기에 기억해요.": "Who's posting? This device will remember.",
+  "확인": "OK",
+  "이 장소 어때요? 의견을 남겨 보세요": "What do you think of this place?",
+  "{name}(으)로 남겨요": "Posting as {name}",
+
+  // 숙소 (features/route/DayPlan.tsx, StaySheet.tsx)
+  "숙소에서 출발": "Leave the hotel",
+  "오늘 밤 숙소": "Tonight's stay",
+  "오늘 밤 숙소 정하기": "Set tonight's stay",
+  "숙소 도착": "Back at the hotel",
+  "Day {n} 밤 숙소": "Day {n} night stay",
+  "숙소를 추가하지 못했어요.": "Couldn't add the stay.",
+  "숙소를 검색해 추가하거나, 장소 분류를 '숙소'로 바꾸면 여기 나와요.":
+    "Search for a stay to add it, or change a place's category to Stay and it shows up here.",
+  "{days} 밤": "{days} night",
+  "남은 밤(Day {from}~{to})에도 같은 숙소": "Same stay for the remaining nights (Day {from}–{to})",
+  "이 밤 숙소 비우기": "Clear this night's stay",
+  "숙소를 정하면 다음 날은 숙소에서 출발하고, 그날 마지막 장소 뒤에 숙소로 돌아오는 길이 붙어요.":
+    "With a stay set, the next day starts from it, and the way back is added after the day's last place.",
 };
 
 export default en;

@@ -17,7 +17,17 @@ export function activityDetail(row: Row): Record<string, unknown> | undefined {
 }
 
 /** 여행 하위 테이블 (trip_id를 가진 테이블) */
-export type ChildTable = "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos" | "trip_days" | "route_options";
+export type ChildTable =
+  | "map_points"
+  | "route_legs"
+  | "expenses"
+  | "checklist_items"
+  | "travel_docs"
+  | "point_photos"
+  | "trip_days"
+  | "route_options"
+  | "point_comments"
+  | "point_votes";
 
 /** 핀 색상·도착 시각·머무는 시간 형식 검사. 문제가 있으면 오류 메시지 */
 export function invalidPointField(b: Record<string, unknown> | null): string | null {
@@ -59,7 +69,9 @@ export async function listChildren(
   table: ChildTable,
   orderBy: string,
   label: string,
-  transform?: (rows: Row[], access: Access) => Row[]
+  transform?: (rows: Row[], access: Access) => Row[],
+  /** SELECT 목록 (기본 *). 하위 질의는 테이블 이름으로 바깥 행을 가리킨다 */
+  columns = "*"
 ) {
   const tripId = new URL(request.url).searchParams.get("trip_id") ?? "";
   if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
@@ -67,7 +79,7 @@ export async function listChildren(
   if (access instanceof Response) return access;
   try {
     const { rows } = await getPool().query<Row>(
-      `SELECT * FROM triplan.${table} WHERE trip_id = $1 ORDER BY ${orderBy}`,
+      `SELECT ${columns} FROM triplan.${table} WHERE trip_id = $1 ORDER BY ${orderBy}`,
       [tripId]
     );
     return Response.json(transform ? transform(rows, access) : rows);

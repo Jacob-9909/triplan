@@ -18,11 +18,13 @@ import {
   Plane,
   Plus,
   ShieldCheck,
+  Sparkles,
   Stamp,
   Ticket,
   Trash2,
 } from "lucide-react";
 import type { TravelDoc } from "@/lib/types";
+import { apiPost } from "@/lib/api";
 import { usePrefs, useT } from "@/i18n/I18nProvider";
 import { useTravelDocs } from "./useTravelDocs";
 
@@ -103,6 +105,25 @@ export default function DocsPanel({
   const [saving, setSaving] = useState(false);
   /** 입력 칸은 "예약 추가"를 눌렀을 때만 펼친다 (늘 펼쳐 두면 칸 일곱 개가 목록보다 먼저 보였다) */
   const [adding, setAdding] = useState(false);
+  const { locale } = usePrefs();
+  // 예약 확인 메일 붙여 넣기 → AI 가 읽어 아래 칸을 채운다 (저장은 사람이 확인하고)
+  const [paste, setPaste] = useState<string | null>(null);
+  const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
+  async function readPaste() {
+    if (!paste) return;
+    setParsing(true);
+    setParseError(null);
+    try {
+      const b = await apiPost<Omit<typeof EMPTY_FORM, "url">>("/api/ai/parse-booking", { trip_id: tripId, text: paste, locale });
+      setForm({ ...EMPTY_FORM, ...b });
+      setPaste(null);
+    } catch (e) {
+      setParseError(e instanceof Error ? e.message : tr("AI 가 메일을 읽지 못했어요. 잠시 뒤 다시 해 보세요."));
+    } finally {
+      setParsing(false);
+    }
+  }
 
   const setField =
     (key: keyof typeof EMPTY_FORM) =>
@@ -143,6 +164,45 @@ export default function DocsPanel({
           </button>
         )}
       </div>
+
+      {!readOnly && adding && (
+        <div className="mt-4">
+          {paste === null ? (
+            <button type="button" onClick={() => setPaste("")} className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--color-primary-strong)]">
+              <Sparkles size={15} aria-hidden /> {tr("확인 메일 붙여 넣어 채우기")}
+            </button>
+          ) : (
+            <div className="space-y-2 rounded-xl border border-[var(--border-subtle)] bg-surface p-3">
+              <textarea
+                value={paste}
+                onChange={(e) => setPaste(e.target.value.slice(0, 6000))}
+                rows={4}
+                aria-label={tr("예약 확인 메일 내용")}
+                placeholder={tr("항공·숙소·티켓 예약 확인 메일 내용을 붙여 넣으세요")}
+                className="input resize-none text-sm"
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void readPaste()}
+                  disabled={parsing || paste.trim().length < 10}
+                  className="btn btn-primary px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  {parsing ? <Loader2 size={15} className="animate-spin" aria-hidden /> : <Sparkles size={15} aria-hidden />}
+                  {parsing ? tr("읽는 중…") : tr("읽어서 채우기")}
+                </button>
+                <button type="button" onClick={() => setPaste(null)} className="btn btn-ghost px-3 py-2 text-sm">
+                  {tr("닫기")}
+                </button>
+              </div>
+              {parseError && <p className="text-xs text-[var(--color-accent)]">{parseError}</p>}
+              <p className="text-[11px] leading-relaxed text-foreground/68">
+                {tr("붙여 넣은 글은 NVIDIA AI로 보내 읽기만 하고 저장하지 않아요. 아래 칸에 채워진 내용을 확인한 뒤 추가하세요.")}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 등록 폼 */}
       {!readOnly && adding && (
