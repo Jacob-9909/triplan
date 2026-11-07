@@ -1,7 +1,7 @@
 "use client";
 
 import { format, parseISO } from "date-fns";
-import { ChevronRight, Inbox } from "lucide-react";
+import { BedDouble, ChevronRight, Inbox } from "lucide-react";
 import type { MapPoint } from "@/lib/types";
 import type { PlanDay } from "@/features/trip/itinerary";
 import { usePrefs } from "@/i18n/I18nProvider";
@@ -72,7 +72,7 @@ export default function TripOverview({
                 <span className="mt-0.5 block text-xs tabular-nums text-foreground/68">
                   {first && last
                     ? [
-                        `${formatTime(first.arrive)} – ${formatTime(last.leave)}`,
+                        `${formatTime(d.start?.leave ?? first.arrive)} – ${formatTime(d.end?.arrive ?? last.leave)}`,
                         t("{n}곳", { n: d.stops.length }),
                         d.travelMin > 0 && t("이동 {time}", { time: formatDuration(d.travelMin, locale) }),
                       ]
@@ -103,6 +103,13 @@ export default function TripOverview({
                     </button>
                   </li>
                 ))}
+                {d.end && (
+                  <li className="flex min-h-10 items-center gap-2.5 px-2 text-sm text-foreground/68">
+                    <span className="w-11 shrink-0 text-xs tabular-nums">{d.end.arrive != null && formatTime(d.end.arrive)}</span>
+                    <BedDouble size={16} className="shrink-0" aria-hidden />
+                    <span className="truncate">{d.end.point.name}</span>
+                  </li>
+                )}
               </ol>
             )}
           </article>

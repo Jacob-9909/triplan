@@ -1,5 +1,5 @@
 import { getPool, jsonError, type Row } from "@/lib/db";
-import { listChildren, requireEditBody } from "@/lib/crud";
+import { listChildren, pointsBelongTo, requireEditBody } from "@/lib/crud";
 
 const WEATHER = ["sunny", "cloudy", "rain", "snow", "wind"];
 const MOOD = ["great", "good", "okay", "tired", "bad"];
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   }
 }
 
-/** 구역 이름만 저장한다 (일기 칸은 건드리지 않는다). 빈 값이면 지운다 */
+/** 구역 이름(area)·그날 밤 숙소(stay_point_id) 중 보낸 칸만 저장한다 (일기 칸은 건드리지 않는다). 빈 값이면 지운다 */
 export async function PATCH(request: Request) {
   try {
     const b = await request.json();
@@ -47,15 +47,26 @@ export async function PATCH(request: Request) {
     if (!(Number.isInteger(b.day_number) && b.day_number >= 1 && b.day_number <= 365)) {
       return jsonError("day_number must be 1-365", 400);
     }
-    if (b.area != null && typeof b.area !== "string") return jsonError("area must be a string", 400);
-    const area = typeof b.area === "string" ? b.area.trim().slice(0, 60) || null : null;
+    const fields: Record<string, unknown> = {};
+    if ("area" in b) {
+      if (b.area != null && typeof b.area !== "string") return jsonError("area must be a string", 400);
+      fields.area = typeof b.area === "string" ? b.area.trim().slice(0, 60) || null : null;
+    }
+    if ("stay_point_id" in b) {
+      if (b.stay_point_id !== null && !(typeof b.stay_point_id === "string" && (await pointsBelongTo(b.trip_id, [b.stay_point_id])))) {
+        return jsonError("stay_point_id must be a place in this trip", 400);
+      }
+      fields.stay_point_id = b.stay_point_id;
+    }
+    const cols = Object.keys(fields);
+    if (cols.length === 0) return jsonError("no fields to update", 400);
     const { rows } = await getPool().query<Row>(
-      `INSERT INTO triplan.trip_days (trip_id, day_number, area)
-       VALUES ($1,$2,$3)
+      `INSERT INTO triplan.trip_days (trip_id, day_number, ${cols.join(", ")})
+       VALUES ($1, $2, ${cols.map((_, i) => `$${i + 3}`).join(", ")})
        ON CONFLICT (trip_id, day_number)
-       DO UPDATE SET area = $3, updated_at = now()
+       DO UPDATE SET ${cols.map((c) => `${c} = EXCLUDED.${c}`).join(", ")}, updated_at = now()
        RETURNING *`,
-      [b.trip_id, b.day_number, area]
+      [b.trip_id, b.day_number, ...cols.map((c) => fields[c])]
     );
     return Response.json(rows[0]);
   } catch (err) {

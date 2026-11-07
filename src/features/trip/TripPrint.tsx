@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { format, parseISO } from "date-fns";
-import type { MapPoint, TravelDoc, Trip } from "@/lib/types";
+import type { MapPoint, RouteLeg, TravelDoc, Trip } from "@/lib/types";
 import { categoryStyle } from "@/features/map/pointStyle";
 import { METHOD_META } from "@/features/route/meta";
 import { formatDuration, formatTime } from "@/features/route/schedule";
@@ -45,6 +45,15 @@ export default function TripPrint({
   }, [onDone]);
 
   const stay = stayLabel(trip, locale);
+  const legRow = (leg: RouteLeg) => (
+    <tr key={leg.id}>
+      <td />
+      <td className="pb-1 text-[9pt] text-neutral-500">
+        ↓ {t(METHOD_META[leg.method].label)}
+        {leg.duration_min != null && ` ${formatDuration(leg.duration_min, locale)}`}
+      </td>
+    </tr>
+  );
   return createPortal(
     <div className="print-root">
       <header className="mb-5 border-b-2 border-black pb-3">
@@ -78,6 +87,15 @@ export default function TripPrint({
             ) : (
               <table className="w-full border-collapse text-[10pt]">
                 <tbody>
+                  {d.start && (
+                    <tr>
+                      <td className="w-24 py-1 pr-2 tabular-nums">{formatTime(d.start.leave)}</td>
+                      <td className="py-1">
+                        {t("숙소에서 출발")} · {d.start.point.name}
+                      </td>
+                    </tr>
+                  )}
+                  {d.start?.leg && legRow(d.start.leg)}
                   {d.stops.map(({ point, arrive, leave }, i) => {
                     const leg = d.legs.find((l) => l.from_point_id === point.id);
                     return [
@@ -93,17 +111,18 @@ export default function TripPrint({
                           {point.memo && <p className="whitespace-pre-wrap text-[9pt] text-neutral-700">{point.memo}</p>}
                         </td>
                       </tr>,
-                      leg && i < d.stops.length - 1 && (
-                        <tr key={leg.id}>
-                          <td />
-                          <td className="pb-1 text-[9pt] text-neutral-500">
-                            ↓ {t(METHOD_META[leg.method].label)}
-                            {leg.duration_min != null && ` ${formatDuration(leg.duration_min, locale)}`}
-                          </td>
-                        </tr>
-                      ),
+                      leg && i < d.stops.length - 1 && legRow(leg),
                     ];
                   })}
+                  {d.end?.leg && legRow(d.end.leg)}
+                  {d.end && (
+                    <tr>
+                      <td className="w-24 py-1 pr-2 tabular-nums">{d.end.arrive != null && formatTime(d.end.arrive)}</td>
+                      <td className="py-1">
+                        {t("숙소 도착")} · {d.end.point.name}
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             )}

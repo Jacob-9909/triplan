@@ -27,6 +27,7 @@ export default function ExportSheet({
   trip,
   days,
   bin,
+  stays,
   docs,
 }: {
   open: boolean;
@@ -34,12 +35,14 @@ export default function ExportSheet({
   trip: Trip;
   days: PlanDay[];
   bin: MapPoint[];
+  /** 숙소로 지정한 장소 (지도 파일에 따로 폴더) */
+  stays: MapPoint[];
   docs: TravelDoc[];
 }) {
   const { t } = usePrefs();
   const [printing, setPrinting] = useState(false);
   const donePrinting = useCallback(() => setPrinting(false), []);
-  const hasPlaces = days.some((d) => d.stops.length > 0) || bin.length > 0;
+  const hasPlaces = days.some((d) => d.stops.length > 0) || bin.length > 0 || stays.length > 0;
 
   const options = [
     {
@@ -60,7 +63,7 @@ export default function ExportSheet({
       title: "지도 앱으로",
       desc: "Day별 장소를 .kml 파일로 받아요. 구글 내 지도(My Maps)에서 가져오기로 열면 Day마다 레이어가 생겨요.",
       disabled: !hasPlaces ? "장소를 넣으면 쓸 수 있어요" : null,
-      run: () => save(fileName(trip.title, "kml"), "application/vnd.google-earth.kml+xml", buildKml({ title: trip.title, days, bin }, t)),
+      run: () => save(fileName(trip.title, "kml"), "application/vnd.google-earth.kml+xml", buildKml({ title: trip.title, days, bin, stays }, t)),
     },
     {
       icon: Printer,

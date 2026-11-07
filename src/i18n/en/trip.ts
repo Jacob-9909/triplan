@@ -274,6 +274,21 @@ const en: Record<string, string> = {
     "Lays out each day's timetable and bookings. You can save it as a PDF from the print dialog.",
   "Triplan에서 만든 일정표": "Itinerary made with Triplan",
   "{title} · Day {day} · {n}번째": "{title} · Day {day} · stop {n}",
+
+  // 숙소 (features/route/DayPlan.tsx, StaySheet.tsx)
+  "숙소에서 출발": "Leave the hotel",
+  "오늘 밤 숙소": "Tonight's stay",
+  "오늘 밤 숙소 정하기": "Set tonight's stay",
+  "숙소 도착": "Back at the hotel",
+  "Day {n} 밤 숙소": "Day {n} night stay",
+  "숙소를 추가하지 못했어요.": "Couldn't add the stay.",
+  "숙소를 검색해 추가하거나, 장소 분류를 '숙소'로 바꾸면 여기 나와요.":
+    "Search for a stay to add it, or change a place's category to Stay and it shows up here.",
+  "{days} 밤": "{days} night",
+  "남은 밤(Day {from}~{to})에도 같은 숙소": "Same stay for the remaining nights (Day {from}–{to})",
+  "이 밤 숙소 비우기": "Clear this night's stay",
+  "숙소를 정하면 다음 날은 숙소에서 출발하고, 그날 마지막 장소 뒤에 숙소로 돌아오는 길이 붙어요.":
+    "With a stay set, the next day starts from it, and the way back is added after the day's last place.",
   "예약번호 {code}": "Booking no. {code}",
 };
 

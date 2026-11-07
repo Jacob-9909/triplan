@@ -37,8 +37,9 @@ const enc = new TextEncoder();
 for (const line of ics.split("\r\n")) assert.ok(enc.encode(line).length <= 75, `too long: ${line}`);
 assert.ok(ics.replace(/\r\n /g, "").includes("DESCRIPTION:도쿄 · Day 1 · 1번째\\n줄 길다\\n아침 일찍"));
 
-const kml = buildKml({ title: "도쿄 & 오사카", days, bin: [pt("c", "도쿄 타워")] }, t);
-assert.equal((kml.match(/<Folder>/g) ?? []).length, 2, "빈 Day 는 폴더를 만들지 않는다");
+const kml = buildKml({ title: "도쿄 & 오사카", days, bin: [pt("c", "도쿄 타워")], stays: [pt("h", "호텔")] }, t);
+assert.equal((kml.match(/<Folder>/g) ?? []).length, 3, "빈 Day 는 폴더를 만들지 않는다 (Day 1 + 숙소 + 후보함)");
+assert.ok(kml.indexOf("<name>숙소</name>") < kml.indexOf("<name>후보함</name>"));
 assert.ok(kml.includes("<name>도쿄 &amp; 오사카</name>"));
 assert.ok(kml.includes("<name>2. 야경 &amp; &lt;바&gt;</name>"));
 assert.ok(kml.includes("<coordinates>139.7967,35.7148,0</coordinates>"));

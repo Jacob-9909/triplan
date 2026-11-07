@@ -31,7 +31,8 @@ import PlaceSearch, { type PickedPlace } from "@/features/map/PlaceSearch";
 import { getTripCenter } from "@/data/countryCenters";
 import DayTabs, { BIN_DAY, OVERVIEW_DAY } from "@/features/route/DayTabs";
 import TripOverview, { dayColor } from "@/features/route/TripOverview";
-import { planDays } from "./itinerary";
+import { dayStays, planDays } from "./itinerary";
+import StaySheet from "@/features/route/StaySheet";
 import ExportSheet from "./ExportSheet";
 import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
@@ -122,16 +123,45 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     () => Object.fromEntries(dayRecords.filter((d) => d.area).map((d) => [d.day_number, d.area!])) as Record<number, string>,
     [dayRecords]
   );
-  /** Day 마다 장소·시각·구간 (전체 일정 보기와 내보내기에 쓴다) */
-  const plan = useMemo(() => (trip ? planDays(trip, points, legs, areaByDay) : []), [trip, points, legs, areaByDay]);
+  /** 밤마다 묵는 숙소 (trip_days.stay_point_id). Day N 밤 → 장소 id */
+  const stayByNight = useMemo(
+    () =>
+      Object.fromEntries(dayRecords.filter((d) => d.stay_point_id).map((d) => [d.day_number, d.stay_point_id!])) as Record<number, string>,
+    [dayRecords]
+  );
+  const stayIds = useMemo(() => new Set(Object.values(stayByNight)), [stayByNight]);
+  /** Day 마다 장소·시각·구간·숙소 (전체 일정 보기와 내보내기에 쓴다) */
+  const plan = useMemo(
+    () => (trip ? planDays(trip, points, legs, areaByDay, stayByNight) : []),
+    [trip, points, legs, areaByDay, stayByNight]
+  );
+  /** 하루 기록 행을 화면에서 먼저 고친다 (없으면 만든다) */
+  function patchDaysLocal(days: number[], patch: Partial<TripDay>) {
+    setDayRecords((prev) => {
+      let next = prev;
+      for (const day of days)
+        next = next.some((d) => d.day_number === day)
+          ? next.map((d) => (d.day_number === day ? { ...d, ...patch } : d))
+          : [...next, { id: `local-${day}`, trip_id: tripId, day_number: day, weather: null, mood: null, note: null, ...patch }];
+      return next;
+    });
+  }
   async function saveArea(day: number, area: string | null) {
-    setDayRecords((prev) =>
-      prev.some((d) => d.day_number === day)
-        ? prev.map((d) => (d.day_number === day ? { ...d, area } : d))
-        : [...prev, { id: `local-${day}`, trip_id: tripId, day_number: day, weather: null, mood: null, note: null, area }]
-    );
+    patchDaysLocal([day], { area });
     await apiPatch("/api/trip-days", { trip_id: tripId, day_number: day, area }).catch(() => void loadDays());
   }
+  /** 여러 밤의 숙소를 한 번에. 실패하면 서버 값으로 되돌리고 오류 메시지 */
+  async function saveStay(pointId: string | null, nightList: number[]) {
+    patchDaysLocal(nightList, { stay_point_id: pointId });
+    try {
+      for (const n of nightList) await apiPatch("/api/trip-days", { trip_id: tripId, day_number: n, stay_point_id: pointId });
+      return null;
+    } catch (e) {
+      void loadDays();
+      return e instanceof Error ? e.message : t("저장하지 못했어요.");
+    }
+  }
+  const [stayNight, setStayNight] = useState<number | null>(null);
   const { expenses } = useExpenses(tripId);
   const { docs } = useTravelDocs(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
@@ -175,15 +205,61 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   const inOverview = day === OVERVIEW_DAY;
   const pointsOf = (d: number | null) =>
     points.filter((p) => p.day_number === d).sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99));
+  // 후보함에는 숙소로 지정한 곳을 빼고 보여 준다 (숙소는 Day 맨 앞·뒤에 붙는다)
   const dayPoints = useMemo(
-    () => (inOverview ? plan.flatMap((d) => d.stops.map((s) => s.point)) : pointsOf(inBin ? null : day)),
-    [points, day, inBin, inOverview, plan] // eslint-disable-line react-hooks/exhaustive-deps
+    () =>
+      inOverview
+        ? plan.flatMap((d) => d.stops.map((s) => s.point))
+        : inBin
+          ? pointsOf(null).filter((p) => !stayIds.has(p.id))
+          : pointsOf(day),
+    [points, day, inBin, inOverview, plan, stayIds] // eslint-disable-line react-hooks/exhaustive-deps
   );
   // 후보함은 순서가 없으니 이동 구간도 없다
   const dayLegs = useMemo(
     () => (inBin ? [] : inOverview ? plan.flatMap((d) => d.legs) : adjacentLegs(dayPoints, legs)),
     [legs, dayPoints, inBin, inOverview, plan]
   );
+  /** 그날 출발 숙소(전날 밤)·돌아갈 숙소(오늘 밤)와 첫·마지막 장소를 잇는 구간 */
+  const stays = useMemo(
+    () =>
+      inBin || inOverview
+        ? { start: null, end: null }
+        : dayStays(day, dayPoints, stayByNight, new Map(points.map((p) => [p.id, p])), legs),
+    [inBin, inOverview, day, dayPoints, stayByNight, points, legs]
+  );
+  /** 경로를 받고 지도에 그릴 구간: 숙소 → 첫 장소 … 마지막 장소 → 숙소 */
+  const routeLegs = useMemo(
+    () => [stays.start?.leg, ...dayLegs, stays.end?.leg].filter((l): l is RouteLeg => !!l),
+    [stays, dayLegs]
+  );
+  // 숙소와 첫·마지막 장소 사이 구간이 아직 없으면 만든다 (순서를 바꾸거나 숙소를 바꿀 때마다)
+  const ensuringStay = useRef(new Set<string>());
+  useEffect(() => {
+    if (!canEdit || inBin || inOverview) return;
+    const first = dayPoints[0];
+    const last = dayPoints[dayPoints.length - 1];
+    const pairs: [string, string][] = [];
+    if (stays.start && first && !stays.start.leg && first.id !== stays.start.point.id) pairs.push([stays.start.point.id, first.id]);
+    if (stays.end && last && !stays.end.leg && last.id !== stays.end.point.id) pairs.push([last.id, stays.end.point.id]);
+    for (const [a, b] of pairs) {
+      const key = `${a}>${b}`;
+      if (ensuringStay.current.has(key)) continue;
+      ensuringStay.current.add(key);
+      void ensureLeg(tripId, a, b).then((leg) => {
+        ensuringStay.current.delete(key);
+        if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
+      });
+    }
+  }, [stays, dayPoints, canEdit, inBin, inOverview, tripId, setLegs]);
+  /** 지도 핀: 그날 장소 + 숙소 (전체 보기면 모든 숙소). 숙소는 번호 없이 */
+  const mapPoints = useMemo(() => {
+    const extras = inOverview ? points.filter((p) => stayIds.has(p.id)) : [stays.start?.point, stays.end?.point];
+    const extra = extras.filter(
+      (p, i, arr): p is MapPoint => !!p && arr.findIndex((q) => q?.id === p.id) === i && !dayPoints.some((d) => d.id === p.id)
+    );
+    return [...dayPoints, ...extra];
+  }, [dayPoints, stays, inOverview, points, stayIds]);
   const overviewPins = useMemo(() => {
     if (!inOverview) return null;
     const colors: Record<string, string> = {};
@@ -195,7 +271,14 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
       });
     return { colors, labels };
   }, [inOverview, plan]);
-  const binCount = points.filter((p) => p.day_number == null).length;
+  const pinLabels = useMemo(() => {
+    const base: Record<string, number | null> | undefined = overviewPins?.labels;
+    if (mapPoints.length === dayPoints.length) return base;
+    const out = { ...(base ?? Object.fromEntries(dayPoints.map((p, i) => [p.id, i + 1]))) };
+    for (const p of mapPoints) if (!(p.id in out)) out[p.id] = null;
+    return out;
+  }, [overviewPins, mapPoints, dayPoints]);
+  const binCount = points.filter((p) => p.day_number == null && !stayIds.has(p.id)).length;
 
   // 후보함 구역 제안: 묶기는 여기서 계산하고, 이름만 서버(NIM)에 묻는다
   const [areaOpen, setAreaOpen] = useState(false);
@@ -261,7 +344,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   // 실제 경로: 다녀온 여행은 새로 받지 않는다
   const routes = useRouteFetcher({
     tripId,
-    legs: dayLegs,
+    legs: routeLegs,
     points,
     options: savedRoutes,
     setOptions: setRouteOptions,
@@ -271,29 +354,37 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   });
 
   // 구간을 펼치면 비교할 이동수단 경로를 받는다 (한국 대중교통은 이때만)
-  const openLeg = dayLegs.find((l) => l.id === selectedLegId);
+  const openLeg = routeLegs.find((l) => l.id === selectedLegId);
   useEffect(() => {
     if (!openLeg) return;
     for (const m of chipMethods(openLeg)) routes.ensure(openLeg.id, m);
   }, [openLeg?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 시간이 비어 있는 구간은 우선 거리 기반 추정치로 채운다 (실제 경로가 오면 그 시간으로 바뀐다)
-  const estimated = useRef(new Set<string>());
+  // 구간 id → 채운 추정치 (null 이면 계산 중). 막 만든 구간은 실시간 재조회가 저장 전 값(빈 시간)으로
+  // 덮을 수 있어서, 이미 채운 구간이 다시 비어 보이면 저장 없이 화면에만 다시 채운다
+  const estimated = useRef(new Map<string, Partial<RouteLeg> | null>());
   useEffect(() => {
     if (!canEdit || inOverview) return;
-    for (const leg of dayLegs) {
-      if (leg.duration_min != null || estimated.current.has(leg.id)) continue;
+    for (const leg of routeLegs) {
+      if (leg.duration_min != null) continue;
+      if (estimated.current.has(leg.id)) {
+        const done = estimated.current.get(leg.id);
+        if (done) setLegs((prev) => prev.map((l) => (l.id === leg.id && l.duration_min == null ? { ...l, ...done } : l)));
+        continue;
+      }
       const from = points.find((p) => p.id === leg.from_point_id);
       const to = points.find((p) => p.id === leg.to_point_id);
       if (!from || !to) continue;
-      estimated.current.add(leg.id);
+      estimated.current.set(leg.id, null);
       void fetchDirections(from, to, leg.method).then((r) => {
         const patch = { duration_min: r.durationMin, distance_km: r.distanceKm };
+        estimated.current.set(leg.id, patch);
         setLegs((prev) => prev.map((l) => (l.id === leg.id ? { ...l, ...patch } : l)));
         void updateLeg(leg.id, patch);
       });
     }
-  }, [dayLegs, points, canEdit, inOverview, setLegs]);
+  }, [routeLegs, points, canEdit, inOverview, setLegs]);
 
   // 구간 수정: 화면은 바로 바꾸고, 저장은 입력이 멈춘 뒤 한 번만
   const legSaveTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -354,10 +445,13 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     setLegs(updated);
   }
 
-  /** 이동 거리가 짧은 순서로. 이미 그 순서면 false */
+  /** 이동 거리가 짧은 순서로. 출발 숙소가 있으면 숙소에서 시작해 첫 장소도 바뀔 수 있다. 이미 그 순서면 false */
   function handleOptimize() {
     const before = dayPoints.map((p) => p.id);
-    const after = optimizeOrder(dayPoints).map((p) => p.id);
+    const from = stays.start?.point;
+    const after = (
+      from && !dayPoints.some((p) => p.id === from.id) ? optimizeOrder([from, ...dayPoints]).slice(1) : optimizeOrder(dayPoints)
+    ).map((p) => p.id);
     if (before.join() === after.join()) return false;
     setUndo({ day, before, after });
     void handleReorder(after);
@@ -642,7 +736,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                   areas={areaByDay}
                   overview={tripDays > 1}
                 />
-                {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} />}
+                {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} startTravel={stays.start?.leg?.duration_min ?? 0} />}
                 {!inBin && !inOverview && trip.start_date && (
                   <DayBookings docs={docs} date={format(addDays(parseISO(trip.start_date), day - 1), "yyyy-MM-dd")} />
                 )}
@@ -662,13 +756,13 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         </div>
                       )}
                       <TripMap
-                        points={dayPoints}
-                        legs={dayLegs}
+                        points={mapPoints}
+                        legs={routeLegs}
                         routeOptions={routes.options}
                         selectedLegId={selectedLegId}
                         onRouteOptionClick={canEdit ? routes.choose : undefined}
                         pinColors={overviewPins?.colors ?? pinColors}
-                        pinLabels={overviewPins?.labels}
+                        pinLabels={pinLabels}
                         expenses={expenses}
                         defaultCenter={getTripCenter(trip.country, trip.region)}
                         labelCountry={trip.country}
@@ -784,6 +878,9 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         onGroup={canEdit ? () => setAreaOpen(true) : undefined}
                       area={inBin ? null : areaByDay[day]}
                       onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
+                      start={stays.start}
+                      end={stays.end}
+                      onPickStay={canEdit && !inBin && day < tripDays ? () => setStayNight(day) : undefined}
                       />
                     )}
                   </div>
@@ -832,12 +929,30 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         />
       )}
 
+      {canEdit && (
+        <StaySheet
+          night={stayNight}
+          lastNight={tripDays - 1}
+          stayByNight={stayByNight}
+          candidates={points.filter((p) => p.category === "stay" || stayIds.has(p.id))}
+          center={mapCenter}
+          onClose={() => setStayNight(null)}
+          onSet={saveStay}
+          onCreate={async (place) => {
+            const created = await addPoint(tripId, { name: place.name, category: "stay", memo: null, lat: place.lat, lng: place.lng }, null, 0);
+            if (created) setPoints((prev) => [...prev, created]);
+            return created;
+          }}
+        />
+      )}
+
       <ExportSheet
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         trip={trip}
         days={plan}
-        bin={points.filter((p) => p.day_number == null)}
+        bin={points.filter((p) => p.day_number == null && !stayIds.has(p.id))}
+        stays={points.filter((p) => stayIds.has(p.id))}
         docs={docs}
       />
 
