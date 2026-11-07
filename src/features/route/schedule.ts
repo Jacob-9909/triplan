@@ -56,10 +56,10 @@ export function adjacentLegs(dayPoints: MapPoint[], legs: RouteLeg[]): RouteLeg[
 
 /**
  * 하루 일정의 도착·출발 시각 계산.
- * - 첫 장소: 지정 시각 또는 09:00
+ * - 첫 장소: 지정 시각, 없으면 09:00 에 출발해 startTravel(숙소에서 오는 시간, 분) 뒤
  * - 다음 장소: 앞 장소 출발 + 이동 시간. 지정 시각이 더 늦으면 그때까지 대기
  */
-export function buildSchedule(points: MapPoint[], legs: RouteLeg[]): Map<string, StopTime> {
+export function buildSchedule(points: MapPoint[], legs: RouteLeg[], startTravel = 0): Map<string, StopTime> {
   const out = new Map<string, StopTime>();
   let prevLeave: number | null = null;
   points.forEach((p, i) => {
@@ -68,7 +68,7 @@ export function buildSchedule(points: MapPoint[], legs: RouteLeg[]): Map<string,
     let wait = 0;
     let late = 0;
     if (prevLeave === null) {
-      arrive = fixedAt ?? DEFAULT_DAY_START;
+      arrive = fixedAt ?? DEFAULT_DAY_START + startTravel;
     } else {
       const leg = legs.find((l) => l.from_point_id === points[i - 1].id && l.to_point_id === p.id);
       const reach = prevLeave + (leg?.duration_min ?? 0);

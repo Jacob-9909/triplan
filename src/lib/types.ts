@@ -94,6 +94,12 @@ export interface MapPoint {
   review?: string | null;
   /** OSM opening_hours 형식 영업시간. null 은 아직 찾아보지 않음, '' 는 찾아봤지만 없음 */
   opening_hours?: string | null;
+  /** 위키백과·위키미디어 사진 (목록 썸네일) */
+  image_url?: string | null;
+  /** 장소 정보(사진·연락처)를 찾아본 시각. 있으면 다시 찾지 않는다 */
+  info_checked_at?: string | null;
+  /** 첫 번째로 올린 사진 id (목록 응답에만) */
+  cover_photo_id?: string | null;
   created_at: string;
 }
 
@@ -110,6 +116,8 @@ export interface TripDay {
   note: string | null;
   /** 후보함에서 이 Day 로 옮긴 구역 이름 (예: 아사쿠사·우에노) */
   area?: string | null;
+  /** 이 Day 밤에 묵는 숙소 장소. 다음 날은 여기서 출발한다 */
+  stay_point_id?: string | null;
 }
 
 /** 장소 사진 (본문은 /api/point-photos/[id]) */

@@ -72,7 +72,7 @@ export function useTripData(tripId: string) {
   }, [tripId]);
 
   // 다른 사람이 바꾸면 화면 깜빡임 없이 조용히 다시 불러온다. 실패하면 지금 화면을 그대로 둔다
-  useTripChanges(tripId, ["trips", "map_points", "route_legs", "access"], () => {
+  useTripChanges(tripId, ["trips", "map_points", "route_legs", "point_photos", "access"], () => {
     void Promise.all([
       apiGet<Trip>(`/api/trips/${tripId}`),
       apiGet<MapPoint[]>(`/api/map-points?trip_id=${tripId}`),

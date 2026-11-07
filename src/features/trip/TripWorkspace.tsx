@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Banknote, CalendarPlus, Copy, ImageIcon, Luggage, LogOut, MapPin, NotebookPen, Plane, Printer, Lock } from "lucide-react";
+import { Banknote, CalendarPlus, Copy, ImageIcon, Luggage, LogOut, Map as MapIcon, MapPin, NotebookPen, Plane, Printer, Lock } from "lucide-react";
 import type { Access } from "@/lib/types";
 import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
 import { useTripData } from "./useTripData";
@@ -17,6 +17,9 @@ import PrintItinerary from "./PrintItinerary";
 import SharePanel from "./SharePanel";
 import CalendarLinks from "./CalendarLinks";
 import CopyTripDialog from "./CopyTripDialog";
+import { buildKml, fileName } from "./exportFiles";
+import { planDays } from "./itinerary";
+import { useTripDays } from "./useTripDays";
 import Sheet from "@/features/ui/Sheet";
 import ExpensesTab from "@/features/expenses/ExpensesTab";
 import { useExpenses } from "@/features/expenses/useExpenses";
@@ -63,6 +66,7 @@ export default function TripWorkspace({
 
   const { trip, points, legs, routeOptions, loading, notConfigured, revoked, setTrip, setPoints, setLegs, setRouteOptions } =
     useTripData(tripId);
+  const tripDayData = useTripDays(tripId);
   const actions = usePointActions({ tripId, points, legs, setPoints, setLegs });
   const router = useRouter();
   const access: Access = inApp ? (trip?.access ?? "view") : mode;
@@ -156,9 +160,21 @@ export default function TripWorkspace({
 
   // 캘린더 구독은 보기 토큰으로만 (주인·관리자는 여행 정보에, 보기 링크 손님은 링크에 있다)
   const calendarToken = viewToken ?? (canManage ? trip.view_token : undefined);
+  /** 지도 파일(.kml): Day 마다 폴더. 구글 내 지도·Organic Maps 에서 가져오기로 연다 */
+  function downloadKml() {
+    if (!trip) return;
+    const text = buildKml({ title: trip.title, days: planDays(trip, points, legs), bin: points.filter((p) => p.day_number == null) }, t);
+    const url = URL.createObjectURL(new Blob([text], { type: "application/vnd.google-earth.kml+xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName(trip.title, "kml");
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   const menu: HeaderMenuItem[] = [
     { key: "print", label: t("일정표 인쇄·PDF"), icon: Printer, onClick: () => window.print() },
     ...(calendarToken ? [{ key: "calendar", label: t("캘린더에 추가"), icon: CalendarPlus, onClick: () => setCalendarOpen(true) }] : []),
+    ...(points.length ? [{ key: "kml", label: t("지도 파일 받기 (.kml)"), icon: MapIcon, onClick: downloadKml }] : []),
     ...(inApp || canCopy
       ? [{ key: "copy", label: inApp ? t("여행 복제") : t("내 여행으로 가져오기"), icon: Copy, onClick: () => setCopyOpen(true) }]
       : []),
@@ -233,6 +249,7 @@ export default function TripWorkspace({
                 past={phase.phase === "past"}
                 expenses={expenses}
                 docs={docs}
+                tripDayData={tripDayData}
               />
             )}
 
@@ -268,7 +285,7 @@ export default function TripWorkspace({
         </AnimatePresence>
       </div>
 
-      <PrintItinerary trip={trip} points={points} legs={legs} docs={docs} />
+      <PrintItinerary trip={trip} points={points} legs={legs} docs={docs} stayByNight={tripDayData.stayByNight} />
 
       {inApp && canManage && (
         <SharePanel open={shareOpen} onClose={() => setShareOpen(false)} trip={trip} isAdmin={access === "admin"} />

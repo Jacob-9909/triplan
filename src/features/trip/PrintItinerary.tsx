@@ -9,6 +9,7 @@ import { docsOnDay } from "@/features/prep/dayDocs";
 import { DOC_META } from "@/features/prep/DocsPanel";
 import { formatRange, nights, stayLabel } from "@/features/ui/dates";
 import { usePrefs } from "@/i18n/I18nProvider";
+import { dayStays } from "./itinerary";
 
 /**
  * 인쇄용 일정표. 화면에는 안 보이고 인쇄(또는 PDF 저장)할 때만 나온다.
@@ -20,18 +21,24 @@ export default function PrintItinerary({
   points,
   legs,
   docs,
+  stayByNight = {},
 }: {
   trip: Trip;
   points: MapPoint[];
   legs: RouteLeg[];
   docs: TravelDoc[];
+  /** Day N 밤 숙소: 다음 날은 숙소에서 출발하고 그날은 숙소로 돌아온다 */
+  stayByNight?: Record<number, string>;
 }) {
   const { t, locale, df } = usePrefs();
   const dayCount = (nights(trip) ?? -1) + 1;
   const maxDay = Math.max(dayCount, 0, ...points.map((p) => p.day_number ?? 0));
   const ofDay = (d: number | null) =>
     points.filter((p) => p.day_number === d).sort((a, b) => (a.visit_order ?? 99) - (b.visit_order ?? 99));
-  const bin = ofDay(null);
+  const byId = new Map(points.map((p) => [p.id, p]));
+  const stayIds = new Set(Object.values(stayByNight));
+  // 숙소로 지정한 곳은 후보함이 아니라 Day 맨 앞·뒤에 나온다
+  const bin = ofDay(null).filter((p) => !stayIds.has(p.id));
   const stay = stayLabel(trip, locale);
 
   return (
@@ -48,7 +55,11 @@ export default function PrintItinerary({
         const day = ofDay(d);
         const dayLegs = adjacentLegs(day, legs);
         const legAfter = new Map(dayLegs.map((l) => [l.from_point_id, l]));
-        const schedule = buildSchedule(day, dayLegs);
+        const { start, end } = dayStays(d, day, stayByNight, byId, legs);
+        const startTravel = start?.leg?.duration_min ?? 0;
+        const schedule = buildSchedule(day, dayLegs, startTravel);
+        const firstAt = day[0] && schedule.get(day[0].id);
+        const lastAt = day.length ? schedule.get(day[day.length - 1].id) : undefined;
         const date = trip.start_date ? addDays(parseISO(trip.start_date), d - 1) : null;
         const bookings = date ? docsOnDay(docs, format(date, "yyyy-MM-dd")) : [];
         if (day.length === 0 && bookings.length === 0) return null;
@@ -71,6 +82,19 @@ export default function PrintItinerary({
             )}
             <table className="w-full border-collapse text-[10pt]">
               <tbody>
+                {start && firstAt && (
+                  <tr className="border-b border-black/15">
+                    <td className="py-1.5 pr-3 font-mono tabular-nums">{formatTime(firstAt.arrive - startTravel)}</td>
+                    <td className="py-1.5">
+                      {t("숙소에서 출발")} · {start.point.name}
+                      {start.leg?.duration_min != null && (
+                        <span className="ml-1.5 text-[9pt] italic">
+                          ↓ {t(METHOD_META[start.leg.method].label)} {formatDuration(start.leg.duration_min, locale)}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )}
                 {day.map((p, i) => {
                   const s = schedule.get(p.id);
                   const leg = i < day.length - 1 ? legAfter.get(p.id) : undefined;
@@ -98,6 +122,14 @@ export default function PrintItinerary({
                     </tr>
                   );
                 })}
+                {end && lastAt && (
+                  <tr>
+                    <td className="py-1.5 pr-3 font-mono tabular-nums">{formatTime(lastAt.leave + (end.leg?.duration_min ?? 0))}</td>
+                    <td className="py-1.5">
+                      {t("숙소 도착")} · {end.point.name}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </section>
