@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertTriangle, BedDouble, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
+import { AlertTriangle, BedDouble, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Sparkles, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import type { StayAnchor } from "@/features/trip/itinerary";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
@@ -41,6 +41,8 @@ export interface DayPlanProps {
   onClearArea?: () => void;
   /** 후보함을 걸어서 다닐 만한 구역으로 묶어 보기 */
   onGroup?: () => void;
+  /** 후보함에 AI 추천 장소 받기 */
+  onSuggest?: () => void;
   /** 정리 직후 되돌리기 */
   onUndo?: () => void;
   onOpen: (point: MapPoint) => void;
@@ -66,6 +68,7 @@ export default function DayPlan({
   renderLeg,
   onOptimize,
   onGroup,
+  onSuggest,
   onUndo,
   onOpen,
   area,
@@ -169,6 +172,15 @@ export default function DayPlan({
               <Route size={14} aria-hidden /> {already ? t("이미 가장 짧은 순서예요") : t("동선 정리")}
             </button>
           )
+        )}
+        {bin && onSuggest && (
+          <button
+            type="button"
+            onClick={onSuggest}
+            className="flex shrink-0 items-center gap-1 rounded-full bg-ink px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+          >
+            <Sparkles size={14} aria-hidden /> {t("AI 추천")}
+          </button>
         )}
         {bin && onGroup && points.length >= 3 && (
           <button

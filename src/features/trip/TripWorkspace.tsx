@@ -33,6 +33,7 @@ import DayTabs, { BIN_DAY, OVERVIEW_DAY } from "@/features/route/DayTabs";
 import TripOverview, { dayColor } from "@/features/route/TripOverview";
 import { dayStays, planDays } from "./itinerary";
 import StaySheet from "@/features/route/StaySheet";
+import SuggestSheet from "@/features/route/SuggestSheet";
 import ExportSheet from "./ExportSheet";
 import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
@@ -162,6 +163,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
     }
   }
   const [stayNight, setStayNight] = useState<number | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const { expenses } = useExpenses(tripId);
   const { docs } = useTravelDocs(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
@@ -906,6 +908,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                             : undefined
                         }
                         onGroup={canEdit ? () => setAreaOpen(true) : undefined}
+                        onSuggest={canEdit && inBin ? () => setSuggestOpen(true) : undefined}
                       area={inBin ? null : areaByDay[day]}
                       onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
                       date={inBin ? null : (plan[day - 1]?.date ?? null)}
@@ -957,6 +960,26 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
             setPoiPrefill(null);
           }}
           onSave={handlePointCreate}
+        />
+      )}
+
+      {canEdit && (
+        <SuggestSheet
+          open={suggestOpen}
+          tripId={tripId}
+          onClose={() => setSuggestOpen(false)}
+          onAdd={async (places) => {
+            // 하나씩 저장해 저장된 것만 화면에 보탠다. 추천 이유는 메모로 남긴다
+            let added = 0;
+            for (const p of places) {
+              const created = await addPoint(tripId, { name: p.name, category: p.category, memo: p.reason || null, lat: p.lat, lng: p.lng }, null, 0);
+              if (created) {
+                added++;
+                setPoints((prev) => [...prev, created]);
+              }
+            }
+            return added;
+          }}
         />
       )}
 
