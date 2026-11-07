@@ -196,7 +196,7 @@ function Body({ tripId, onClose, onAdd }: { tripId: string; onClose: () => void;
       <button type="button" disabled={busy !== null} onClick={() => void ask()} className="btn btn-primary w-full py-3 text-sm disabled:opacity-60">
         {busy === "ask" ? (
           <>
-            <Loader2 size={16} className="animate-spin" aria-hidden /> {t("고르고 위치를 확인하는 중… (1분 가까이 걸릴 수 있어요)")}
+            <Loader2 size={16} className="animate-spin" aria-hidden /> {t("고르고 지도에서 위치를 확인하는 중…")}
           </>
         ) : (
           <>
