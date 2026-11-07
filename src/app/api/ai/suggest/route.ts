@@ -65,11 +65,13 @@ export async function POST(request: Request) {
         (note ? `Traveler note: ${note}\n` : "") +
         `Already planned (do not repeat): ${existing.map((p) => p.name).slice(0, 40).join(", ") || "none"}.\n` +
         `Suggest 8 specific places (not areas or cities) within the destination. For each: name in ${locale === "ko" ? "Korean" : "English"}, ` +
-        `local = the official name in the local language as written on maps, category, and reason = at most 40 characters in ${locale === "ko" ? "Korean" : "English"} on why it fits.`,
+        `local = the official name in the local language as written on maps, ` +
+        `category (attraction for sights, viewpoints and observation decks; food for restaurants and food markets; cafe; ` +
+        `shopping only for shops and malls; nature for parks and gardens; culture for museums, temples and shrines; etc otherwise), and reason = at most 40 characters in ${locale === "ko" ? "Korean" : "English"} on why it fits.`,
       schema: SUGGEST_SCHEMA,
       maxTokens: 900,
       temperature: 0.4,
-      // 무료 엔드포인트라 15~45초 걸린다 (2026-11 실측). 화면은 "고르는 중" 을 보여 준다
+      // 보통 몇 초지만 무료 엔드포인트라 붐비면 길어진다. 화면은 "고르는 중" 을 보여 준다
       timeoutMs: 60_000,
     });
     if (!raw) return jsonError("AI 추천을 받지 못했어요. 잠시 뒤 다시 해 보세요.", 502);

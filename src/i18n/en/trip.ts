@@ -299,7 +299,7 @@ const en: Record<string, string> = {
   "더 알려 주세요 (선택)": "Tell us more (optional)",
   "예: 현지인이 가는 라멘집, 걷기 좋은 골목, 부모님과 함께": "e.g. ramen where locals go, walkable lanes, travelling with parents",
   "추천 받기": "Get ideas",
-  "고르고 위치를 확인하는 중… (1분 가까이 걸릴 수 있어요)": "Picking places and checking them on the map… (can take up to a minute)",
+  "고르고 지도에서 위치를 확인하는 중…": "Picking places and checking them on the map…",
   "AI 추천은 틀릴 수 있어요. 지도 검색으로 위치를 확인한 곳만 보여 주고, 고른 곳만 후보함에 담아요.":
     "AI ideas can be wrong. Only places found on the map are shown, and only the ones you pick go to the bin.",
   "AI 추천을 받지 못했어요. 잠시 뒤 다시 해 보세요.": "Couldn't get AI ideas. Try again in a moment.",

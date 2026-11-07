@@ -5,8 +5,11 @@
  */
 
 const URL_CHAT = "https://integrate.api.nvidia.com/v1/chat/completions";
-// 2026-11 기준 JSON 을 잘 지키는 빠른 편 모델. glm-5.3-flash 는 생각 단계 때문에 20~40초 걸린다
-const MODEL = "minimaxai/minimax-m3.1-flash";
+// 2026-11-07 같은 프롬프트로 비교: nemotron-3.5-super 는 생각 단계를 끄면(enable_thinking: false) 0~4초에
+// 구역 이름·예약 읽기·추천(현지어 이름·분류)이 모두 정확했다. 생각 단계를 켜 두면 토큰을 다 써서 답이 비고, /no_think 지시는 듣지 않는다.
+// gemma-4-31b-it 는 정확하지만 붐비면 60~90초, minimax-m3.1-flash 는 30~60초에 구역 이름에 랜드마크를 붙였고,
+// deepseek-v4.1-flash 는 답을 reasoning 칸에 넣고 90초를 넘겼다
+const MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b";
 const MAX_NAME = 30;
 
 /** 응답 본문(choices[0].message.content)을 JSON 으로. 코드 울타리(```json)가 붙어 와도 벗긴다 */
@@ -52,6 +55,8 @@ export async function nimChat(opts: {
           { role: "user", content: opts.user },
         ],
         response_format: { type: "json_schema", json_schema: { name: opts.name, schema: opts.schema } },
+        // 생각 단계를 끈다: 켜 두면 max_tokens 를 생각에 다 써서 답이 빈다
+        chat_template_kwargs: { enable_thinking: false },
       }),
       signal: AbortSignal.timeout(opts.timeoutMs),
       cache: "no-store",
