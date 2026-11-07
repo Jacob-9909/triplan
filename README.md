@@ -28,6 +28,12 @@ A travel planner that starts from the places you dream about. Save places you wa
 | Weather and local info | Day tabs show the Open-Meteo forecast (no API key) from 16 days out. The prep tab shows the time difference and local time, plug type and voltage (with an adapter warning), emergency numbers, and tipping customs |
 | Trip journal | Once a trip starts, a **Record** tab adds a daily journal with weather and mood, star ratings and one-line reviews for each stop, and trip stats (places, distance, spending). Finished trips open on this tab |
 | Archive | `/archive` collects a passport stamp for every finished trip, a map of places visited and still wished for, and every stop you rated |
+| Whole-trip overview | An **All** tab before the days puts every day's places on one map in day colors, with each day's time span, place count, travel time and stay |
+| Export | Download the trip as a calendar file (`.ics`: each place from arrival to departure, bookings as all-day events), a map file (`.kml` for Google My Maps, one layer per day), or print it / save as PDF. Logged-in users can also duplicate a trip (places, plan, stays, packing list) with a new start date |
+| Stays | Set where you sleep each night (pick a Stay place or search one, optionally for every remaining night). The next day starts from the stay, the day ends by returning to it, both with real legs, and **Optimize route** starts from the stay |
+| Place info | The place sheet shows a photo and summary (Wikidata/Wikipedia), opening hours with the visit weekday highlighted, phone, website and address (Nominatim, OpenStreetMap), cached for 30 days. The day plan warns when a stop falls on a closed day or outside opening hours, and stop rows show a photo thumbnail |
+| AI help | **AI ideas** in the Maybe list suggests places from your interests (NVIDIA NIM); each idea is checked on the map (Photon) and only the ones you pick are added. In the docs panel, paste a booking confirmation email to fill the booking form (the text is not stored) |
+| Group opinions | Companions mark places they **want to go** and leave comments, with counts on every stop, so the Maybe list works as a shared shortlist. Share links have no accounts, so each device remembers a name per trip |
 | Share links | Each trip has an **edit link** for companions and a **view link** for family and friends. No sign-up. Booking codes are hidden on view links |
 | Korean / English, home currency, light / dark | Switch language (한/EN), home currency (KRW, USD, EUR, JPY…; defaults to KRW in Korean and USD in English) and theme (system → light → dark) from the header; both are remembered in a cookie. English mode also translates country and city names and shows English map labels. Expenses are still stored in KRW; amounts show roughly converted to the home currency, and an expense in yen gets a small "≈ $8.12" beside it. Dark mode follows the OS by default |
 | Travel-app UI | Photo-first cards, bottom tab bar on mobile, bottom sheets, page and list motion, D-day count-up, installable as a PWA. Trips you have opened once stay readable offline (service worker; cleared on logout) |
@@ -95,7 +101,7 @@ Open http://localhost:3000 and log in with `ADMIN_PASSWORD`.
 | `NEXT_PUBLIC_MAPBOX_TOKEN` | No | Use Mapbox instead of MapLibre |
 | `MYMEMORY_EMAIL` | No | Raises the free translation limit |
 | `EXCHANGE_RATE_API_KEY` | No | Exchange rates (a free endpoint is used without it) |
-| `NVIDIA_API_KEY` | No | Area names in the Maybe list (NVIDIA NIM). Without it, district names from OpenStreetMap are used |
+| `NVIDIA_API_KEY` | No | NVIDIA NIM: area names in the Maybe list (without it, district names from OpenStreetMap), AI place ideas, and reading booking emails (both off without it) |
 | `ODSAY_API_KEY` | No | Korea transit routes (ODsay LAB free key, bound to the server IP). Without it transit shows an estimate |
 
 ### 3. Deploy (Oracle Cloud VM)
