@@ -280,6 +280,36 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   }, [overviewPins, mapPoints, dayPoints]);
   const binCount = points.filter((p) => p.day_number == null && !stayIds.has(p.id)).length;
 
+  // 보고 있는 Day(후보함)의 장소 정보를 하나씩 찾아 둔다: 영업시간 경고·썸네일에 쓴다.
+  // 공용 API(Overpass·위키백과)라 1.2초 간격, 한 번 찾아본 곳(info_checked_at)은 다시 찾지 않는다
+  const infoTried = useRef(new Set<string>());
+  const infoLastAt = useRef(0);
+  const infoTodo = mapPoints.filter((p) => !p.info_checked_at).map((p) => p.id);
+  useEffect(() => {
+    if (!canEdit || inOverview || infoTodo.length === 0) return;
+    let stop = false;
+    void (async () => {
+      for (const id of infoTodo) {
+        // 효과가 다시 시작돼도 간격은 지킨다 (마지막 요청 시각 기준)
+        const wait = infoLastAt.current + 1200 - Date.now();
+        if (wait > 0) await new Promise((res) => setTimeout(res, wait));
+        if (stop) return;
+        if (infoTried.current.has(id)) continue;
+        infoTried.current.add(id);
+        infoLastAt.current = Date.now();
+        try {
+          const r = await apiGet<{ point: Partial<MapPoint> | null }>(`/api/places/info?point_id=${id}&locale=${locale}`);
+          if (r.point) setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...r.point } : p)));
+        } catch {
+          return;
+        }
+      }
+    })();
+    return () => {
+      stop = true;
+    };
+  }, [infoTodo.join(), canEdit, inOverview]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 후보함 구역 제안: 묶기는 여기서 계산하고, 이름만 서버(NIM)에 묻는다
   const [areaOpen, setAreaOpen] = useState(false);
   const areas = useMemo(() => (areaOpen && inBin ? groupAreas(dayPoints) : null), [areaOpen, inBin, dayPoints]);
@@ -878,6 +908,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                         onGroup={canEdit ? () => setAreaOpen(true) : undefined}
                       area={inBin ? null : areaByDay[day]}
                       onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
+                      date={inBin ? null : (plan[day - 1]?.date ?? null)}
                       start={stays.start}
                       end={stays.end}
                       onPickStay={canEdit && !inBin && day < tripDays ? () => setStayNight(day) : undefined}
@@ -967,6 +998,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         onSave={savePoint}
         dayCount={tripDays}
         onMove={movePoint}
+        dateOf={(d) => plan[d - 1]?.date ?? null}
+        onPointPatch={(id, patch) => setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))}
       />
 
       <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title={t("이동 구간")}>

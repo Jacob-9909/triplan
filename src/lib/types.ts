@@ -92,6 +92,14 @@ export interface MapPoint {
   rating?: number | null;
   /** 다녀온 뒤 한줄평 */
   review?: string | null;
+  /** OSM opening_hours 원문 (장소 정보에서 복사, 휴무 경고용) */
+  opening_hours?: string | null;
+  /** 위키백과·위키미디어 사진 (목록 썸네일) */
+  image_url?: string | null;
+  /** 장소 정보를 찾아본 시각. 있으면 다시 찾지 않는다 */
+  info_checked_at?: string | null;
+  /** 첫 번째로 올린 사진 id (목록 응답에만) */
+  cover_photo_id?: string | null;
   created_at: string;
 }
 

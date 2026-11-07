@@ -19,6 +19,7 @@ export type PointPatch = Partial<
 
 const STAY_PRESETS = [30, 60, 90, 120, 180, 240];
 import Sheet from "@/features/ui/Sheet";
+import PlaceInfoCard from "./PlaceInfoCard";
 
 const MAX_EDGE = 1600;
 
@@ -57,6 +58,8 @@ export default function PlaceDetail({
   onSave,
   dayCount = 0,
   onMove,
+  dateOf,
+  onPointPatch,
 }: {
   point: MapPoint | null;
   canEdit: boolean;
@@ -67,10 +70,25 @@ export default function PlaceDetail({
   dayCount?: number;
   /** 다른 Day 나 후보함(null)으로 옮기기. 실패하면 오류 메시지 */
   onMove?: MoveTo;
+  /** Day 번호 → 그날 날짜 "yyyy-MM-dd" (장소 정보에서 가는 요일 표시) */
+  dateOf?: (day: number) => string | null;
+  /** 장소 정보가 장소에 복사한 영업시간·사진을 화면에 반영 */
+  onPointPatch?: (id: string, patch: Partial<MapPoint>) => void;
 }) {
   return (
     <Sheet open={point !== null} onClose={onClose} title={point ? <Title point={point} /> : null}>
-      {point && <Body key={point.id} point={point} canEdit={canEdit} onSave={onSave} dayCount={dayCount} onMove={onMove} />}
+      {point && (
+        <Body
+          key={point.id}
+          point={point}
+          canEdit={canEdit}
+          onSave={onSave}
+          dayCount={dayCount}
+          onMove={onMove}
+          visitDate={point.day_number && dateOf ? dateOf(point.day_number) : null}
+          onPointPatch={onPointPatch ? (patch) => onPointPatch(point.id, patch) : undefined}
+        />
+      )}
     </Sheet>
   );
 }
@@ -90,12 +108,16 @@ function Body({
   onSave,
   dayCount,
   onMove,
+  visitDate,
+  onPointPatch,
 }: {
   point: MapPoint;
   canEdit: boolean;
   onSave: (id: string, patch: PointPatch) => Promise<string | null>;
   dayCount: number;
   onMove?: MoveTo;
+  visitDate: string | null;
+  onPointPatch?: (patch: Partial<MapPoint>) => void;
 }) {
   const { t, locale } = usePrefs();
   const [photos, setPhotos] = useState<PointPhoto[] | null>(null);
@@ -163,6 +185,8 @@ function Body({
 
   return (
     <div className="space-y-5">
+      <PlaceInfoCard point={point} visitDate={visitDate} onPointPatch={onPointPatch} />
+
       {/* Day 옮기기: 후보함 ↔ Day */}
       {canEdit && onMove && dayCount > 0 && (
         <section>

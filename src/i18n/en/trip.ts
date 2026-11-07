@@ -275,6 +275,16 @@ const en: Record<string, string> = {
   "Triplan에서 만든 일정표": "Itinerary made with Triplan",
   "{title} · Day {day} · {n}번째": "{title} · Day {day} · stop {n}",
 
+  // 장소 정보·영업시간 (features/trip/PlaceInfoCard.tsx, route/DayPlan.tsx, api/places/info)
+  "장소 정보를 불러오지 못했어요.": "Couldn't load place info.",
+  "쉬는 날일 수 있어요": "May be closed that day",
+  "영업시간 {hours} 밖": "Outside hours {hours}",
+  "공개 지도에서 찾은 장소 정보가 없어요.": "No public map info found for this place.",
+  "휴무": "Closed",
+  "매일": "Daily",
+  "위키백과": "Wikipedia",
+  "공개 자료라 실제와 다를 수 있어요": "From public data, may be out of date",
+
   // 숙소 (features/route/DayPlan.tsx, StaySheet.tsx)
   "숙소에서 출발": "Leave the hotel",
   "오늘 밤 숙소": "Tonight's stay",

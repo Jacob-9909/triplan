@@ -2,7 +2,15 @@ import { getPool, jsonError, type Row } from "@/lib/db";
 import { invalidPointField, listChildren, requireEditBody } from "@/lib/crud";
 
 export async function GET(request: Request) {
-  return listChildren(request, "map_points", "visit_order ASC NULLS LAST", "지도 핀");
+  // 목록 썸네일용으로 처음 올린 사진 id 를 붙인다
+  return listChildren(
+    request,
+    "map_points",
+    "visit_order ASC NULLS LAST",
+    "지도 핀",
+    undefined,
+    "*, (SELECT ph.id FROM triplan.point_photos ph WHERE ph.point_id = map_points.id ORDER BY ph.created_at LIMIT 1) AS cover_photo_id"
+  );
 }
 
 export async function POST(request: Request) {

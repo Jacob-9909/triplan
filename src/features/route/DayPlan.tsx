@@ -13,12 +13,14 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BedDouble, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
+import { AlertTriangle, BedDouble, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, Route, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import type { StayAnchor } from "@/features/trip/itinerary";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { usePrefs, useT } from "@/i18n/I18nProvider";
 import { buildSchedule, DEFAULT_STAY, formatDuration, formatTime, type StopTime } from "./schedule";
+import { formatRanges, hoursOn, osmWeekday, parseOpeningHours, visitProblem } from "./openingHours";
+import { photoUrl } from "@/lib/api";
 
 export interface DayPlanProps {
   /** visit_order 순서로 정렬된 그날 장소 */
@@ -47,6 +49,8 @@ export interface DayPlanProps {
   end?: StayAnchor | null;
   /** 오늘 밤 숙소 정하기·바꾸기 (편집 권한이 있고 밤이 있는 Day 만) */
   onPickStay?: () => void;
+  /** 그날 날짜 "yyyy-MM-dd": 영업시간과 비교해 쉬는 날·영업시간 밖 경고 */
+  date?: string | null;
 }
 
 /**
@@ -69,8 +73,10 @@ export default function DayPlan({
   start = null,
   end = null,
   onPickStay,
+  date = null,
 }: DayPlanProps) {
   const { t, locale, money } = usePrefs();
+  const weekday = date ? osmWeekday(new Date(`${date}T00:00:00`).getDay()) : null;
   const startTravel = start?.leg?.duration_min ?? 0;
   const endTravel = end?.leg?.duration_min ?? 0;
   const schedule = useMemo(() => buildSchedule(points, legs, startTravel), [points, legs, startTravel]);
@@ -219,6 +225,7 @@ export default function DayPlan({
                     point={point}
                     index={i}
                     time={bin ? undefined : schedule.get(point.id)}
+                    weekday={bin ? null : weekday}
                     // 끄는 동안에는 구간이 어긋나므로 숨긴다
                     legView={leg && leg.to_point_id === shown[i + 1].id ? renderLeg(leg, point, shown[i + 1]) : undefined}
                     sortable={!!onReorder}
@@ -256,6 +263,24 @@ export default function DayPlan({
         </p>
       )}
     </section>
+  );
+}
+
+/** 목록 썸네일: 처음 올린 사진, 없으면 위키백과 사진, 둘 다 없거나 못 불러오면 분류 아이콘 */
+function PointThumb({ point }: { point: MapPoint }) {
+  const src = point.cover_photo_id ? photoUrl(point.cover_photo_id) : point.image_url;
+  const [failed, setFailed] = useState<string | null>(null);
+  if (!src || failed === src) return <PointBadge point={point} size={34} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- 권한 검사 API·위키미디어 이미지
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(src)}
+      className="h-[34px] w-[34px] shrink-0 rounded-xl bg-surface-muted object-cover"
+      style={{ outline: `2px solid ${pointColor(point)}`, outlineOffset: -2 }}
+    />
   );
 }
 
@@ -316,6 +341,7 @@ function Stop({
   point,
   index,
   time,
+  weekday,
   legView,
   sortable,
   onOpen,
@@ -324,6 +350,8 @@ function Stop({
   point: MapPoint;
   index: number;
   time?: StopTime;
+  /** 가는 날 요일 (0=월). 영업시간 경고용 */
+  weekday: number | null;
   /** 다음 장소로 가는 구간 카드 */
   legView?: ReactNode;
   sortable: boolean;
@@ -338,6 +366,15 @@ function Stop({
   const [confirming, setConfirming] = useState(false);
   const color = pointColor(point);
   const stay = point.stay_min ?? DEFAULT_STAY;
+  // 머무는 동안 문을 닫았거나 쉬는 날이면 알려 준다 (영업시간을 읽을 수 있을 때만)
+  const rules = useMemo(() => parseOpeningHours(point.opening_hours), [point.opening_hours]);
+  const problem = rules && time && weekday !== null ? visitProblem(rules, weekday, time.arrive, time.leave) : null;
+  const hoursWarning =
+    problem === "closed"
+      ? t("쉬는 날일 수 있어요")
+      : problem === "outside"
+        ? t("영업시간 {hours} 밖", { hours: formatRanges(hoursOn(rules!, weekday!) ?? []) })
+        : null;
 
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={isDragging ? "relative z-10" : ""}>
@@ -355,7 +392,7 @@ function Stop({
           style={{ borderLeft: `4px solid ${color}` }}
         >
           <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
-            <PointBadge point={point} size={34} />
+            <PointThumb point={point} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">
                 <span className="mr-1 text-xs text-foreground/68">{index + 1}</span>
@@ -371,6 +408,11 @@ function Stop({
                 {time && time.wait > 0 && <span className="text-mint">{t("대기 {time}", { time: formatDuration(time.wait, locale) })}</span>}
                 {time && time.late > 0 && (
                   <span className="text-accent">{t("지정 시각보다 {time} 늦음", { time: formatDuration(time.late, locale) })}</span>
+                )}
+                {hoursWarning && (
+                  <span className="inline-flex items-center gap-0.5 font-semibold text-accent">
+                    <AlertTriangle size={10} aria-hidden /> {hoursWarning}
+                  </span>
                 )}
               </span>
             </span>

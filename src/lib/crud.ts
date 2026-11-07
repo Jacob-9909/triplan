@@ -41,7 +41,9 @@ export async function listChildren(
   table: ChildTable,
   orderBy: string,
   label: string,
-  transform?: (rows: Row[], access: Access) => Row[]
+  transform?: (rows: Row[], access: Access) => Row[],
+  /** SELECT 목록 (기본 *). 하위 질의는 테이블 이름으로 바깥 행을 가리킨다 */
+  columns = "*"
 ) {
   const tripId = new URL(request.url).searchParams.get("trip_id") ?? "";
   if (!UUID_RE.test(tripId)) return jsonError("invalid trip_id", 400);
@@ -49,7 +51,7 @@ export async function listChildren(
   if (access instanceof Response) return access;
   try {
     const { rows } = await getPool().query<Row>(
-      `SELECT * FROM triplan.${table} WHERE trip_id = $1 ORDER BY ${orderBy}`,
+      `SELECT ${columns} FROM triplan.${table} WHERE trip_id = $1 ORDER BY ${orderBy}`,
       [tripId]
     );
     return Response.json(transform ? transform(rows, access) : rows);
