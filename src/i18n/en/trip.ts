@@ -319,6 +319,28 @@ const en: Record<string, string> = {
   "AI 가 메일을 읽지 못했어요. 잠시 뒤 다시 해 보세요.": "AI couldn't read the email. Try again in a moment.",
   "메일에서 예약 내용을 찾지 못했어요.": "Couldn't find booking details in the email.",
 
+  // 동행 의견·여행 복제 (features/trip/CollabSection.tsx, ExportSheet.tsx, api/point-*, api/trips/[id]/duplicate)
+  "동행 의견": "Group opinions",
+  "가고 싶어요": "Want to go",
+  "가고 싶어요 {n}": "{n} want to go",
+  "댓글": "Comment",
+  "댓글 {n}개": "{n} comments",
+  "좋아요": "Likes",
+  "댓글 지우기": "Delete comment",
+  "댓글을 남기지 못했어요.": "Couldn't post the comment.",
+  "좋아요를 저장하지 못했어요.": "Couldn't save the like.",
+  "누구로 남길까요? 이 기기에 기억해요.": "Who's posting? This device will remember.",
+  "확인": "OK",
+  "이 장소 어때요? 의견을 남겨 보세요": "What do you think of this place?",
+  "{name}(으)로 남겨요": "Posting as {name}",
+  "복제해서 새 여행 만들기": "Duplicate as a new trip",
+  "장소·일정·숙소·준비물을 복사해요. 가계부·예약·사진·일기는 빼요.":
+    "Copies places, plan, stays and packing list. Leaves out budget, bookings, photos and journal.",
+  "새 출발일 (비우면 같은 날짜)": "New start date (blank keeps the dates)",
+  "복제": "Duplicate",
+  "{title} (복사본)": "{title} (copy)",
+  "여행을 복제하지 못했어요.": "Couldn't duplicate the trip.",
+
   // 숙소 (features/route/DayPlan.tsx, StaySheet.tsx)
   "숙소에서 출발": "Leave the hotel",
   "오늘 밤 숙소": "Tonight's stay",

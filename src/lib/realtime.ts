@@ -20,6 +20,8 @@ export type ChangeTable =
   | "point_photos"
   | "trip_days"
   | "route_options"
+  | "point_comments"
+  | "point_votes"
   /** 초대·여행 삭제·회원 권한/비밀번호 변경처럼 접근 권한이 바뀌었을 수 있음 */
   | "access";
 

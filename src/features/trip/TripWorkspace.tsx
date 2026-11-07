@@ -34,6 +34,7 @@ import TripOverview, { dayColor } from "@/features/route/TripOverview";
 import { dayStays, planDays } from "./itinerary";
 import StaySheet from "@/features/route/StaySheet";
 import SuggestSheet from "@/features/route/SuggestSheet";
+import { useCollab } from "./useCollab";
 import ExportSheet from "./ExportSheet";
 import { optimizeOrder } from "@/features/route/optimize";
 import { useRouteFetcher } from "@/features/route/useRouteFetcher";
@@ -164,6 +165,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
   }
   const [stayNight, setStayNight] = useState<number | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const collab = useCollab(tripId);
   const { expenses } = useExpenses(tripId);
   const { docs } = useTravelDocs(tripId);
   /** 고르기 전에는 다녀온 여행이면 기록, 아니면 일정 */
@@ -912,6 +914,7 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
                       area={inBin ? null : areaByDay[day]}
                       onClearArea={canEdit ? () => void saveArea(day, null) : undefined}
                       date={inBin ? null : (plan[day - 1]?.date ?? null)}
+                      social={collab.byPoint}
                       start={stays.start}
                       end={stays.end}
                       onPickStay={canEdit && !inBin && day < tripDays ? () => setStayNight(day) : undefined}
@@ -1008,6 +1011,22 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         bin={points.filter((p) => p.day_number == null && !stayIds.has(p.id))}
         stays={points.filter((p) => stayIds.has(p.id))}
         docs={docs}
+        onDuplicate={
+          inApp
+            ? async (start_date) => {
+                try {
+                  const r = await apiPost<{ id: string }>(`/api/trips/${tripId}/duplicate`, {
+                    title: t("{title} (복사본)", { title: trip.title }),
+                    start_date,
+                  });
+                  router.push(`/trips/${r.id}`);
+                  return null;
+                } catch (e) {
+                  return e instanceof Error ? e.message : t("여행을 복제하지 못했어요.");
+                }
+              }
+            : undefined
+        }
       />
 
       {inApp && canManage && (
@@ -1023,6 +1042,8 @@ export default function TripWorkspace({ tripId, mode }: { tripId: string; mode: 
         onMove={movePoint}
         dateOf={(d) => plan[d - 1]?.date ?? null}
         onPointPatch={(id, patch) => setPoints((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)))}
+        collab={collab}
+        travelers={trip.travelers ?? []}
       />
 
       <Sheet open={editingLeg !== null} onClose={() => setLegEditId(null)} title={t("이동 구간")}>

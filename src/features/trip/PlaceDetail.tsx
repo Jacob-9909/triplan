@@ -20,6 +20,8 @@ export type PointPatch = Partial<
 const STAY_PRESETS = [30, 60, 90, 120, 180, 240];
 import Sheet from "@/features/ui/Sheet";
 import PlaceInfoCard from "./PlaceInfoCard";
+import CollabSection from "./CollabSection";
+import type { Collab } from "./useCollab";
 
 const MAX_EDGE = 1600;
 
@@ -60,6 +62,8 @@ export default function PlaceDetail({
   onMove,
   dateOf,
   onPointPatch,
+  collab,
+  travelers = [],
 }: {
   point: MapPoint | null;
   canEdit: boolean;
@@ -74,6 +78,9 @@ export default function PlaceDetail({
   dateOf?: (day: number) => string | null;
   /** 장소 정보가 장소에 복사한 영업시간·사진을 화면에 반영 */
   onPointPatch?: (id: string, patch: Partial<MapPoint>) => void;
+  /** 동행 의견(좋아요·댓글)과 이름 고르기에 쓰는 동행자 */
+  collab?: Collab;
+  travelers?: string[];
 }) {
   return (
     <Sheet open={point !== null} onClose={onClose} title={point ? <Title point={point} /> : null}>
@@ -87,6 +94,8 @@ export default function PlaceDetail({
           onMove={onMove}
           visitDate={point.day_number && dateOf ? dateOf(point.day_number) : null}
           onPointPatch={onPointPatch ? (patch) => onPointPatch(point.id, patch) : undefined}
+          collab={collab}
+          travelers={travelers}
         />
       )}
     </Sheet>
@@ -110,6 +119,8 @@ function Body({
   onMove,
   visitDate,
   onPointPatch,
+  collab,
+  travelers,
 }: {
   point: MapPoint;
   canEdit: boolean;
@@ -118,6 +129,8 @@ function Body({
   onMove?: MoveTo;
   visitDate: string | null;
   onPointPatch?: (patch: Partial<MapPoint>) => void;
+  collab?: Collab;
+  travelers: string[];
 }) {
   const { t, locale } = usePrefs();
   const [photos, setPhotos] = useState<PointPhoto[] | null>(null);
@@ -186,6 +199,8 @@ function Body({
   return (
     <div className="space-y-5">
       <PlaceInfoCard point={point} visitDate={visitDate} onPointPatch={onPointPatch} />
+
+      {collab && <CollabSection pointId={point.id} canEdit={canEdit} collab={collab} travelers={travelers} />}
 
       {/* Day 옮기기: 후보함 ↔ Day */}
       {canEdit && onMove && dayCount > 0 && (

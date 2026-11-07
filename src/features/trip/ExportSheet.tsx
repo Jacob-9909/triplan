@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { CalendarPlus, ChevronRight, Map as MapIcon, Printer } from "lucide-react";
+import { CalendarPlus, ChevronRight, Copy, Map as MapIcon, Printer } from "lucide-react";
 import type { MapPoint, TravelDoc, Trip } from "@/lib/types";
 import Sheet from "@/features/ui/Sheet";
 import { WHOLE_TRIP } from "@/features/prep/dayDocs";
@@ -29,6 +29,7 @@ export default function ExportSheet({
   bin,
   stays,
   docs,
+  onDuplicate,
 }: {
   open: boolean;
   onClose: () => void;
@@ -38,8 +39,13 @@ export default function ExportSheet({
   /** 숙소로 지정한 장소 (지도 파일에 따로 폴더) */
   stays: MapPoint[];
   docs: TravelDoc[];
+  /** 로그인 화면에서만: 이 여행을 복제해 새 여행으로. 실패하면 오류 메시지 */
+  onDuplicate?: (startDate: string | null) => Promise<string | null>;
 }) {
   const { t } = usePrefs();
+  const [dupStart, setDupStart] = useState("");
+  const [duplicating, setDuplicating] = useState(false);
+  const [dupError, setDupError] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
   const donePrinting = useCallback(() => setPrinting(false), []);
   const hasPlaces = days.some((d) => d.stops.length > 0) || bin.length > 0 || stays.length > 0;
@@ -101,6 +107,40 @@ export default function ExportSheet({
             </li>
           ))}
         </ul>
+        {onDuplicate && (
+          <div className="mt-2 rounded-2xl border border-border-subtle p-3.5">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary-strong">
+                <Copy size={20} aria-hidden />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold">{t("복제해서 새 여행 만들기")}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-foreground/68">
+                  {t("장소·일정·숙소·준비물을 복사해요. 가계부·예약·사진·일기는 빼요.")}
+                </span>
+              </span>
+            </div>
+            <div className="mt-3 flex items-end gap-2">
+              <label className="flex-1">
+                <span className="mb-1 block text-[11px] font-semibold text-foreground/68">{t("새 출발일 (비우면 같은 날짜)")}</span>
+                <input type="date" value={dupStart} onChange={(e) => setDupStart(e.target.value)} className="input py-2" />
+              </label>
+              <button
+                type="button"
+                disabled={duplicating}
+                onClick={async () => {
+                  setDuplicating(true);
+                  setDupError(await onDuplicate(dupStart || null));
+                  setDuplicating(false);
+                }}
+                className="btn btn-primary px-4 py-2.5 text-sm disabled:opacity-50"
+              >
+                {t("복제")}
+              </button>
+            </div>
+            {dupError && <p className="mt-2 text-xs text-accent">{dupError}</p>}
+          </div>
+        )}
       </Sheet>
       {printing && <TripPrint trip={trip} days={days} bin={bin} docs={docs} onDone={donePrinting} />}
     </>

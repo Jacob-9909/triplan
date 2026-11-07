@@ -2,7 +2,17 @@ import { getPool, jsonError, UUID_RE, type Row } from "@/lib/db";
 import { requireTrip, tripIdOf, type Access } from "@/lib/auth";
 
 /** 여행 하위 테이블 (trip_id를 가진 테이블) */
-export type ChildTable = "map_points" | "route_legs" | "expenses" | "checklist_items" | "travel_docs" | "point_photos" | "trip_days" | "route_options";
+export type ChildTable =
+  | "map_points"
+  | "route_legs"
+  | "expenses"
+  | "checklist_items"
+  | "travel_docs"
+  | "point_photos"
+  | "trip_days"
+  | "route_options"
+  | "point_comments"
+  | "point_votes";
 
 /** 핀 색상·도착 시각·머무는 시간 형식 검사. 문제가 있으면 오류 메시지 */
 export function invalidPointField(b: Record<string, unknown> | null): string | null {
