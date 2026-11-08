@@ -47,6 +47,8 @@ const VEHICLE_DEFAULT: Record<RouteStep["mode"], string> = {
   rail: "#6b5bd6",
   other: "#6b7280",
 };
+/** 대중교통 단계 색: 노선 색, 없으면 차량 종류별 기본색 (지도 선과 구간 카드 배지가 같은 색을 쓴다) */
+export const stepColor = (step: Pick<RouteStep, "mode" | "color">) => step.color ?? VEHICLE_DEFAULT[step.mode];
 
 const line = <P>(properties: P, coordinates: Coords): LineFeature<P> => ({
   type: "Feature",
@@ -87,7 +89,7 @@ export function buildRouteFeatures(
       for (const step of chosen.steps) {
         if (step.shape.length < 2) continue;
         const walk = step.mode === "walk";
-        const color = walk ? ROUTE_COLORS.walk : (step.color ?? VEHICLE_DEFAULT[step.mode]);
+        const color = walk ? ROUTE_COLORS.walk : stepColor(step);
         lines.push(line({ legId: leg.id, color, kind: walk ? ("walk" as const) : ("vehicle" as const) }, step.shape));
         if (!walk) {
           for (const c of [step.shape[0], step.shape[step.shape.length - 1]]) {

@@ -6,6 +6,7 @@ import { PointBadge } from "@/features/map/pointStyle";
 import MoneyInput from "@/features/ui/MoneyInput";
 import { usePrefs } from "@/i18n/I18nProvider";
 import { estimateDirections } from "./directions";
+import { isStale } from "./routeOptions";
 import { formatDuration } from "./schedule";
 import { METHOD_META } from "./meta";
 
@@ -16,7 +17,7 @@ const MINUTE_PRESETS = [5, 10, 15, 20, 30, 45, 60, 90, 120];
 export default function LegSheetBody({
   leg,
   points,
-  route,
+  route: savedRoute,
   onChange,
   onChoose,
   onDone,
@@ -34,6 +35,8 @@ export default function LegSheetBody({
   const to = points.find((p) => p.id === leg.to_point_id);
   if (!from || !to) return null;
   const est = estimateDirections(from, to, leg.method);
+  // 핀을 옮긴 뒤의 낡은 경로는 기준으로 쓰지 않는다 (다시 받으면 새 경로가 온다)
+  const route = savedRoute && !isStale(savedRoute, from, to) ? savedRoute : undefined;
   /** 직접 고치기 전의 기준 시간: 실제 경로가 있으면 그 시간, 없으면 추정치 */
   const baseline = route?.duration_min ?? est.durationMin;
   const minutes = leg.duration_min ?? baseline;
