@@ -18,7 +18,7 @@ export interface AreaGroup {
 /** 어느 구역에도 넣지 않은 곳. nearestPlace 가 null 이면 3km 안에 다른 곳이 없다 */
 export interface LoosePlace {
   point: MapPoint;
-  /** 가장 가까운 장소 (구역 안이든 아니든) */
+  /** 가장 가까운 구역 장소. 3km 안에 구역이 없으면 가장 가까운 다른 애매한 곳 */
   nearestPlace: MapPoint | null;
   /** 그 장소가 든 구역 */
   nearestGroup: number | null;
@@ -30,8 +30,6 @@ export interface LoosePlace {
 const RADII = [1.2, 0.8, 0.5];
 const MAX_DAY_MIN = 9 * 60;
 const FAR_KM = 3;
-// schedule.ts 의 DEFAULT_STAY 와 같은 값. 그 파일은 @/ 별칭을 불러서 node 자체 점검에서 읽을 수 없다
-const DEFAULT_STAY = 60;
 
 /** 반경 안의 장소끼리 이어지면 한 덩어리 (union-find) */
 function components(points: MapPoint[], radiusKm: number): MapPoint[][] {
@@ -54,18 +52,18 @@ function walks(order: MapPoint[]): number[] {
   return order.slice(1).map((p, i) => estimateDirections(order[i], p, "walk").durationMin);
 }
 
-function dayMinOf(points: MapPoint[]): number {
+function dayMinOf(points: MapPoint[], defaultStay: number): number {
   const order = ordered(points);
-  return order.reduce((s, p) => s + (p.stay_min ?? DEFAULT_STAY), 0) + walks(order).reduce((s, m) => s + m, 0);
+  return order.reduce((s, p) => s + (p.stay_min ?? defaultStay), 0) + walks(order).reduce((s, m) => s + m, 0);
 }
 
 /** 하루보다 긴 덩어리는 더 작은 반경으로, 그래도 안 되면 가장 먼 두 곳을 기준으로 둘로 나눈다 */
-function splitLong(points: MapPoint[], radiusIdx: number): MapPoint[][] {
-  if (points.length <= 2 || dayMinOf(points) <= MAX_DAY_MIN) return [points];
+function splitLong(points: MapPoint[], radiusIdx: number, defaultStay: number): MapPoint[][] {
+  if (points.length <= 2 || dayMinOf(points, defaultStay) <= MAX_DAY_MIN) return [points];
   for (let r = radiusIdx + 1; r < RADII.length; r++) {
     const parts = components(points, RADII[r]);
     // 한 곳씩 떨어져 나가면 걸어 다닐 만한 곳이 "애매한 곳" 이 되므로, 모든 조각이 2곳 이상일 때만 받는다
-    if (parts.length > 1 && parts.every((part) => part.length >= 2)) return parts.flatMap((part) => splitLong(part, r));
+    if (parts.length > 1 && parts.every((part) => part.length >= 2)) return parts.flatMap((part) => splitLong(part, r, defaultStay));
   }
   let [a, b, best] = [points[0], points[1], -1];
   for (let i = 0; i < points.length; i++)
@@ -78,23 +76,24 @@ function splitLong(points: MapPoint[], radiusIdx: number): MapPoint[][] {
   const right = points.filter((p) => !near(p));
   // 둘로 나눠도 한쪽이 한 곳뿐이면 나누는 의미가 없다
   if (left.length < 2 || right.length < 2) return [points];
-  return [...splitLong(left, RADII.length), ...splitLong(right, RADII.length)];
+  return [...splitLong(left, RADII.length, defaultStay), ...splitLong(right, RADII.length, defaultStay)];
 }
 
 /**
  * 후보함 장소를 걸어서 다닐 만한 구역으로 묶는다. 계산만 하고 아무것도 바꾸지 않는다.
+ * defaultStay 는 schedule.ts 의 DEFAULT_STAY (그 파일은 @/ 별칭을 불러서 node 자체 점검에서 여기로 가져올 수 없다)
  * ponytail: 모든 쌍 거리 O(n²). 후보함이 수백 곳으로 늘면 격자로 나눠 비교한다
  */
-export function groupAreas(input: MapPoint[]): { groups: AreaGroup[]; loose: LoosePlace[] } {
+export function groupAreas(input: MapPoint[], defaultStay: number): { groups: AreaGroup[]; loose: LoosePlace[] } {
   const points = [...input].sort((a, b) => a.id.localeCompare(b.id));
-  const parts = components(points, RADII[0]).flatMap((part) => splitLong(part, 0));
+  const parts = components(points, RADII[0]).flatMap((part) => splitLong(part, 0, defaultStay));
 
   const groups: AreaGroup[] = parts
     .filter((part) => part.length >= 2)
     .map((part) => {
       const order = ordered(part);
       const w = walks(order);
-      const dayMin = dayMinOf(part);
+      const dayMin = dayMinOf(part, defaultStay);
       return {
         points: order,
         avgWalkMin: Math.round(w.reduce((s, m) => s + m, 0) / w.length),
@@ -111,12 +110,17 @@ export function groupAreas(input: MapPoint[]): { groups: AreaGroup[]; loose: Loo
   const loose: LoosePlace[] = parts
     .filter((part) => part.length === 1)
     .map(([point]) => {
-      let nearest: MapPoint | null = null;
-      let best = FAR_KM;
-      for (const p of points) {
-        const d = haversineKm(point, p);
-        if (p !== point && d <= best) [best, nearest] = [d, p];
-      }
+      // 3km 안의 구역 장소가 먼저, 없으면 3km 안의 아무 장소 (다른 애매한 곳)
+      const closest = (pool: MapPoint[]) => {
+        let nearest: MapPoint | null = null;
+        let best = FAR_KM;
+        for (const p of pool) {
+          const d = haversineKm(point, p);
+          if (p !== point && d <= best) [best, nearest] = [d, p];
+        }
+        return nearest;
+      };
+      const nearest = closest(groups.flatMap((g) => g.points)) ?? closest(points);
       const gi = nearest ? groups.findIndex((g) => g.points.includes(nearest!)) : -1;
       return {
         point,

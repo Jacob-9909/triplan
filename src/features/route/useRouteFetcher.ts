@@ -145,7 +145,10 @@ export function useRouteFetcher({
     (legId: string, method: RouteLeg["method"]) => {
       const leg = latest.current.legs.find((l) => l.id === legId);
       const e = leg && ends(leg);
-      const opt = [...latest.current.options, ...latest.current.live].find((o) => o.leg_id === legId && o.method === method);
+      // 핀을 옮긴 뒤의 낡은 경로 시간은 쓰지 않는다. ensure 가 새로 받으면 applyDuration 이 바꾼다
+      const opt = [...latest.current.options, ...latest.current.live].find(
+        (o) => o.leg_id === legId && o.method === method && e && !isStale(o, e.from, e.to)
+      );
       const est = e && estimateDirections(e.from, e.to, method);
       const patch: Partial<RouteLeg> = {
         method,

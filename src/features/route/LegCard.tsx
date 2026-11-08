@@ -3,6 +3,7 @@
 import { ChevronDown, ExternalLink, PencilLine } from "lucide-react";
 import type { MapPoint, RouteLeg, RouteOption, RouteStep } from "@/lib/types";
 import { usePrefs } from "@/i18n/I18nProvider";
+import { stepColor } from "@/features/map/routeFeatures";
 import { METHOD_META } from "./meta";
 import { estimateDirections, legDirectionsUrl } from "./directions";
 import { chipMethods, isStale, providerFor } from "./routeOptions";
@@ -129,7 +130,7 @@ export default function LegCard({
                       <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
                         <span
                           className="rounded-md px-1.5 py-0.5 text-xs font-bold"
-                          style={{ background: s.color ?? "#6b7280", color: textOn(s.color ?? "#6b7280") }}
+                          style={{ background: stepColor(s), color: textOn(stepColor(s)) }}
                         >
                           {s.line ?? t(STEP_LABEL[s.mode])}
                         </span>

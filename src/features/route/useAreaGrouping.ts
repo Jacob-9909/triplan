@@ -5,6 +5,7 @@ import type { MapPoint, Trip } from "@/lib/types";
 import { apiPost } from "@/lib/api";
 import type { Locale } from "@/i18n/translate";
 import { groupAreas } from "./areas";
+import { DEFAULT_STAY } from "./schedule";
 import { groupKey, missingKeys, namesFor } from "./areaName";
 import { AREA_COLORS, LOOSE_COLOR } from "./AreaGroups";
 
@@ -27,7 +28,7 @@ export function useAreaGrouping({
   active: boolean;
   locale: Locale;
 }) {
-  const areas = useMemo(() => (active ? groupAreas(points) : null), [active, points]);
+  const areas = useMemo(() => (active ? groupAreas(points, DEFAULT_STAY) : null), [active, points]);
   const groupKeys = useMemo(() => areas?.groups.map((g) => groupKey(g.points.map((p) => p.id))) ?? [], [areas]);
   const [nameCache, setNameCache] = useState<Record<string, string | null>>({});
   const naming = useRef(new Set<string>());
@@ -37,19 +38,27 @@ export function useAreaGrouping({
     const missing = missingKeys(groupKeys, nameCache, naming.current);
     if (missing.length === 0) return;
     missing.forEach((k) => naming.current.add(k));
-    const groups = missing.map((k) => areas.groups[groupKeys.indexOf(k)]);
-    const done = (names: (string | null)[]) => {
-      missing.forEach((k) => naming.current.delete(k));
-      setNameCache((prev) => ({ ...prev, ...Object.fromEntries(missing.map((k, i) => [k, names[i] ?? null])) }));
-    };
-    void apiPost<{ names: (string | null)[] }>("/api/areas/name", {
-      trip_id: tripId,
-      locale,
-      region: [trip?.country, trip?.region].filter(Boolean).join(" "),
-      groups: groups.map((g) => ({ places: g.points.map((p) => p.name), lat: g.center.lat, lng: g.center.lng })),
-    })
-      .then((r) => done(r.names))
-      .catch(() => done([]));
+    // 서버 한도(한 번에 구역 12개, 구역당 이름 30개·100자)에 맞춰 나눠 묻는다. 넘기면 400 이라 모두 "구역 N" 이 된다
+    for (let start = 0; start < missing.length; start += 12) {
+      const keys = missing.slice(start, start + 12);
+      const groups = keys.map((k) => areas.groups[groupKeys.indexOf(k)]);
+      const done = (names: (string | null)[]) => {
+        keys.forEach((k) => naming.current.delete(k));
+        setNameCache((prev) => ({ ...prev, ...Object.fromEntries(keys.map((k, i) => [k, names[i] ?? null])) }));
+      };
+      void apiPost<{ names: (string | null)[] }>("/api/areas/name", {
+        trip_id: tripId,
+        locale,
+        region: [trip?.country, trip?.region].filter(Boolean).join(" "),
+        groups: groups.map((g) => ({
+          places: g.points.slice(0, 30).map((p) => p.name.slice(0, 100)),
+          lat: g.center.lat,
+          lng: g.center.lng,
+        })),
+      })
+        .then((r) => done(r.names))
+        .catch(() => done([]));
+    }
   }, [groupKeys.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** 구역마다 핀 색 (어디에도 안 맞는 곳은 회색) */
