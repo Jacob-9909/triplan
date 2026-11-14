@@ -400,11 +400,16 @@ export default function PlanTab({
       />
       {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} startTravel={stays.start?.leg?.duration_min ?? 0} />}
       {date && <DayBookings docs={docs} date={date} />}
-      <div className={`grid gap-4 lg:gap-6 ${mapBig ? "" : "lg:grid-cols-5 lg:items-start"}`}>
+      {/* 데스크톱: 지도·일정을 본문보다 넓게(최대 1440px) 펼치고, 일정은 제 칸 안에서만 스크롤해 바깥 스크롤은 페이지가 받는다 */}
+      <div
+        className={`grid gap-4 lg:gap-6 ${
+          mapBig ? "" : "lg:grid-cols-12 lg:items-start xl:mx-[calc((100%_-_min(1440px,100vw_-_4rem))/2)]"
+        }`}
+      >
         {/* 휴대폰: 탭 바 아래 붙어 있고 목록이 아래로 지나간다. 데스크톱: 목록을 내려도 지도는 그 자리에 */}
         <div
           className={`sticky top-[calc(3.5625rem-1px)] z-20 -mx-4 bg-background px-4 pb-1 pt-1 md:top-36 md:mx-0 md:px-0 ${
-            mapBig ? "lg:static lg:z-auto" : "lg:col-span-3 lg:pb-0 lg:pt-0"
+            mapBig ? "lg:static lg:z-auto" : "lg:col-span-7 lg:pb-0 lg:pt-0"
           }`}
         >
           <MapPane
@@ -454,7 +459,13 @@ export default function PlanTab({
             )}
           </MapPane>
         </div>
-        <div className={mapBig ? "" : "lg:col-span-2"}>
+        <div
+          className={
+            mapBig
+              ? ""
+              : "lg:sticky lg:top-36 lg:col-span-5 lg:max-h-[max(560px,calc(100dvh-12.75rem))] lg:overflow-y-auto lg:overscroll-contain lg:rounded-[var(--radius-card)]"
+          }
+        >
           {inOverview ? (
             <TripOverview
               days={plan}
@@ -660,7 +671,7 @@ function MapPane({
 
   const heightClass = mapBig
     ? "h-[var(--map-h)] lg:h-[max(76dvh,680px)]"
-    : "h-[var(--map-h)] lg:h-[520px]";
+    : "h-[var(--map-h)] lg:h-[max(560px,calc(100dvh-12.75rem))]";
   const mapH = dragPx != null ? `${dragPx}px` : `max(${MOBILE_MIN_PX}px, ${MOBILE_SNAPS[snap]}dvh)`;
 
   return (
