@@ -9,12 +9,14 @@ import { findSelection, type DestinationSelection } from "@/data/world";
 import { useT } from "@/i18n/I18nProvider";
 import DestinationSelector from "./DestinationSelector";
 import TripCreateForm from "./TripCreateForm";
+import ImportDialog from "@/features/trip/ImportDialog";
 
 export default function NewTrip({ wishId }: { wishId: string | null }) {
   const t = useT();
   const router = useRouter();
   const [selection, setSelection] = useState<DestinationSelection | null>(null);
   const [loadingWish, setLoadingWish] = useState(Boolean(wishId));
+  const [importOpen, setImportOpen] = useState(false);
 
   // 가고 싶은 곳에서 넘어온 경우 목적지를 미리 채운다
   useEffect(() => {
@@ -36,7 +38,12 @@ export default function NewTrip({ wishId }: { wishId: string | null }) {
           <motion.div key="pick" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, x: -24 }}>
             <p className="eyebrow mt-4 md:mt-10">{t("새 여행")}</p>
             <h1 className="mb-1 mt-1 text-2xl font-extrabold tracking-tight md:text-3xl">{t("어디로 떠나 볼까요?")}</h1>
-            <p className="mb-6 text-sm text-foreground/68">{t("대륙, 나라, 도시 순서로 고르거나 바로 검색하세요.")}</p>
+            <p className="mb-6 text-sm text-foreground/68">
+              {t("대륙, 나라, 도시 순서로 고르거나 바로 검색하세요.")}{" "}
+              <button type="button" onClick={() => setImportOpen(true)} className="font-semibold text-accent underline underline-offset-2">
+                {t("JSON으로 가져오기")}
+              </button>
+            </p>
             <DestinationSelector onComplete={setSelection} />
           </motion.div>
         ) : (
@@ -52,6 +59,7 @@ export default function NewTrip({ wishId }: { wishId: string | null }) {
           </motion.div>
         )}
       </AnimatePresence>
+      <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
     </div>
   );
 }

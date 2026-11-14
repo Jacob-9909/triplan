@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Banknote, CalendarPlus, Copy, ImageIcon, Luggage, LogOut, Map as MapIcon, MapPin, NotebookPen, Plane, Printer, Lock } from "lucide-react";
+import { Banknote, CalendarPlus, Copy, FileJson, ImageIcon, Luggage, LogOut, Map as MapIcon, MapPin, NotebookPen, Plane, Printer, Lock } from "lucide-react";
 import type { Access } from "@/lib/types";
 import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
 import { useTripData } from "./useTripData";
@@ -17,6 +17,7 @@ import PrintItinerary from "./PrintItinerary";
 import SharePanel from "./SharePanel";
 import CalendarLinks from "./CalendarLinks";
 import CopyTripDialog from "./CopyTripDialog";
+import ImportDialog from "./ImportDialog";
 import { buildKml, fileName } from "./exportFiles";
 import { planDays } from "./itinerary";
 import { useTripDays } from "./useTripDays";
@@ -88,6 +89,7 @@ export default function TripWorkspace({
   const [coverOpen, setCoverOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   /** 예산·동행자·커버 등 여행 정보: 화면은 바로 바꾸고 저장 실패하면 되돌린다 */
   async function patchTrip(patch: Partial<Trip>) {
@@ -179,6 +181,7 @@ export default function TripWorkspace({
       ? [{ key: "copy", label: inApp ? t("여행 복제") : t("내 여행으로 가져오기"), icon: Copy, onClick: () => setCopyOpen(true) }]
       : []),
     ...(canEdit ? [{ key: "cover", label: t("커버 사진 바꾸기"), icon: ImageIcon, onClick: () => setCoverOpen(true) }] : []),
+    ...(canEdit ? [{ key: "import", label: t("JSON으로 일정 바꾸기"), icon: FileJson, onClick: () => setImportOpen(true) }] : []),
     ...(inApp && access === "edit"
       ? [{ key: "leave", label: t("이 여행에서 나가기"), icon: LogOut, onClick: () => void leaveTrip(), danger: true }]
       : []),
@@ -295,6 +298,7 @@ export default function TripWorkspace({
         {calendarToken && <CalendarLinks viewToken={calendarToken} />}
       </Sheet>
       {(inApp || canCopy) && <CopyTripDialog trip={trip} open={copyOpen} onClose={() => setCopyOpen(false)} />}
+      {canEdit && <ImportDialog tripId={tripId} open={importOpen} onClose={() => setImportOpen(false)} />}
       {canEdit && (
         <CoverPicker
           trip={trip}
