@@ -166,13 +166,18 @@ export default function PlanTab({
   );
   /** 경로를 받고 지도에 그릴 구간: 숙소 → 첫 장소 … 마지막 장소 → 숙소 */
   const routeLegs = useMemo(() => [stays.start?.leg, ...dayLegs, stays.end?.leg].filter((l): l is RouteLeg => !!l), [stays, dayLegs]);
-  // 숙소와 첫·마지막 장소 사이 구간이 아직 없으면 만든다 (순서를 바꾸거나 숙소를 바꿀 때마다)
+  // 이웃한 장소 사이, 숙소와 첫·마지막 장소 사이 구간이 아직 없으면 만든다 (순서를 바꾸거나 숙소를 바꿀 때마다).
+  // 장소를 한꺼번에 넣으면(가져오기 등) 구간 없이 들어오므로, 여기서 빠진 구간을 채운다
   const ensuringStay = useRef(new Set<string>());
   useEffect(() => {
     if (!canEdit || inBin || inOverview) return;
     const first = dayPoints[0];
     const last = dayPoints[dayPoints.length - 1];
+    const have = new Set(legs.map((l) => `${l.from_point_id}>${l.to_point_id}`));
     const pairs: [string, string][] = [];
+    for (let i = 1; i < dayPoints.length; i++) {
+      if (!have.has(`${dayPoints[i - 1].id}>${dayPoints[i].id}`)) pairs.push([dayPoints[i - 1].id, dayPoints[i].id]);
+    }
     if (stays.start && first && !stays.start.leg && first.id !== stays.start.point.id) pairs.push([stays.start.point.id, first.id]);
     if (stays.end && last && !stays.end.leg && last.id !== stays.end.point.id) pairs.push([last.id, stays.end.point.id]);
     for (const [a, b] of pairs) {
@@ -184,7 +189,7 @@ export default function PlanTab({
         if (leg) setLegs((prev) => [...prev.filter((l) => l.id !== leg.id), leg]);
       });
     }
-  }, [stays, dayPoints, canEdit, inBin, inOverview, tripId, setLegs]);
+  }, [stays, dayPoints, legs, canEdit, inBin, inOverview, tripId, setLegs]);
   /** 지도 핀: 그날 장소 + 숙소 (전체 보기면 모든 숙소). 숙소는 번호 없이 */
   const mapPoints = useMemo(() => {
     const extras = inOverview ? points.filter((p) => stayIds.has(p.id)) : [stays.start?.point, stays.end?.point];
