@@ -130,6 +130,7 @@ const en: Record<string, string> = {
   "{label} · 비 올 확률 {rain}%": "{label} · {rain}% chance of rain",
   "{n}번 {name} (끌어서 순서 변경, 눌러서 상세)": "#{n} {name} (drag to reorder, tap for details)",
   "{name} 삭제": "Delete {name}",
+  "{name} 자세히·편집": "Details and edit for {name}",
   "이 Day에 추가된 장소가 없어요": "No places on this day yet",
   "지도를 누르거나 장소를 검색해 일정을 만들어 보세요": "Tap the map or search for a place to build your plan",
   "방문 순서": "Visit order",
