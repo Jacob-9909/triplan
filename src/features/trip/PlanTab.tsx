@@ -505,8 +505,12 @@ export default function PlanTab({
               date={date}
               onOpen={(p) => {
                 setDetailId(p.id);
-                // 옆(휴대폰은 위) 지도도 그 장소로 옮겨 간다
                 setSelectedPointId(p.id);
+              }}
+              onFocus={(p) => {
+                // 옆(휴대폰은 위) 지도를 그 장소로 옮긴다. 같은 곳을 다시 눌러도 옮겨 가게 한 번 비웠다가 고른다
+                setSelectedPointId(null);
+                requestAnimationFrame(() => setSelectedPointId(p.id));
               }}
               onReorder={canEdit ? (ids) => void actions.reorder(ids, inBin) : undefined}
               onDelete={canEdit ? actions.removePoint : undefined}

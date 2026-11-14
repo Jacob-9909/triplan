@@ -13,7 +13,7 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BedDouble, Clock, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, MessageCircle, Route, Sparkles, ThumbsUp, Undo2, X } from "lucide-react";
+import { BedDouble, Clock, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, MessageCircle, PencilLine, Route, Sparkles, ThumbsUp, Undo2, X } from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import type { StayAnchor } from "@/features/trip/itinerary";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
@@ -45,7 +45,10 @@ export interface DayPlanProps {
   onGroup?: () => void;
   /** 정리 직후 되돌리기 */
   onUndo?: () => void;
+  /** 장소 상세 열기 (연필 버튼) */
   onOpen: (point: MapPoint) => void;
+  /** 카드를 누르면 지도를 그 장소로 옮긴다 */
+  onFocus: (point: MapPoint) => void;
   /** 후보함에 AI 추천 장소 받기 */
   onSuggest?: () => void;
   /** 출발 숙소(전날 밤)와 돌아갈 숙소(오늘 밤). leg 는 첫·마지막 장소와 잇는 구간 */
@@ -73,6 +76,7 @@ export default function DayPlan({
   onGroup,
   onUndo,
   onOpen,
+  onFocus,
   area,
   onClearArea,
   onSuggest,
@@ -248,6 +252,7 @@ export default function DayPlan({
                     legView={leg && leg.to_point_id === shown[i + 1].id ? renderLeg(leg, point, shown[i + 1]) : undefined}
                     sortable={!!onReorder}
                     onOpen={() => Date.now() - lastDrag.current > 300 && onOpen(point)}
+                    onFocus={() => Date.now() - lastDrag.current > 300 && onFocus(point)}
                     onDelete={onDelete}
                   />
                 );
@@ -361,6 +366,7 @@ function Stop({
   legView,
   sortable,
   onOpen,
+  onFocus,
   onDelete,
 }: {
   point: MapPoint;
@@ -374,6 +380,7 @@ function Stop({
   legView?: ReactNode;
   sortable: boolean;
   onOpen: () => void;
+  onFocus: () => void;
   onDelete?: (id: string) => void;
 }) {
   const { t, locale } = usePrefs();
@@ -400,7 +407,7 @@ function Stop({
           }`}
           style={{ borderLeft: `4px solid ${color}` }}
         >
-          <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
+          <button type="button" onClick={onFocus} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
             <PointThumb point={point} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">
@@ -440,6 +447,14 @@ function Stop({
                 )}
               </span>
             </span>
+          </button>
+          <button
+            type="button"
+            aria-label={t("{name} 자세히·편집", { name: point.name })}
+            onClick={onOpen}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition hover:bg-primary-soft hover:text-primary-strong"
+          >
+            <PencilLine size={14} aria-hidden />
           </button>
           {onDelete &&
             (confirming ? (
