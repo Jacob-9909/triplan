@@ -410,7 +410,7 @@ function Stop({
           <button type="button" onClick={onFocus} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
             <PointThumb point={point} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">
+              <span className="block truncate text-sm font-semibold lg:whitespace-normal lg:break-words">
                 <span className="mr-1 text-xs text-foreground/68">{index + 1}</span>
                 {point.name}
               </span>
@@ -446,6 +446,12 @@ function Stop({
                   </span>
                 )}
               </span>
+              {/* 메모: 연필을 누르지 않아도 보이게. 휴대폰은 두 줄, 데스크톱은 전부 */}
+              {point.memo && (
+                <span className="mt-1.5 line-clamp-2 whitespace-pre-line break-words text-xs leading-relaxed text-foreground/75 lg:line-clamp-none">
+                  {point.memo}
+                </span>
+              )}
             </span>
           </button>
           <button
