@@ -1,7 +1,19 @@
 // 교통 탭 자체 점검: node src/features/trip/transport.check.ts
 import assert from "node:assert/strict";
 import type { MapPoint, RouteLeg } from "@/lib/types";
-import { dayMoves, movePays, nextMoveOptions, parseJourney, payTotals, yenRange } from "./transport.ts";
+import {
+  boardingStep,
+  dayMoves,
+  legPays,
+  memoBeforeNextMove,
+  movePays,
+  nextMove,
+  nextMoveOptions,
+  parseJourney,
+  payTotals,
+  upcomingStep,
+  yenRange,
+} from "./transport.ts";
 
 const pt = (id: string, category: MapPoint["category"], memo: string | null = null) => ({ id, name: id, category, memo }) as MapPoint;
 const leg = (from: string, to: string, method: RouteLeg["method"], duration_min: number) =>
@@ -52,6 +64,12 @@ assert.deepEqual(parseJourney("그냥 메모."), { steps: [], fare: null, transf
 // 마지막 "하차"는 도착이라 환승으로 세지 않는다
 assert.equal(parseJourney("21:10 A → 21:15 B 하차 → 21:38 C 하차, 도보 10분.").transfers, 1);
 
+// 장소 카드 메모에서는 "다음 이동" 부분을 뺀다
+assert.equal(memoBeforeNextMove(temple.memo), "입장료 1,000엔.");
+assert.equal(memoBeforeNextMove("다음 이동 → A: ① 택시"), null);
+assert.equal(memoBeforeNextMove("메모만"), "메모만");
+assert.equal(memoBeforeNextMove(null), null);
+
 // "다음 이동" 선택지
 assert.deepEqual(nextMoveOptions(temple.memo), { options: ["택시 약 1,500엔", "시버스 230엔"], rest: null });
 assert.equal(nextMoveOptions("메모만"), null);
@@ -88,5 +106,41 @@ const tot = payTotals([
 assert.deepEqual(tot.ic, { count: 3, lo: 1670, hi: 1670 });
 assert.deepEqual(tot.cash, { count: 1, lo: 1400, hi: 1800 });
 assert.deepEqual(tot.tickets, ["라피트 e티켓"]);
+
+assert.equal(tot.cashLabel, null);
+
+// 택시 선택지에 GO 가 있으면 GO 로, 모든 카드·현금이 GO 면 합계도 GO
+const goMemo = "다음 이동 → 기요미즈데라: ① 택시(GO 앱 호출·GO Pay) 약 1,400~1,800엔 + 호출 요금 0~500엔(약 3km) ② 시버스 230엔.";
+assert.deepEqual(legPays({ method: "taxi" }, { memo: goMemo }), [{ kind: "cash", amount: "약 1,400~1,800엔", label: "GO" }]);
+assert.deepEqual(legPays({ method: "walk" }, { memo: goMemo }), []);
+assert.equal(payTotals(legPays({ method: "taxi" }, { memo: goMemo })).cashLabel, "GO");
+
+// 처음 타는 단계: "…행" 이 붙은 첫 단계, 없으면 시각이 있는 첫 단계
+const morning = parseJourney("07:05 호텔 출발(도보 약 6분). 07:15 恵美須町 사카이스지선 北千里행 → 07:22 北浜 하차 → 07:29 京阪 특급 出町柳행 → 08:26 東福寺.");
+assert.deepEqual(boardingStep(morning.steps), { time: "07:15", text: "恵美須町 사카이스지선 北千里행" });
+assert.deepEqual(boardingStep(parseJourney("17:35 간사이공항 라피트 β70호 → 18:12 天下茶屋 하차.").steps), {
+  time: "17:35",
+  text: "간사이공항 라피트 β70호",
+});
+assert.equal(boardingStep([]), null);
+
+// 다음 이동: 타고 있는 이동, 아니면 90분 안에 시작하는 이동. 도보는 뺀다
+const walkLeg = { ...moves[1], leg: leg("temple", "lunch", "walk", 20), at: 500, end: 520 } as (typeof moves)[number];
+assert.equal(nextMove(moves, 430)?.phase, "soon");
+assert.equal(nextMove(moves, 430)?.minutes, 5);
+assert.equal(nextMove(moves, 450)?.phase, "riding");
+assert.equal(nextMove(moves, 450)?.minutes, 56);
+assert.equal(nextMove(moves, 300), null); // 2시간 넘게 남음
+assert.equal(nextMove([walkLeg], 495), null);
+
+// 지금 이후 첫 단계와 이미 내린 횟수
+assert.deepEqual(upcomingStep(morning.steps, 7 * 60 + 25), { index: 3, transfersDone: 1 }); // 07:29 게이한 특급, 北浜 에서 한 번 내림
+assert.deepEqual(upcomingStep(morning.steps, 6 * 60), { index: 0, transfersDone: 0 });
+assert.equal(upcomingStep(morning.steps, 9 * 60), null);
+// 자정을 넘는 단계는 다음 날로 센다
+const late = parseJourney("23:50 A 출발 → 00:05 B 하차 → 00:20 C.").steps;
+assert.deepEqual(upcomingStep(late, 23 * 60 + 55), { index: 1, transfersDone: 0 });
+// 자정을 넘긴 뒤(00:10) 보면 어젯밤 출발한 이동으로 본다
+assert.deepEqual(upcomingStep(late, 10), { index: 2, transfersDone: 1 });
 
 console.log("transport ok");
