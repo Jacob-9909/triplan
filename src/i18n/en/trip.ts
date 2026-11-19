@@ -331,6 +331,22 @@ const en: Record<string, string> = {
   "이 밤 숙소 비우기": "Clear this night's stay",
   "숙소를 정하면 다음 날은 숙소에서 출발하고, 그날 마지막 장소 뒤에 숙소로 돌아오는 길이 붙어요.":
     "With a stay set, the next day starts from it, and the way back is added after the day's last place.",
+  "이날은 이동이 없어요": "No travel this day",
+  "이동 {d}": "{d} on the move",
+  "환승 {n}회": "{n} transfers",
+  "팁·대안": "Tips and alternatives",
+  "가는 방법": "Ways to get there",
+  "열차": "Train",
+  "공항": "Airport",
+  "이코카": "ICOCA",
+  "e티켓": "e-ticket",
+  "카드·현금": "Card or cash",
+  "내는 법": "How to pay",
+  "여행 전체 내는 법": "How you'll pay on this trip",
+  "이날 내는 법": "How to pay this day",
+  "약 {n}엔": "about ¥{n}",
+  "약 {lo}~{hi}엔": "about ¥{lo}–{hi}",
+  "{n}장": "×{n}",
 };
 
 export default en;
