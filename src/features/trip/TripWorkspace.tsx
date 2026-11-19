@@ -4,12 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { Banknote, CalendarPlus, Copy, ImageIcon, Luggage, LogOut, Map as MapIcon, MapPin, NotebookPen, Plane, Printer, Lock } from "lucide-react";
+import { Banknote, CalendarPlus, Copy, ImageIcon, Luggage, LogOut, Map as MapIcon, MapPin, NotebookPen, Plane, Printer, Lock, TrainFront } from "lucide-react";
 import type { Access } from "@/lib/types";
 import { apiDelete, apiPatch, setTripToken } from "@/lib/api";
 import { useTripData } from "./useTripData";
 import { usePointActions } from "./usePointActions";
 import PlanTab from "./PlanTab";
+import TransportTab from "./TransportTab";
 import TripHeader, { type HeaderMenuItem } from "./TripHeader";
 import ActivitySheet from "./ActivitySheet";
 import CoverPicker from "./CoverPicker";
@@ -33,10 +34,11 @@ import { tripPhase } from "@/features/ui/dates";
 import type { Trip } from "@/lib/types";
 import { useT } from "@/i18n/I18nProvider";
 
-type Tab = "plan" | "expenses" | "prep" | "record";
+type Tab = "plan" | "transport" | "expenses" | "prep" | "record";
 
 const TABS: { id: Tab; label: string; icon: typeof MapPin }[] = [
   { id: "plan", label: "일정", icon: MapPin },
+  { id: "transport", label: "교통", icon: TrainFront },
   { id: "expenses", label: "가계부", icon: Banknote },
   { id: "prep", label: "준비", icon: Luggage },
   { id: "record", label: "기록", icon: NotebookPen },
@@ -250,6 +252,17 @@ export default function TripWorkspace({
                 expenses={expenses}
                 docs={docs}
                 tripDayData={tripDayData}
+              />
+            )}
+
+            {tab === "transport" && (
+              <TransportTab
+                trip={trip}
+                points={points}
+                legs={legs}
+                docs={docs}
+                stayByNight={tripDayData.stayByNight}
+                dayRecords={tripDayData.dayRecords}
               />
             )}
 
