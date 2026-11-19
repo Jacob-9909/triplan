@@ -64,6 +64,11 @@ assert.deepEqual(movePays(ride("A → B. 이코카 190엔 + 라피트 e티켓.")
   { kind: "ticket", amount: null, label: "라피트 e티켓" },
 ]);
 assert.deepEqual(movePays(ride("메모만.")), []);
+// 신용카드 터치 요금은 카드·현금으로
+assert.deepEqual(movePays(ride("A → B. 카드 터치 190엔 + 라피트 e티켓.")), [
+  { kind: "cash", amount: "190엔", label: null },
+  { kind: "ticket", amount: null, label: "라피트 e티켓" },
+]);
 const taxi = moves[1];
 assert.deepEqual(movePays(taxi), [{ kind: "cash", amount: "약 1,500엔", label: null }]);
 const gion = pt("gion", "food", "다음 이동 → 에이칸도: ① 게이한 + 도자이선, 400엔, 약 12분 + 역에서 도보 15분 ② 택시 약 1,300~1,700엔 ③ 도보 35분.");
