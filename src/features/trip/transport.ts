@@ -46,7 +46,7 @@ const noDot = (s: string) => s.replace(/\.$/, "").trim();
 export interface Journey {
   /** 시각과 역·노선. 화살표(→)로 이어 쓴 첫 문장에서 */
   steps: { time: string | null; text: string }[];
-  /** "IC …엔" / "이코카 …엔" 으로 시작하는 문장 */
+  /** "IC …엔" / "이코카 …엔" / "카드 …엔"(신용카드 터치) 으로 시작하는 문장 */
   fare: string | null;
   /** 도중에 내리는 횟수("하차") */
   transfers: number;
@@ -69,7 +69,7 @@ export function parseJourney(memo: string | null): Journey {
     used.add(at);
     steps.push(...noDot(all[at]).split("→").map(step));
   }
-  const fareAt = all.findIndex((s, i) => !used.has(i) && /^(IC|이코카).*\d엔/.test(s)); // i18n-ignore
+  const fareAt = all.findIndex((s, i) => !used.has(i) && /^(IC|이코카|카드).*\d엔/.test(s)); // i18n-ignore
   if (fareAt >= 0) used.add(fareAt);
   const rest = all.filter((_, i) => !used.has(i)).join(" ");
   return {
@@ -118,11 +118,11 @@ export function movePays(m: Move): Pay[] {
   if (m.kind === "ride") {
     const fare = parseJourney(m.point.memo).fare;
     if (!fare) return [];
-    return splitFare(fare).map((part) =>
-      /티켓|패스/.test(part) // i18n-ignore
-        ? { kind: "ticket", amount: null, label: part }
-        : { kind: "ic", amount: AMOUNT.exec(part)?.[0] ?? null, label: null }
-    );
+    return splitFare(fare).map((part): Pay => {
+      if (/티켓|패스/.test(part)) return { kind: "ticket", amount: null, label: part }; // i18n-ignore
+      // 신용카드를 개찰구에 대는 경우는 택시와 같은 "카드·현금" 으로 친다
+      return { kind: /^카드/.test(part) ? "cash" : "ic", amount: AMOUNT.exec(part)?.[0] ?? null, label: null }; // i18n-ignore
+    });
   }
   const options = nextMoveOptions(m.from.memo)?.options ?? [];
   const pick = (test: (o: string) => boolean) => AMOUNT.exec(options.find(test) ?? "")?.[0] ?? null;
