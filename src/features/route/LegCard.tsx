@@ -9,6 +9,8 @@ import { estimateDirections, legDirectionsUrl } from "./directions";
 import { chipMethods, isStale, providerFor } from "./routeOptions";
 import { formatDuration } from "./schedule";
 import type { RouteStatus } from "./useRouteFetcher";
+import { ChoiceList, PayTags } from "@/features/trip/MoveParts";
+import { legPays, nextMoveOptions } from "@/features/trip/transport";
 
 /** 배경색 위에서 잘 읽히는 글자색 (흰색/검은색) */
 function textOn(hex: string) {
@@ -55,6 +57,10 @@ export default function LegCard({
   const transitInApp = providerFor("transit", from, to) !== null;
   const navUrl = legDirectionsUrl(from, to, leg.method);
   const methodTone = leg.method === "walk" ? "text-foreground/70" : "text-primary-strong";
+  // 열차 같은 교통 장소 바로 뒤 구간은 내린 역에서 걸어가는 시간이라 수단 대신 "도착 후 이동"
+  const afterRide = from.category === "transport";
+  const pays = afterRide ? [] : legPays(leg, from);
+  const choices = afterRide ? [] : (nextMoveOptions(from.memo)?.options ?? []);
 
   return (
     <div className="min-w-0 flex-1">
@@ -62,19 +68,32 @@ export default function LegCard({
         type="button"
         onClick={onToggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 rounded-xl px-2.5 py-1.5 text-left transition hover:bg-primary-soft"
+        className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 rounded-xl px-2.5 py-1.5 text-left transition hover:bg-primary-soft"
       >
         <span className="text-xl font-extrabold tabular-nums leading-none">{formatDuration(minutes, locale)}</span>
-        <span className={`text-xs font-bold ${methodTone}`}>{t(meta.label)}</span>
-        <span className="truncate text-xs text-foreground/68">
-          {chosen?.fare_krw ? money(chosen.fare_krw) : chosen ? t("{km}km", { km: chosen.distance_km.toFixed(1) }) : t("추정")}
-          {leg.cost != null && leg.cost > 0 && ` · ${money(leg.cost)}`}
-        </span>
+        {afterRide ? (
+          <span className="text-xs font-semibold text-foreground/60">{t("도착 후 이동")}</span>
+        ) : (
+          <>
+            <span className={`text-xs font-bold ${methodTone}`}>{t(meta.label)}</span>
+            <PayTags pays={pays} />
+            <span className="min-w-0 truncate text-xs text-foreground/68">
+              {chosen?.fare_krw ? money(chosen.fare_krw) : chosen ? t("{km}km", { km: chosen.distance_km.toFixed(1) }) : t("추정")}
+              {leg.cost != null && leg.cost > 0 && ` · ${money(leg.cost)}`}
+            </span>
+          </>
+        )}
         <ChevronDown size={14} className={`ml-auto shrink-0 text-foreground/50 transition ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
 
       {open && (
         <div className="mt-1 space-y-3 rounded-2xl border border-border-subtle bg-surface p-3">
+          {choices.length > 0 && (
+            <div>
+              <p className="mb-1.5 text-xs font-bold text-foreground/70">{t("메모에 적은 방법")}</p>
+              <ChoiceList options={choices} label={t("메모에 적은 방법")} />
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
             {chipMethods(leg).map((m) => {
               const opt = fresh(m);

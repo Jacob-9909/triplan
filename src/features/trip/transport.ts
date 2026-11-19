@@ -124,12 +124,55 @@ export function movePays(m: Move): Pay[] {
       return { kind: /^카드/.test(part) ? "cash" : "ic", amount: AMOUNT.exec(part)?.[0] ?? null, label: null }; // i18n-ignore
     });
   }
-  const options = nextMoveOptions(m.from.memo)?.options ?? [];
-  const pick = (test: (o: string) => boolean) => AMOUNT.exec(options.find(test) ?? "")?.[0] ?? null;
+  return legPays(m.leg, m.from);
+}
+
+/** 장소 사이 구간의 결제: 택시는 카드·현금(메모 선택지에 GO 가 있으면 GO), 대중교통은 이코카 */
+export function legPays(leg: Pick<RouteLeg, "method">, from: Pick<MapPoint, "memo">): Pay[] {
+  const options = nextMoveOptions(from.memo)?.options ?? [];
   // 선택지 첫 단어가 수단이다 (대중교통 줄 안에도 "도보 15분" 같은 말이 섞인다)
-  if (m.leg.method === "taxi") return [{ kind: "cash", amount: pick((o) => /^택시/.test(o)), label: null }]; // i18n-ignore
-  if (m.leg.method === "transit") return [{ kind: "ic", amount: pick((o) => !/^(택시|도보)/.test(o) && AMOUNT.test(o)), label: null }]; // i18n-ignore
+  const taxi = options.find((o) => /^택시/.test(o)); // i18n-ignore
+  const transit = options.find((o) => !/^(택시|도보)/.test(o) && AMOUNT.test(o)); // i18n-ignore
+  const amount = (o: string | undefined) => AMOUNT.exec(o ?? "")?.[0] ?? null;
+  if (leg.method === "taxi") return [{ kind: "cash", amount: amount(taxi), label: taxi && /\bGO\b/.test(taxi) ? "GO" : null }];
+  if (leg.method === "transit") return [{ kind: "ic", amount: amount(transit), label: null }];
   return [];
+}
+
+/** 열차 단계 중 처음 타는 단계: "…행"(방면)이 붙은 첫 단계, 없으면 시각이 있는 첫 단계 */
+export function boardingStep(steps: Journey["steps"]): Journey["steps"][number] | null {
+  return steps.find((s) => /행($|[\s(,])/.test(s.text)) ?? steps.find((s) => s.time) ?? steps[0] ?? null; // i18n-ignore
+}
+
+/** 이 시간 안에 시작하는 이동만 "다음 이동" 으로 띄운다(분) */
+export const NEXT_MOVE_WINDOW = 90;
+
+/** 지금(0시 기준 분) 타고 있거나 곧 탈 이동. 걸어서 가는 구간은 빼고, 없으면 null */
+export function nextMove(moves: Move[], now: number): { move: Move; phase: "riding" | "soon"; minutes: number } | null {
+  const rides = moves.filter((m) => m.kind === "ride" || m.leg.method !== "walk");
+  const riding = rides.find((m) => m.at <= now && now < m.end);
+  if (riding) return { move: riding, phase: "riding", minutes: riding.end - now };
+  const soon = rides.find((m) => m.at > now && m.at - now <= NEXT_MOVE_WINDOW);
+  return soon ? { move: soon, phase: "soon", minutes: soon.at - now } : null;
+}
+
+/** 지금 이후 첫 단계와, 그 앞에서 이미 내린(환승한) 횟수. 자정을 넘는 단계는 다음 날로 센다 */
+export function upcomingStep(steps: Journey["steps"], now: number): { index: number; transfersDone: number } | null {
+  let prev = -1;
+  let shift = 0;
+  const times = steps.map((s) => {
+    const m = s.time ? Number(s.time.slice(0, -3)) * 60 + Number(s.time.slice(-2)) : null;
+    if (m == null) return null;
+    if (prev >= 0 && m + shift < prev - 12 * 60) shift += 1440;
+    prev = m + shift;
+    return prev;
+  });
+  // 첫 단계가 지금보다 반나절 넘게 뒤면 어젯밤에 출발한 이동이다(지금은 자정을 넘김)
+  const first = times.find((m) => m != null);
+  if (first != null && first - now > 12 * 60) times.forEach((m, i) => m != null && (times[i] = m - 1440));
+  const index = times.findIndex((m) => m != null && m >= now);
+  if (index < 0) return null;
+  return { index, transfersDone: steps.slice(0, index).filter((s) => s.text.includes("하차")).length }; // i18n-ignore
 }
 
 /** "약 1,400~1,800엔" → [1400, 1800], "720엔" → [720, 720] */
@@ -149,7 +192,21 @@ export function payTotals(pays: Pay[]) {
       hi: ranges.reduce((s, r) => s + r[1], 0),
     };
   };
-  return { ic: sum("ic"), cash: sum("cash"), tickets: pays.filter((p) => p.kind === "ticket").map((p) => p.label ?? "") };
+  const cashLabels = [...new Set(pays.filter((p) => p.kind === "cash").map((p) => p.label))];
+  return {
+    ic: sum("ic"),
+    cash: sum("cash"),
+    /** 카드·현금 결제가 모두 같은 이름(예: GO)이면 그 이름 */
+    cashLabel: cashLabels.length === 1 ? cashLabels[0] : null,
+    tickets: pays.filter((p) => p.kind === "ticket").map((p) => p.label ?? ""),
+  };
+}
+
+/** 장소 카드에 보일 메모: "다음 이동 …" 부분은 그 아래 구간이 보여 주니 뺀다 (남는 게 없으면 null) */
+export function memoBeforeNextMove(memo: string | null): string | null {
+  const i = memo?.indexOf("다음 이동") ?? -1; // i18n-ignore
+  if (!memo || i < 0) return memo;
+  return memo.slice(0, i).trim() || null;
 }
 
 /** 장소 메모의 "다음 이동 → 목적지: ① … ② …" 를 목적지와 선택지로 */

@@ -13,9 +13,28 @@ import {
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { BedDouble, Clock, GripVertical, Hourglass, Inbox, LayoutGrid, MapPin, MessageCircle, PencilLine, Route, Sparkles, ThumbsUp, Undo2, X } from "lucide-react";
+import {
+  BedDouble,
+  ChevronDown,
+  Clock,
+  GripVertical,
+  Hourglass,
+  Inbox,
+  LayoutGrid,
+  MapPin,
+  MessageCircle,
+  PencilLine,
+  Repeat,
+  Route,
+  Sparkles,
+  ThumbsUp,
+  Undo2,
+  X,
+} from "lucide-react";
 import type { MapPoint, RouteLeg } from "@/lib/types";
 import type { StayAnchor } from "@/features/trip/itinerary";
+import { CHIP, JourneySteps, MoreNote, PayTags, PayTotals, rideTone } from "@/features/trip/MoveParts";
+import { boardingStep, memoBeforeNextMove, movePays, parseJourney, type Pay } from "@/features/trip/transport";
 import { categoryStyle, pointColor, PointBadge } from "@/features/map/pointStyle";
 import { photoUrl } from "@/lib/api";
 import { usePrefs, useT } from "@/i18n/I18nProvider";
@@ -58,6 +77,8 @@ export interface DayPlanProps {
   onPickStay?: () => void;
   /** 장소별 동행 의견 (가고 싶어요·댓글) */
   social?: Record<string, { voters: string[]; comments: unknown[] }>;
+  /** 그날 이동의 결제(이코카·티켓·GO). 머리에 합계로 보여 준다 */
+  pays?: Pay[];
 }
 
 /**
@@ -84,6 +105,7 @@ export default function DayPlan({
   end = null,
   onPickStay,
   social,
+  pays,
 }: DayPlanProps) {
   const { t, locale, money } = usePrefs();
   const startTravel = start?.leg?.duration_min ?? 0;
@@ -143,6 +165,11 @@ export default function DayPlan({
             )}
           </h3>
           {points.length > 0 && <p className="mt-0.5 text-xs text-foreground/68">{summary.join(" · ")}</p>}
+          {!bin && pays && pays.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5" aria-label={t("이날 내는 법")}>
+              <PayTotals pays={pays} />
+            </div>
+          )}
           {!bin && area && (
             <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-bold text-primary-strong">
               {area}
@@ -389,8 +416,16 @@ function Stop({
     disabled: !sortable,
   });
   const [confirming, setConfirming] = useState(false);
+  const [stepsOpen, setStepsOpen] = useState(false);
   const color = pointColor(point);
   const stay = point.stay_min ?? DEFAULT_STAY;
+  // 열차 같은 교통 장소: 메모를 글 덩어리 대신 "처음 타는 단계 + 결제 + 환승"으로, 전체 단계는 펼쳐서
+  const journey = point.category === "transport" ? parseJourney(point.memo) : null;
+  const ride = journey && journey.steps.length > 1 ? journey : null;
+  const board = ride ? boardingStep(ride.steps) : null;
+  const pays = ride ? movePays({ kind: "ride", at: 0, end: 0, point }) : [];
+  // 다음 구간이 있으면 "다음 이동 …" 대안은 그 구간 카드가 펼쳐서 보여 준다
+  const memo = legView ? memoBeforeNextMove(point.memo) : point.memo;
 
   return (
     <li ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }} className={isDragging ? "relative z-10" : ""}>
@@ -402,100 +437,138 @@ function Stop({
           </div>
         )}
         <div
-          className={`group flex min-w-0 flex-1 items-center gap-1 rounded-2xl border bg-surface pr-1 transition ${
+          className={`group min-w-0 flex-1 rounded-2xl border bg-surface transition ${
             isDragging ? "border-primary shadow-lift" : "border-border-subtle hover:border-primary/50"
           }`}
           style={{ borderLeft: `4px solid ${color}` }}
         >
-          <button type="button" onClick={onFocus} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
-            <PointThumb point={point} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold lg:whitespace-normal lg:break-words">
-                <span className="mr-1 text-xs text-foreground/68">{index + 1}</span>
-                {point.name}
-              </span>
-              <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-foreground/68">
-                <span style={{ color }}>{t(categoryStyle(point.category).label)}</span>
-                {time && (
-                  <span className="inline-flex items-center gap-0.5">
-                    <Hourglass size={10} aria-hidden /> {t("{time} 머묾", { time: formatDuration(stay, locale) })}
-                  </span>
-                )}
-                {time && time.wait > 0 && <span className="text-mint">{t("대기 {time}", { time: formatDuration(time.wait, locale) })}</span>}
-                {time && time.late > 0 && (
-                  <span className="text-accent">{t("지정 시각보다 {time} 늦음", { time: formatDuration(time.late, locale) })}</span>
-                )}
-                {votes > 0 && (
-                  <span className="inline-flex items-center gap-0.5 font-semibold text-primary-strong" aria-label={t("가고 싶어요 {n}", { n: votes })}>
-                    <ThumbsUp size={10} aria-hidden /> {votes}
-                  </span>
-                )}
-                {comments > 0 && (
-                  <span className="inline-flex items-center gap-0.5" aria-label={t("댓글 {n}개", { n: comments })}>
-                    <MessageCircle size={10} aria-hidden /> {comments}
-                  </span>
-                )}
-                {hours?.status === "closed-day" && (
-                  <span className="inline-flex items-center gap-0.5 text-accent">
-                    <Clock size={10} aria-hidden /> {t("휴무일")}
-                  </span>
-                )}
-                {hours?.status === "outside" && (
-                  <span className="inline-flex items-center gap-0.5 text-accent">
-                    <Clock size={10} aria-hidden /> {t("영업시간 밖 · {hours}", { hours: hours.hours ?? "" })}
-                  </span>
-                )}
-              </span>
-              {/* 메모: 연필을 누르지 않아도 보이게. 휴대폰은 두 줄, 데스크톱은 전부 */}
-              {point.memo && (
-                <span className="mt-1.5 line-clamp-2 whitespace-pre-line break-words text-xs leading-relaxed text-foreground/75 lg:line-clamp-none">
-                  {point.memo}
+          <div className="flex items-center gap-1 pr-1">
+            <button type="button" onClick={onFocus} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl p-2.5 text-left">
+              <PointThumb point={point} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold lg:whitespace-normal lg:break-words">
+                  <span className="mr-1 text-xs text-foreground/68">{index + 1}</span>
+                  {point.name}
                 </span>
-              )}
-            </span>
-          </button>
-          <button
-            type="button"
-            aria-label={t("{name} 자세히·편집", { name: point.name })}
-            onClick={onOpen}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition hover:bg-primary-soft hover:text-primary-strong"
-          >
-            <PencilLine size={14} aria-hidden />
-          </button>
-          {onDelete &&
-            (confirming ? (
-              <button
-                type="button"
-                onClick={() => onDelete(point.id)}
-                className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-white"
-              >
-                {t("삭제")}
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label={t("{name} 삭제", { name: point.name })}
-                onClick={() => {
-                  // 실수로 지우지 않게 한 번 더 눌러야 삭제
-                  setConfirming(true);
-                  setTimeout(() => setConfirming(false), 2500);
-                }}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition hover:bg-accent-soft hover:text-accent"
-              >
-                <X size={14} aria-hidden />
-              </button>
-            ))}
-          {sortable && (
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-foreground/68">
+                  <span style={{ color }}>{t(categoryStyle(point.category).label)}</span>
+                  {time && (
+                    <span className="inline-flex items-center gap-0.5">
+                      <Hourglass size={10} aria-hidden /> {t("{time} 머묾", { time: formatDuration(stay, locale) })}
+                    </span>
+                  )}
+                  {time && time.wait > 0 && <span className="text-mint">{t("대기 {time}", { time: formatDuration(time.wait, locale) })}</span>}
+                  {time && time.late > 0 && (
+                    <span className="text-accent">{t("지정 시각보다 {time} 늦음", { time: formatDuration(time.late, locale) })}</span>
+                  )}
+                  {votes > 0 && (
+                    <span className="inline-flex items-center gap-0.5 font-semibold text-primary-strong" aria-label={t("가고 싶어요 {n}", { n: votes })}>
+                      <ThumbsUp size={10} aria-hidden /> {votes}
+                    </span>
+                  )}
+                  {comments > 0 && (
+                    <span className="inline-flex items-center gap-0.5" aria-label={t("댓글 {n}개", { n: comments })}>
+                      <MessageCircle size={10} aria-hidden /> {comments}
+                    </span>
+                  )}
+                  {hours?.status === "closed-day" && (
+                    <span className="inline-flex items-center gap-0.5 text-accent">
+                      <Clock size={10} aria-hidden /> {t("휴무일")}
+                    </span>
+                  )}
+                  {hours?.status === "outside" && (
+                    <span className="inline-flex items-center gap-0.5 text-accent">
+                      <Clock size={10} aria-hidden /> {t("영업시간 밖 · {hours}", { hours: hours.hours ?? "" })}
+                    </span>
+                  )}
+                </span>
+                {board ? (
+                  <span className="mt-1.5 block text-xs leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
+                    {board.time && <b className="mr-1 tabular-nums">{board.time}</b>}
+                    {board.text}
+                  </span>
+                ) : (
+                  // 메모: 연필을 누르지 않아도 보이게. 휴대폰은 두 줄, 데스크톱은 전부
+                  memo && (
+                    <span className="mt-1.5 line-clamp-2 whitespace-pre-line break-words text-xs leading-relaxed text-foreground/75 lg:line-clamp-none">
+                      {memo}
+                    </span>
+                  )
+                )}
+              </span>
+            </button>
             <button
               type="button"
-              ref={setActivatorNodeRef}
-              {...attributes}
-              {...listeners}
-              aria-label={t("{name} 순서 바꾸기", { name: point.name })}
-              className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-foreground/45 hover:bg-surface-muted hover:text-foreground active:cursor-grabbing"
+              aria-label={t("{name} 자세히·편집", { name: point.name })}
+              onClick={onOpen}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition hover:bg-primary-soft hover:text-primary-strong"
             >
-              <GripVertical size={16} aria-hidden />
+              <PencilLine size={14} aria-hidden />
             </button>
+            {onDelete &&
+              (confirming ? (
+                <button
+                  type="button"
+                  onClick={() => onDelete(point.id)}
+                  className="shrink-0 rounded-full bg-accent px-2.5 py-1 text-[11px] font-bold text-white"
+                >
+                  {t("삭제")}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={t("{name} 삭제", { name: point.name })}
+                  onClick={() => {
+                    // 실수로 지우지 않게 한 번 더 눌러야 삭제
+                    setConfirming(true);
+                    setTimeout(() => setConfirming(false), 2500);
+                  }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-foreground/50 transition hover:bg-accent-soft hover:text-accent"
+                >
+                  <X size={14} aria-hidden />
+                </button>
+              ))}
+            {sortable && (
+              <button
+                type="button"
+                ref={setActivatorNodeRef}
+                {...attributes}
+                {...listeners}
+                aria-label={t("{name} 순서 바꾸기", { name: point.name })}
+                className="flex h-9 w-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-lg text-foreground/45 hover:bg-surface-muted hover:text-foreground active:cursor-grabbing"
+              >
+                <GripVertical size={16} aria-hidden />
+              </button>
+            )}
+          </div>
+          {ride && (
+            // 썸네일(34px) 오른쪽 글줄에 맞춰 들여 쓴다
+            <div className="pb-2.5 pl-14 pr-2.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <PayTags pays={pays} />
+                {ride.transfers > 0 && (
+                  <span className={CHIP}>
+                    <Repeat size={12} aria-hidden />
+                    {t("환승 {n}회", { n: ride.transfers })}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setStepsOpen((o) => !o)}
+                  aria-expanded={stepsOpen}
+                  className="ml-auto inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-xs font-semibold text-primary-strong transition hover:bg-primary-soft"
+                >
+                  {t("타는 법")}
+                  <ChevronDown size={13} className={`transition ${stepsOpen ? "rotate-180" : ""}`} aria-hidden />
+                </button>
+              </div>
+              {stepsOpen && (
+                <div className="mt-2.5 space-y-2.5">
+                  <JourneySteps steps={ride.steps} tone={rideTone(point.name)} />
+                  {ride.rest && <MoreNote text={ride.rest} />}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

@@ -33,6 +33,7 @@ import { usePrefs } from "@/i18n/I18nProvider";
 import PlaceDetail from "./PlaceDetail";
 import { ensureLeg, updateLeg } from "./useTripData";
 import { dayStays, planDays } from "./itinerary";
+import { dayMoves, movePays } from "./transport";
 import { useCollab } from "./useCollab";
 import type { TripDays } from "./useTripDays";
 import type { PointActions } from "./usePointActions";
@@ -157,6 +158,9 @@ export default function PlanTab({
     () => (inBin ? [] : inOverview ? plan.flatMap((d) => d.legs) : adjacentLegs(dayPoints, legs)),
     [legs, dayPoints, inBin, inOverview, plan]
   );
+  // 이 Day 의 이동(열차·택시)과 결제: 일정 머리의 합계, 여행 당일 "다음 이동" 카드에 쓴다
+  const planDay = inBin || inOverview ? undefined : plan.find((d) => d.day === day);
+  const dayPays = useMemo(() => (planDay ? dayMoves(planDay).flatMap(movePays) : undefined), [planDay]);
   const binCount = points.filter((p) => p.day_number == null && !stayIds.has(p.id)).length;
   /** 그날 출발 숙소(전날 밤)·돌아갈 숙소(오늘 밤)와 첫·마지막 장소를 잇는 구간 */
   const stays = useMemo(
@@ -398,11 +402,13 @@ export default function PlanTab({
         areas={areaByDay}
         overview={tripDays > 1}
       />
-      {day === todayDay && <NowCard points={dayPoints} legs={dayLegs} startTravel={stays.start?.leg?.duration_min ?? 0} />}
+      {day === todayDay && (
+        <NowCard points={dayPoints} legs={dayLegs} startTravel={stays.start?.leg?.duration_min ?? 0} planDay={planDay} />
+      )}
       {date && <DayBookings docs={docs} date={date} />}
       {/* 데스크톱: 지도·일정을 본문보다 넓게(최대 1440px) 펼치고, 일정은 제 칸 안에서만 스크롤해 바깥 스크롤은 페이지가 받는다 */}
       <div
-        className={`grid gap-4 lg:gap-6 ${
+        className={`grid grid-cols-1 gap-4 lg:gap-6 ${
           mapBig ? "" : "lg:grid-cols-12 lg:items-start xl:mx-[calc((100%_-_min(1440px,100vw_-_4rem))/2)]"
         }`}
       >
@@ -555,6 +561,7 @@ export default function PlanTab({
               end={stays.end}
               onPickStay={canEdit && !inBin && day < tripDays ? () => setStayNight(day) : undefined}
               social={collab.byPoint}
+              pays={dayPays}
             />
           )}
         </div>

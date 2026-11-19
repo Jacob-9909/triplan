@@ -347,6 +347,18 @@ const en: Record<string, string> = {
   "약 {n}엔": "about ¥{n}",
   "약 {lo}~{hi}엔": "about ¥{lo}–{hi}",
   "{n}장": "×{n}",
+  "타는 법": "How to ride",
+  "도착 후 이동": "after arriving",
+  "메모에 적은 방법": "Ways from your notes",
+  "다음 이동": "Next move",
+  "다음 이동 · {left} 뒤 출발": "Next move · leaves in {left}",
+  "이동 중 · {left} 남음": "On the move · {left} left",
+  "계획 시각": "Planned times",
+  "이코카 찍기": "Tap ICOCA",
+  "GO 앱으로 부르기": "Call with the GO app",
+  "환승 {i}/{n}": "Transfer {i}/{n}",
+  "전체 경로": "Full route",
+  "다른 방법": "Other ways",
 };
 
 export default en;
